@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Импорт меню</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>7. Импорт меню</h1>
+<p><strong>Файл:</strong> <code>templates/admin/page-import.php</code></p>
+<p><strong>Класс:</strong> <code>includes/class-importer.php</code></p>
+
+<h2>Процесс импорта</h2>
+<ol>
+<li><strong>Выбор шаблона</strong> — клик по дню цикла на странице импорта</li>
+<li><strong>Загрузка файла</strong> — выбор .xlsx файла для загрузки</li>
+<li><strong>Предпросмотр</strong> — парсинг xlsx, отображение таблицы блюд</li>
+<li><strong>Подтверждение</strong> — сохранение блюд в БД, редирект в редактор</li>
+</ol>
+<p>Временный файл сохраняется в <code>wp-content/uploads/meal-menu/</code> через WordPress Transients API.</p>
+
+<h2>Парсинг xlsx</h2>
+<p><code>Meal_Menu\Importer::parse($filepath)</code> загружает xlsx через PhpSpreadsheet и извлекает строки данных (начиная с 4-й строки).</p>
+<p>Маппинг русских заголовков на meal_type:</p>
+<pre>Завтрак → breakfast, Завтрак 2 → breakfast2, Обед → lunch,
+Полдник → afternoon_snack, Ужин → dinner, Ужин 2 → dinner2</pre>
+<p>Строки с пустыми названиями блюд и разделов пропускаются.</p>
+</body>
+</html>

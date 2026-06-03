@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Активация и база данных</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}a{color:#c8580a}</style>
+</head>
+<body>
+<h1>1. Активация и база данных</h1>
+<p><strong>Файлы:</strong> <code>includes/class-activator.php</code>, <code>includes/class-db.php</code></p>
+
+<h2>Создание таблиц</h2>
+<p>При активации плагина <code>Activator::activate()</code> создаёт 9 таблиц с префиксом <code>wp_meal_</code>:</p>
+<pre>wp_meal_users           — учётные записи (дублирует WP users, для email-токенов)
+wp_meal_email_tokens    — коды подтверждения email (setup/reset)
+wp_meal_templates       — шаблоны дней цикла (14 × school_type)
+wp_meal_items           — блюда шаблона с nutritional data
+wp_meal_calendar        — привязка шаблонов к датам
+wp_meal_kitchen_settings — настройки организации
+wp_meal_departments     — отделения (школы/корпуса)
+wp_meal_vacations       — каникулы по учебным годам
+wp_meal_oc_monitoring   — данные общественного контроля</pre>
+<p>Создание через <code>$wpdb-&gt;query('CREATE TABLE IF NOT EXISTS ...')</code> — совместимо с MySQL и SQLite (Playground).</p>
+
+<h2>Seed-данные</h2>
+<p>При первом запуске заполняются:</p>
+<ul>
+<li>42 шаблона (14 дней × 3 типа: sm, main, ss)</li>
+<li>Строка kitchen_settings (id=1)</li>
+<li>4 отделения (preschool, sm, main, ss)</li>
+<li>Строка oc_monitoring (id=1)</li>
+</ul>
+
+<h2>Класс DB</h2>
+<p><code>Meal_Menu\DB</code> — порт всех функций из оригинального <code>src/db.php</code> (652 строки) с PDO на <code>$wpdb</code>:</p>
+<ul>
+<li><strong>get_templates/get_template</strong> — CRUD шаблонов</li>
+<li><strong>get_template_items/save_template_items</strong> — блюда шаблона</li>
+<li><strong>get_calendar_day/month/year</strong> — выборка календаря</li>
+<li><strong>save_calendar_day/delete_calendar_day/bulk_save_calendar</strong> — управление датами</li>
+<li><strong>assign_cycle</strong> — автозаполнение цикла</li>
+<li><strong>get_enabled_departments/save_department</strong> — управление отделениями</li>
+<li><strong>get_vacations/add_vacation</strong> — управление каникулами</li>
+<li><strong>get_current_period</strong> — вычисление четвертей/полугодий</li>
+<li><strong>get_oc_monitoring/save_oc_monitoring</strong> — ОК данные</li>
+</ul>
+<p>Все методы используют prepared statements через <code>$wpdb-&gt;prepare()</code>.</p>
+</body>
+</html>

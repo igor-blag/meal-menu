@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Настройки</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>5. Настройки</h1>
+<p><strong>Файл:</strong> <code>templates/admin/page-settings.php</code></p>
+<p><strong>AJAX:</strong> <code>includes/ajax/ajax-save-settings.php</code></p>
+
+<h2>Разделы</h2>
+
+<h3>Образовательная организация</h3>
+<p>Название организации — отображается в шапке Excel-файлов и на публичных страницах.</p>
+
+<h3>Отделения</h3>
+<p>Каждое отделение (школа/корпус) имеет:</p>
+<ul>
+<li><strong>Включено/выключено</strong> — чекбокс активации</li>
+<li><strong>Полное название, краткое название, корпус</strong></li>
+<li><strong>Рабочие дни</strong> — выбор дней недели (Пн–Вс)</li>
+<li><strong>Дней в цикле</strong> — длина цикла меню (синхронизирует количество шаблонов)</li>
+<li><strong>Режимы:</strong> Интернат (вкл/выкл), Публикация xlsx, Без каникул</li>
+<li><strong>Постфикс файлов</strong> — суффикс в имени xlsx-файла (например -sm, -ss)</li>
+<li>Возможность добавить кастомное отделение с уникальным кодом</li>
+</ul>
+
+<h3>Учебный год и каникулы</h3>
+<ul>
+<li>Начало/конец учебного года (ММ-ДД)</li>
+<li>Флаг «Сбрасывать цикл после каникул»</li>
+<li>Список каникул с датами, добавление/удаление/редактирование</li>
+<li>Кнопка «Типовые каникулы РФ» — добавляет осенние, зимние, весенние, летние</li>
+</ul>
+
+<h3>Утверждающее лицо</h3>
+<p>Должность и ФИО — отображаются в шапке типового меню (tm-файл).</p>
+
+<h3>Email-уведомления</h3>
+<ul>
+<li>Email администратора</li>
+<li>Email отправителя и имя</li>
+<li>SMTP-настройки (хост, порт, пользователь, пароль, шифрование)</li>
+</ul>
+<p>Настройки SMTP хранятся в WordPress Options API. При пустом хосте используется стандартный <code>wp_mail()</code>.</p>
+</body>
+</html>

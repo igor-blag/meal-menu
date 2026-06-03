@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Шаблоны циклов</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>4. Шаблоны циклов</h1>
+<p><strong>Файлы:</strong> <code>templates/admin/page-templates.php</code>, <code>templates/admin/page-template-edit.php</code></p>
+<p><strong>POST-обработчики:</strong> <code>admin_post_meal_save_template</code>, <code>admin_post_meal_add_template</code>, <code>admin_post_meal_delete_template</code></p>
+
+<h2>Список шаблонов (page-templates)</h2>
+<ul>
+<li>Табы для переключения между типами школ</li>
+<li>Таблица: №, Название, количество блюд (завтрак/завтрак2/обед)</li>
+<li>Кнопки: «Изменить» → редактор, «Импорт» → импорт xlsx, «✕» → удалить</li>
+<li>Защита от случайного удаления: двукратное нажатие</li>
+<li>Кнопка «+ Добавить день» внизу</li>
+</ul>
+
+<h2>Редактор шаблона (page-template-edit)</h2>
+<p>Форма редактирования блюд для каждого дня цикла:</p>
+<ul>
+<li><strong>Флаг интерната</strong> — включает секции Полдник, Ужин, Ужин 2 (может быть принудительно включён настройками отделения)</li>
+<li><strong>Секции приёма пищи:</strong> Завтрак, Завтрак 2, Обед (Полдник, Ужин, Ужин 2 для интерната)</li>
+<li><strong>Поля строки:</strong> Раздел, № рец., Блюдо, Выход (г), Цена, Ккал, Белки, Жиры, Углеводы</li>
+<li><strong>Добавление строки</strong> — кнопка «+ Добавить блюдо»</li>
+<li><strong>Удаление строки</strong> — кнопка ✕</li>
+<li><strong>TM-файл:</strong> для sm-шаблонов сохраняется дата утверждения и auto-генерируется typical menu xlsx</li>
+</ul>
+
+<h2>Бизнес-логика</h2>
+<p>Цикл — это N-дневная последовательность шаблонов (обычно 10–14 дней). Длина цикла настраивается в настройках отделения. При изменении длины автоматически добавляются или удаляются пустые шаблоны.</p>
+</body>
+</html>

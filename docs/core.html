@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Ядро плагина</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}a{color:#c8580a}</style>
+</head>
+<body>
+<h1>2. Ядро плагина</h1>
+<p><strong>Файл:</strong> <code>includes/class-core.php</code>, <code>includes/class-roles.php</code></p>
+
+<h2>Core::init()</h2>
+<p>Запускается на <code>plugins_loaded</code>. Регистрирует все хуки:</p>
+<ul>
+<li><code>init</code> — шорткоды</li>
+<li><code>admin_menu</code> — 7 страниц админ-панели</li>
+<li><code>admin_enqueue_scripts</code> — CSS/JS для админки</li>
+<li><code>wp_enqueue_scripts</code> — CSS для публичных страниц</li>
+<li><code>wp_ajax_meal_*</code> — 5 AJAX-обработчиков</li>
+<li><code>admin_post_meal_*</code> — 3 POST-обработчика</li>
+<li><code>phpmailer_init</code> — конфигурация SMTP</li>
+<li><code>meal_daily_check</code> — WP-Cron</li>
+</ul>
+
+<h2>Админ-страницы</h2>
+<pre>Календарь     → meal-calendar    → page-calendar.php
+Шаблоны       → meal-templates   → page-templates.php / page-template-edit.php
+Импорт        → meal-import      → page-import.php
+ОК Питания    → meal-oc          → page-oc.php
+Настройки     → meal-settings    → page-settings.php
+Помощь        → meal-help        → page-help.php
+Файлы         → meal-files       → page-files.php</pre>
+<p>Доступ к страницам — через capability <code>manage_meal_menu</code>.</p>
+
+<h2>Роли</h2>
+<p><code>Meal_Menu\Roles</code> создаёт роль <code>meal_manager</code> с capability <code>manage_meal_menu</code>. Администратору (<code>administrator</code>) capability добавляется автоматически.</p>
+
+<h2>Шорткоды</h2>
+<ul>
+<li><code>[meal_calendar type="sm"]</code> — публичный календарь питания</li>
+<li><code>[meal_day date="2025-06-01" type="sm"]</code> — меню на день</li>
+<li><code>[meal_menu type="sm"]</code> — типовое меню (цикл)</li>
+<li><code>[meal_oc]</code> — общественный контроль питания</li>
+</ul>
+
+<h2>AJAX-эндпоинты</h2>
+<pre>meal_save_day       → ajax-save-day.php     — сохранение/удаление/цикл/файлы
+meal_save_settings  → ajax-save-settings.php — настройки, отделения, каникулы
+meal_save_oc        → ajax-save-oc.php      — сохранение ОК
+meal_upload_oc      → ajax-upload-oc.php    — загрузка файлов для ОК
+meal_list_files     → ajax-list-files.php   — список сгенерированных xlsx</pre>
+<p>Все проверяют nonce (<code>meal_menu_nonce</code>) и capability.</p>
+
+<h2>Обработчики admin-post</h2>
+<pre>admin_post_meal_save_template   — сохранение шаблона (POST форма)
+admin_post_meal_add_template    — добавление дня цикла
+admin_post_meal_delete_template — удаление шаблона</pre>
+</body>
+</html>

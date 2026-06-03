@@ -1,0 +1,270 @@
+/* ==============================
+   base — structural styles only
+   colors & fonts via CSS vars
+   ============================== */
+
+.meal-wrapper {
+	font-family: var(--meal-font);
+	font-size: var(--meal-font-size);
+	color: var(--meal-text);
+	background: var(--meal-bg);
+	line-height: 1.6;
+}
+
+/* ── header ──────────────────── */
+.meal-header {
+	background: var(--meal-header-bg);
+	color: var(--meal-header-text);
+	padding: 0 24px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 52px;
+	border-bottom: 3px solid var(--meal-primary);
+}
+.meal-logo {
+	font-size: 1.15rem;
+	text-transform: uppercase;
+	letter-spacing: .12em;
+	color: var(--meal-header-accent);
+}
+.meal-nav { display: flex; gap: 16px; }
+.meal-nav-link {
+	color: var(--meal-header-text);
+	text-decoration: none;
+	font-size: .88rem;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	opacity: .85;
+	transition: opacity .15s;
+}
+.meal-nav-link:hover { opacity: 1; color: var(--meal-header-accent); }
+
+/* ── container ───────────────── */
+.meal-container {
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 28px 20px;
+}
+
+/* ── title ───────────────────── */
+.meal-title {
+	font-size: 1.4rem;
+	text-transform: uppercase;
+	letter-spacing: .1em;
+	color: var(--meal-heading);
+	border-bottom: 2px solid var(--meal-primary);
+	padding-bottom: 8px;
+	margin-bottom: 24px;
+}
+
+/* ── tabs ────────────────────── */
+.meal-tabs {
+	display: flex;
+	border-bottom: 2px solid var(--meal-primary);
+}
+.meal-tab {
+	display: inline-block;
+	padding: 7px 20px;
+	font-size: .82rem;
+	text-transform: uppercase;
+	letter-spacing: .08em;
+	text-decoration: none;
+	color: var(--meal-muted);
+	border: 1px solid var(--meal-border);
+	border-bottom: none;
+	background: var(--meal-bg-alt);
+	cursor: pointer;
+	transition: background .12s, color .12s;
+	margin-right: 2px;
+	position: relative;
+	bottom: -2px;
+}
+.meal-tab:hover { background: var(--meal-primary-pale); color: var(--meal-primary); }
+.meal-tab--active {
+	background: var(--meal-bg-card);
+	color: var(--meal-primary);
+	font-weight: bold;
+	border-color: var(--meal-primary);
+	padding-bottom: 9px;
+}
+
+/* ── month nav ───────────────── */
+.meal-nav-month {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin: 20px 0;
+}
+.meal-nav-month a {
+	font-size: .88rem;
+	text-decoration: none;
+	color: var(--meal-primary);
+}
+.meal-nav-month a.meal-disabled { color: var(--meal-disabled); pointer-events: none; }
+.meal-nav-month h2 {
+	flex: 1;
+	text-align: center;
+	font-size: 1.1rem;
+	text-transform: uppercase;
+	letter-spacing: .1em;
+	color: var(--meal-heading);
+}
+
+/* ── calendar grid ───────────── */
+.meal-cal-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: var(--meal-grid-gap);
+	background: var(--meal-border);
+	border: 2px solid var(--meal-grid-border);
+}
+.meal-cal-head {
+	background: var(--meal-header-bg);
+	color: var(--meal-header-text);
+	text-align: center;
+	padding: 6px 4px;
+	font-size: .78rem;
+	text-transform: uppercase;
+	letter-spacing: .08em;
+}
+.meal-cal-cell {
+	background: var(--meal-cell-empty);
+	min-height: 72px;
+	padding: 6px 8px;
+	transition: background .12s;
+}
+.meal-cal-cell.weekend { background: var(--meal-cell-weekend); }
+.meal-cal-cell.vacation { background: var(--meal-cell-vacation); }
+.meal-cal-cell.holiday { background: var(--meal-cell-holiday); }
+.meal-cal-cell.has-menu { background: var(--meal-cell-has-menu); }
+.meal-cal-cell.today { outline: 2px solid var(--meal-primary); outline-offset: -2px; }
+.meal-cal-cell.empty { background: var(--meal-cell-filler); }
+.meal-cal-day { font-size: 1.15rem; font-weight: bold; color: var(--meal-text); }
+.meal-cal-cell.has-menu .meal-cal-day { color: var(--meal-success); }
+.meal-cal-link {
+	font-size: .72rem;
+	color: var(--meal-primary);
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	margin-top: 4px;
+	display: inline-block;
+	text-decoration: none;
+}
+.meal-cal-link:hover { color: var(--meal-primary-light); text-decoration: underline; }
+.meal-holiday-label { font-size: .72rem; color: var(--meal-muted); margin-top: 4px; }
+
+/* ── legend ──────────────────── */
+.meal-legend {
+	display: flex;
+	gap: 20px;
+	margin-top: 14px;
+	flex-wrap: wrap;
+}
+.meal-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: .8rem;
+	color: var(--meal-muted);
+}
+.meal-legend-dot {
+	width: 14px;
+	height: 14px;
+	border: 1px solid var(--meal-border);
+}
+.meal-legend-dot.has-menu  { background: var(--meal-cell-has-menu); }
+.meal-legend-dot.no-menu   { background: var(--meal-cell-empty); }
+.meal-legend-dot.holiday   { background: var(--meal-cell-holiday); }
+.meal-legend-dot.vacation  { background: var(--meal-cell-vacation); }
+
+/* ── footer ──────────────────── */
+.meal-footer {
+	text-align: center;
+	padding: 16px;
+	font-size: .8rem;
+	color: var(--meal-muted);
+}
+.meal-footer a { color: var(--meal-primary); }
+
+/* ── back link ───────────────── */
+.meal-back-link {
+	font-size: .88rem;
+	color: var(--meal-primary);
+	text-decoration: none;
+}
+.meal-back-link:hover { color: var(--meal-primary-light); }
+
+/* ── notice ──────────────────── */
+.meal-notice {
+	padding: 10px 16px;
+	margin-bottom: 16px;
+	border-left: 4px solid var(--meal-error);
+	background: #fdf0f0;
+	color: var(--meal-error);
+	font-size: .9rem;
+}
+
+/* ── download btn ───────────── */
+.meal-download-btn {
+	display: inline-block;
+	padding: 4px 12px;
+	font-family: inherit;
+	font-size: .8rem;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	text-decoration: none;
+	cursor: pointer;
+	border: 2px solid var(--meal-primary);
+	border-radius: var(--meal-radius);
+	color: var(--meal-primary);
+	background: transparent;
+	transition: background .15s, color .15s;
+}
+.meal-download-btn:hover { background: var(--meal-primary); color: #fff; }
+
+/* ── meal blocks (day menu) ─── */
+.meal-block { margin-bottom: 28px; }
+.meal-block-title {
+	background: var(--meal-header-bg);
+	color: var(--meal-block-title-text);
+	padding: 7px 14px;
+	font-size: .82rem;
+	text-transform: uppercase;
+	letter-spacing: .1em;
+	margin-bottom: 1px;
+}
+
+.meal-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: .85rem;
+}
+.meal-table th {
+	background: var(--meal-bg-panel);
+	color: var(--meal-muted);
+	padding: 5px 8px;
+	text-align: left;
+	font-size: .75rem;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	border: 1px solid var(--meal-border);
+}
+.meal-table td {
+	padding: 6px 10px;
+	border: 1px solid var(--meal-border);
+}
+.meal-table .section-row td {
+	background: var(--meal-bg-panel);
+	font-size: .78rem;
+	text-transform: uppercase;
+	letter-spacing: .08em;
+	color: var(--meal-muted);
+}
+.meal-table .num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── date label on day page ─── */
+.meal-date { font-size: .9rem; color: var(--meal-muted); margin-bottom: 16px; }

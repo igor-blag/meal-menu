@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Общественный контроль питания</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>6. Общественный контроль питания</h1>
+<p><strong>Файл:</strong> <code>templates/admin/page-oc.php</code></p>
+<p><strong>AJAX:</strong> <code>includes/ajax/ajax-save-oc.php</code>, <code>includes/ajax/ajax-upload-oc.php</code></p>
+
+<h2>Назначение</h2>
+<p>Форма для заполнения 7 разделов мониторинга по стандарту ФИС ФРДО. Данные публикуются на отдельной странице и сохраняются в Excel-файл <code>findex.xlsx</code>.</p>
+
+<h2>Разделы</h2>
+<ol>
+<li><strong>Положение и приказ о создании комиссии</strong> — ссылка на PDF</li>
+<li><strong>Формы интерактивного взаимодействия</strong> — горячая линия, чат, форум</li>
+<li><strong>Лечебные/диетические меню</strong> — до 4 типов диет с ссылками</li>
+<li><strong>Анкетирование</strong> — ссылка на анкету и результаты</li>
+<li><strong>Информация о здоровом питании</strong> — страница и материалы</li>
+<li><strong>Результаты контрольных мероприятий</strong> — акты и фото</li>
+<li><strong>Оценка пищевых отходов</strong> — выбор уровня (&lt;20%, 20-30%, 30-40%, &gt;50%)</li>
+</ol>
+
+<h2>Загрузка файлов</h2>
+<p>Каждое URL-поле поддерживает загрузку файлов (PDF, изображения). Файлы сохраняются в <code>wp-content/uploads/meal-menu/oc/</code>. Изображения автоматически оптимизируются: resize до 2000px, JPEG quality 82.</p>
+
+<p>После сохранения автоматически генерируется <code>findex.xlsx</code> из шаблона <code>data/findex-template.xlsx</code>.</p>
+</body>
+</html>

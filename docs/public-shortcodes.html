@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Публичная часть</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>8. Публичная часть (шорткоды)</h1>
+<p><strong>Файлы:</strong> <code>templates/public/calendar.php</code>, <code>day.php</code>, <code>menu.php</code>, <code>oc.php</code></p>
+<p><strong>CSS:</strong> <code>assets/css/public.css</code> (структурные классы) + <code>assets/css/themes.css</code> (палитры/стили)</p>
+
+<h2>Архитектура</h2>
+<p>Все публичные шаблоны используют <strong>BEM-подобные CSS-классы</strong> вместо inline-стилей. Цвета и шрифты задаются через CSS-переменные, которые переопределяются выбранной темой.</p>
+
+<p>Каждый шаблон обёрнут в <code>.meal-wrapper.palette-*.layout-*</code> — это определяет, какие CSS-переменные активны. Классы палитры и стиля берутся из <code>get_option('meal_theme_palette')</code> и <code>get_option('meal_theme_layout')</code>.</p>
+
+<h2>[meal_calendar]</h2>
+<p>Публичный календарь питания для родителей. Показывает только текущий и будущие месяцы.</p>
+<ul>
+<li><strong>CSS-классы:</strong> <code>.meal-header</code>, <code>.meal-tabs</code>, <code>.meal-tab</code>, <code>.meal-nav-month</code>, <code>.meal-cal-grid</code>, <code>.meal-cal-cell</code>, <code>.meal-cal-day</code>, <code>.meal-cal-link</code>, <code>.meal-legend</code></li>
+<li>Табы переключения типов школ</li>
+<li>Навигация по месяцам (предыдущий месяц скрыт, если он в прошлом)</li>
+<li>Цветовая маркировка через CSS-переменные: <code>var(--meal-cell-has-menu)</code>, <code>var(--meal-cell-holiday)</code>, <code>var(--meal-cell-vacation)</code></li>
+<li>Ссылка «Меню» на детальную страницу дня</li>
+</ul>
+
+<h2>[meal_day date="2025-06-01" type="sm"]</h2>
+<p>Детальное меню на конкретный день с таблицей nutritional data.</p>
+<ul>
+<li><strong>CSS-классы:</strong> <code>.meal-block</code>, <code>.meal-block-title</code>, <code>.meal-table</code>, <code>.section-row</code>, <code>.num</code>, <code>.meal-notice</code>, <code>.meal-download-btn</code></li>
+<li>Группировка по приёмам пищи (Завтрак, Завтрак 2, Обед, ...)</li>
+<li>Секции внутри приёма (закуска, 1 блюдо, 2 блюдо, гарнир, напиток)</li>
+<li>Ссылка на скачивание xlsx (если файл существует)</li>
+</ul>
+
+<h2>[meal_menu type="sm"]</h2>
+<p>Типовое N-дневное цикловое меню. Табы для переключения между днями цикла.</p>
+<ul>
+<li>Те же CSS-классы, что и <code>meal_day</code></li>
+<li>Аттрибут <code>day</code> переключается через URL</li>
+</ul>
+
+<h2>[meal_oc]</h2>
+<p>Страница общественного контроля питания. Отображает 7 разделов ФИС ФРДО с данными из БД. Разделы скрываются, если данные не заполнены. Использует CSS-переменные для цветов ссылок и заголовков.</p>
+
+<h2>Шрифты</h2>
+<p>Source Serif 4 (с засечками) — по умолчанию. Файлы <code>.ttf</code> в <code>assets/fonts/</code>, подключаются через <code>@font-face</code> в <code>public.css</code>. Шрифт можно изменить через выбор стиля (sans-serif для Modern и Air).</p>
+</body>
+</html>

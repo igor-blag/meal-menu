@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Excel-генерация</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>9. Excel-генерация</h1>
+<p><strong>Файлы:</strong> <code>includes/class-excel-daily.php</code>, <code>class-excel-tm.php</code>, <code>class-excel-kp.php</code>, <code>class-excel-oc.php</code>, <code>class-importer.php</code></p>
+<p><strong>Зависимость:</strong> PhpSpreadsheet 2.4 (composer)</p>
+
+<h2>Ежедневные xlsx (Excel_Daily)</h2>
+<p>Генерируется при сохранении дня в календаре и при массовом создании файлов.</p>
+<ul>
+<li>Формат: <code>YYYY-MM-DD[-suffix].xlsx</code></li>
+<li>Шапка: школа, отделение/корпус, день</li>
+<li>Секции: Завтрак, Завтрак 2, Обед (+ Полдник, Ужин, Ужин 2 для интерната)</li>
+<li>Жёлтые ячейки — редактируемые, белые — заблокированные (стандартные подразделы)</li>
+<li>Защита листа паролем</li>
+<li>Ландшафтная ориентация A4</li>
+</ul>
+
+<h2>Типовое меню (Excel_TM)</h2>
+<p>Генерируется при сохранении sm-шаблона. Файл: <code>tm{year}-{type}.xlsx</code>.</p>
+<ul>
+<li>Шапка: школа, утверждающее лицо, возрастная категория, дата</li>
+<li>Строки по дням цикла с группировкой по неделям</li>
+<li>Итого по завтраку, итого по обеду, итого за день (с формулами SUM)</li>
+<li>Автоматическое определение количества дней в неделе (5/6/7)</li>
+</ul>
+
+<h2>Годовой план (Excel_KP)</h2>
+<p>Файл: <code>kp{year}-{type}.xlsx</code>. Сетка 10 месяцев × 31 день.</p>
+<ul>
+<li>Строки: январь–июнь, сентябрь–декабрь</li>
+<li>В ячейках — номера дней цикла, назначенных на дату</li>
+<li>При повторной генерации обновляются только значения ячеек (сохраняется форматирование)</li>
+</ul>
+
+<h2>OC мониторинг (Excel_OC)</h2>
+<p>Файл: <code>findex.xlsx</code>. Загружает шаблон <code>data/findex-template.xlsx</code> и подставляет данные из таблицы <code>oc_monitoring</code>.</p>
+
+<h2>Очистка старых файлов</h2>
+<p><code>Excel_Daily::cleanup_old_files()</code> — удаляет xlsx-файлы старше N дней (по умолчанию 14). Вызывается в cron-скрипте.</p>
+</body>
+</html>

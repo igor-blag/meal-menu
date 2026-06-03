@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Тематическая система</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>11. Тематическая система оформления</h1>
+<p><strong>Файлы:</strong> <code>assets/css/themes.css</code>, <code>templates/admin/page-theme.php</code></p>
+<p><strong>Опции:</strong> <code>meal_theme_palette</code>, <code>meal_theme_layout</code></p>
+<p><strong>Хуки:</strong> <code>wp_ajax_meal_save_theme</code></p>
+
+<h2>Архитектура</h2>
+<p>Тема = <strong>Палитра</strong> (цвета) + <strong>Стиль</strong> (шрифт/отступы/радиус). Оба компонента — это CSS-классы с набором CSS-переменных. На HTML-обёртку <code>.meal-wrapper</code> добавляются классы <code>.palette-*</code> и <code>.layout-*</code>, которые переопределяют значения переменных.</p>
+
+<pre>.meal-wrapper { /* значения по умолчанию через var(--meal-*) */ }
+.palette-retro   { --meal-primary: #c8580a; --meal-bg: #fdf4e3; ... }
+.palette-ocean   { --meal-primary: #0a7a7a; --meal-bg: #f0f8f5; ... }
+.layout-classic  { --meal-font: 'Source Serif 4', Georgia, serif; --meal-radius: 2px; }
+.layout-modern   { --meal-font: -apple-system, sans-serif; --meal-radius: 8px; --meal-grid-gap: 4px; }
+.layout-air      { --meal-font: -apple-system, sans-serif; --meal-grid-gap: 4px; }</pre>
+
+<p>Базовый CSS (<code>public.css</code>) использует только <code>var(--meal-*)</code> — никаких жестко заданных цветов. Это позволяет переключать тему без перезагрузки страницы.</p>
+
+<h2>Палитры (7)</h2>
+<pre>
+Ретро         — #c8580a / #1a1100 / #fdf4e3   (оранжево-чёрная, оригинал)
+Футуризм      — #00d4ff / #0a0a1a / #1a1a35   (циан на тёмном, неон)
+Минимализм    — #333333 / #ffffff / #f8f8f8    (монохром, чисто)
+Природа       — #4a7a2a / #2a3a1a / #f5f8f0   (зелёный/земля)
+Академический — #1a56db / #0a1a3a / #f4f6fa   (синий/классический)
+Тёплый        — #8a2020 / #2a0a00 / #faf3ea   (бордовый/золото)
+Океан         — #0a7a7a / #0a2a28 / #f0f8f5   (бирюза/песок)
+</pre>
+
+<h2>Стили (3)</h2>
+<pre>
+Классический — Source Serif 4, плотная сетка, острые углы, рамки
+Современный  — System sans-serif, скругления (8px), отступы между ячейками
+Воздушный    — System sans-serif, без рамок, минимум линий, много whitespace
+</pre>
+
+<h2>Добавление новой палитры</h2>
+<ol>
+<li>Добавить блок в <code>themes.css</code>:
+<pre>.palette-xxx {
+    --meal-primary: ... ; --meal-bg: ... ; /* все 26 переменных */
+}</pre>
+</li>
+<li>Добавить элемент в массив <code>$palettes</code> в <code>page-theme.php</code></li>
+<li>Палитра автоматически появится в админке и preview</li>
+</ol>
+
+<h2>CSS-переменные (полный список)</h2>
+<pre>
+--meal-primary           — основной акцентный цвет
+--meal-primary-light     — светлый акцент (hover)
+--meal-primary-pale      — бледный акцент (фон табов)
+--meal-bg                — фон страницы
+--meal-bg-alt            — альтернативный фон
+--meal-bg-card           — фон карточек
+--meal-bg-panel          — фон панелей (секции)
+--meal-text              — основной текст
+--meal-heading           — заголовки
+--meal-muted             — приглушённый текст
+--meal-border            — рамки
+--meal-success           — зелёный (есть меню)
+--meal-error             — красный (ошибка)
+--meal-disabled          — неактивный
+--meal-header-bg         — фон шапки
+--meal-header-text       — текст шапки
+--meal-header-accent     — акцент шапки (логотип)
+--meal-block-title-text  — текст заголовка блока
+--meal-grid-border       — рамка сетки календаря
+--meal-grid-gap          — отступ между ячейками
+--meal-cell-empty        — пустая ячейка
+--meal-cell-weekend      — выходной день
+--meal-cell-vacation     — каникулы
+--meal-cell-holiday      — явный выходной (без меню)
+--meal-cell-has-menu     — есть меню
+--meal-cell-filler       — ячейка-заполнитель
+--meal-font              — шрифт
+--meal-font-size         — базовый размер шрифта
+--meal-radius            — радиус скругления
+</pre>
+</body>
+</html>

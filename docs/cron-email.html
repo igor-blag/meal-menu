@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Cron и Email</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>10. Cron и Email-уведомления</h1>
+<p><strong>Файл:</strong> <code>includes/class-core.php</code> (метод <code>run_daily_cron</code>)</p>
+<p><strong>Хук:</strong> <code>meal_daily_check</code></p>
+
+<h2>WP-Cron</h2>
+<p>При активации плагина регистрируется ежедневное событие WP-Cron:</p>
+<pre>wp_schedule_event(time(), 'daily', 'meal_daily_check')</pre>
+<p>При деактивации событие снимается: <code>wp_clear_scheduled_hook('meal_daily_check')</code>.</p>
+
+<h2>Что делает cron</h2>
+<ol>
+<li>Считает количество последовательных заполненных рабочих дней начиная с завтрашнего (пропуская выходные и каникулы)</li>
+<li>Если заполнено ≤ 3 рабочих дня — отправляет email-напоминание администратору</li>
+<li>Email содержит: приветствие, описание проблемы, просьбу пополнить расписание</li>
+</ol>
+
+<h2>SMTP-конфигурация</h2>
+<p>На хуке <code>phpmailer_init</code> настройки SMTP из WordPress Options применяются к PHPMailer:</p>
+<ul>
+<li><code>meal_smtp_host</code> — SMTP-сервер</li>
+<li><code>meal_smtp_port</code> — порт (по умолчанию 587)</li>
+<li><code>meal_smtp_user</code> / <code>meal_smtp_pass</code> — учётные данные</li>
+<li><code>meal_smtp_secure</code> — шифрование (tls/ssl)</li>
+<li><code>meal_mail_from</code> / <code>meal_mail_from_name</code> — адрес и имя отправителя</li>
+</ul>
+<p>Если SMTP-хост пустой — используется стандартный <code>wp_mail()</code> (PHP mail или SMTP другого плагина).</p>
+
+<h2>Очистка файлов</h2>
+<p>Cron также может вызывать <code>Excel_Daily::cleanup_old_files()</code> для удаления старых xlsx-файлов.</p>
+</body>
+</html>

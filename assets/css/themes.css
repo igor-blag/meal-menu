@@ -1,0 +1,259 @@
+/* ==============================
+   themes — palettes + layouts
+   apply as .palette-* .layout-*
+   ============================== */
+
+/* ── defaults (reset-safe) ───── */
+.meal-wrapper { }
+
+/* ── retrò — original orange/black ─── */
+.palette-retro {
+	--meal-primary: #c8580a;
+	--meal-primary-light: #e8720f;
+	--meal-primary-pale: #f5d5b0;
+	--meal-bg: #fdf4e3;
+	--meal-bg-alt: #fdf4e3;
+	--meal-bg-card: #ffffff;
+	--meal-bg-panel: #f5e6c8;
+	--meal-text: #2d1800;
+	--meal-heading: #1a1100;
+	--meal-muted: #7a5c3a;
+	--meal-border: #c8a070;
+	--meal-success: #4a7a2a;
+	--meal-error: #a02020;
+	--meal-disabled: #aaaaaa;
+	--meal-header-bg: #1a1100;
+	--meal-header-text: #fdf4e3;
+	--meal-header-accent: #e8720f;
+	--meal-block-title-text: #f5d5b0;
+	--meal-grid-border: #1a1100;
+	--meal-grid-gap: 1px;
+	--meal-cell-empty: #ffffff;
+	--meal-cell-weekend: #f7f0e8;
+	--meal-cell-vacation: #f3eef8;
+	--meal-cell-holiday: #f5ebe0;
+	--meal-cell-has-menu: #eef5e8;
+	--meal-cell-filler: #fdf4e3;
+}
+
+/* ── futuristic — cyan/dark ──── */
+.palette-futuristic {
+	--meal-primary: #00d4ff;
+	--meal-primary-light: #66e5ff;
+	--meal-primary-pale: #003344;
+	--meal-bg: #0a0a1a;
+	--meal-bg-alt: #111128;
+	--meal-bg-card: #1a1a35;
+	--meal-bg-panel: #222244;
+	--meal-text: #e0e0ff;
+	--meal-heading: #ffffff;
+	--meal-muted: #8888aa;
+	--meal-border: #333366;
+	--meal-success: #00ff88;
+	--meal-error: #ff4466;
+	--meal-disabled: #444466;
+	--meal-header-bg: #000011;
+	--meal-header-text: #e0e0ff;
+	--meal-header-accent: #00d4ff;
+	--meal-block-title-text: #88ddff;
+	--meal-grid-border: #333366;
+	--meal-grid-gap: 2px;
+	--meal-cell-empty: #1a1a35;
+	--meal-cell-weekend: #111128;
+	--meal-cell-vacation: #1a1a44;
+	--meal-cell-holiday: #222244;
+	--meal-cell-has-menu: #003322;
+	--meal-cell-filler: #0a0a1a;
+}
+
+/* ── minimal — monochrome ────── */
+.palette-minimal {
+	--meal-primary: #333333;
+	--meal-primary-light: #666666;
+	--meal-primary-pale: #eeeeee;
+	--meal-bg: #ffffff;
+	--meal-bg-alt: #f8f8f8;
+	--meal-bg-card: #ffffff;
+	--meal-bg-panel: #f0f0f0;
+	--meal-text: #222222;
+	--meal-heading: #111111;
+	--meal-muted: #888888;
+	--meal-border: #dddddd;
+	--meal-success: #2a7a4a;
+	--meal-error: #cc3333;
+	--meal-disabled: #cccccc;
+	--meal-header-bg: #222222;
+	--meal-header-text: #ffffff;
+	--meal-header-accent: #ffffff;
+	--meal-block-title-text: #dddddd;
+	--meal-grid-border: #cccccc;
+	--meal-grid-gap: 0;
+	--meal-cell-empty: #ffffff;
+	--meal-cell-weekend: #f5f5f5;
+	--meal-cell-vacation: #f0f0f8;
+	--meal-cell-holiday: #f8f0f0;
+	--meal-cell-has-menu: #f0f8f0;
+	--meal-cell-filler: #f8f8f8;
+}
+
+/* ── nature — green/earth ────── */
+.palette-nature {
+	--meal-primary: #4a7a2a;
+	--meal-primary-light: #6a9a3a;
+	--meal-primary-pale: #d4e8c0;
+	--meal-bg: #f5f8f0;
+	--meal-bg-alt: #eef4e8;
+	--meal-bg-card: #ffffff;
+	--meal-bg-panel: #e0ecd4;
+	--meal-text: #2a3a1a;
+	--meal-heading: #1a2a0a;
+	--meal-muted: #6a7a5a;
+	--meal-border: #b0c8a0;
+	--meal-success: #2a7a4a;
+	--meal-error: #8a3a2a;
+	--meal-disabled: #b0b8a8;
+	--meal-header-bg: #2a3a1a;
+	--meal-header-text: #f0f8ea;
+	--meal-header-accent: #8aba5a;
+	--meal-block-title-text: #c8d8b8;
+	--meal-grid-border: #6a8a4a;
+	--meal-grid-gap: 1px;
+	--meal-cell-empty: #ffffff;
+	--meal-cell-weekend: #eef4e8;
+	--meal-cell-vacation: #e8eef4;
+	--meal-cell-holiday: #f4ece8;
+	--meal-cell-has-menu: #d8ecd0;
+	--meal-cell-filler: #f5f8f0;
+}
+
+/* ── school — blue/academic ──── */
+.palette-school {
+	--meal-primary: #1a56db;
+	--meal-primary-light: #3a76fb;
+	--meal-primary-pale: #d0ddf5;
+	--meal-bg: #f4f6fa;
+	--meal-bg-alt: #e8ecf5;
+	--meal-bg-card: #ffffff;
+	--meal-bg-panel: #dce4f0;
+	--meal-text: #1a2030;
+	--meal-heading: #0a1020;
+	--meal-muted: #5a6a80;
+	--meal-border: #b0c0d8;
+	--meal-success: #1a7a3a;
+	--meal-error: #cc3344;
+	--meal-disabled: #aab0c0;
+	--meal-header-bg: #0a1a3a;
+	--meal-header-text: #e8ecf8;
+	--meal-header-accent: #8ab0f8;
+	--meal-block-title-text: #c0d0e8;
+	--meal-grid-border: #2a4a7a;
+	--meal-grid-gap: 1px;
+	--meal-cell-empty: #ffffff;
+	--meal-cell-weekend: #eef0f5;
+	--meal-cell-vacation: #e8eef8;
+	--meal-cell-holiday: #f5eeea;
+	--meal-cell-has-menu: #e8f5ea;
+	--meal-cell-filler: #f4f6fa;
+}
+
+/* ── warm — burgundy/gold ────── */
+.palette-warm {
+	--meal-primary: #8a2020;
+	--meal-primary-light: #b04040;
+	--meal-primary-pale: #f0d8d8;
+	--meal-bg: #faf3ea;
+	--meal-bg-alt: #f5ece0;
+	--meal-bg-card: #ffffff;
+	--meal-bg-panel: #ede0d0;
+	--meal-text: #2a1a10;
+	--meal-heading: #1a0a00;
+	--meal-muted: #7a6a5a;
+	--meal-border: #d0b8a0;
+	--meal-success: #5a7a2a;
+	--meal-error: #aa2020;
+	--meal-disabled: #b8aaa0;
+	--meal-header-bg: #2a0a00;
+	--meal-header-text: #f5e8d8;
+	--meal-header-accent: #d4a050;
+	--meal-block-title-text: #e8d0c0;
+	--meal-grid-border: #6a4030;
+	--meal-grid-gap: 1px;
+	--meal-cell-empty: #ffffff;
+	--meal-cell-weekend: #f0e8e0;
+	--meal-cell-vacation: #f0eaf4;
+	--meal-cell-holiday: #f4e8e0;
+	--meal-cell-has-menu: #e8f0e0;
+	--meal-cell-filler: #faf3ea;
+}
+
+/* ── ocean — teal/sand ───────── */
+.palette-ocean {
+	--meal-primary: #0a7a7a;
+	--meal-primary-light: #2a9a9a;
+	--meal-primary-pale: #c8ecec;
+	--meal-bg: #f0f8f5;
+	--meal-bg-alt: #e4f0ec;
+	--meal-bg-card: #ffffff;
+	--meal-bg-panel: #d0e8e0;
+	--meal-text: #1a2a28;
+	--meal-heading: #0a1a18;
+	--meal-muted: #5a7a72;
+	--meal-border: #a0c8b8;
+	--meal-success: #2a7a5a;
+	--meal-error: #cc4455;
+	--meal-disabled: #a8b8b0;
+	--meal-header-bg: #0a2a28;
+	--meal-header-text: #e0f4ee;
+	--meal-header-accent: #5ab8a8;
+	--meal-block-title-text: #b8d8d0;
+	--meal-grid-border: #2a6a5a;
+	--meal-grid-gap: 1px;
+	--meal-cell-empty: #ffffff;
+	--meal-cell-weekend: #eaf0ec;
+	--meal-cell-vacation: #eaf0f4;
+	--meal-cell-holiday: #f4ecea;
+	--meal-cell-has-menu: #e0f0e8;
+	--meal-cell-filler: #f0f8f5;
+}
+
+/* ── layouts ─────────────────── */
+
+/* classic — serif, tight grid, sharp corners */
+.layout-classic {
+	--meal-font: 'Source Serif 4', Georgia, serif;
+	--meal-font-size: 15px;
+	--meal-radius: 2px;
+	--meal-grid-gap: 1px;
+}
+
+/* modern — sans-serif, rounded, spaced */
+.layout-modern {
+	--meal-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+	--meal-font-size: 14px;
+	--meal-radius: 8px;
+	--meal-grid-gap: 4px;
+}
+.layout-modern .meal-cal-grid { border-radius: var(--meal-radius); overflow: hidden; }
+.layout-modern .meal-cal-cell { border-radius: 4px; min-height: 80px; }
+.layout-modern .meal-block-title { border-radius: var(--meal-radius) var(--meal-radius) 0 0; }
+.layout-modern .meal-table { border-collapse: separate; border-spacing: 1px; }
+
+/* air — minimal, lots of whitespace, subtle borders */
+.layout-air {
+	--meal-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+	--meal-font-size: 14px;
+	--meal-radius: 0;
+	--meal-grid-gap: 4px;
+}
+.layout-air .meal-cal-grid { border: none; background: transparent; }
+.layout-air .meal-cal-head { background: transparent; color: var(--meal-muted); font-weight: bold; padding-bottom: 10px; }
+.layout-air .meal-cal-cell { border: none; background: transparent; min-height: 60px; padding: 4px; }
+.layout-air .meal-cal-cell.has-menu { background: transparent; }
+.layout-air .meal-cal-cell.today { outline-color: var(--meal-primary); }
+.layout-air .meal-cal-day { font-size: .95rem; }
+.layout-air .meal-table { border-collapse: separate; border-spacing: 0 4px; }
+.layout-air .meal-table th { border: none; background: transparent; padding: 4px 0; }
+.layout-air .meal-table td { border: none; border-bottom: 1px solid var(--meal-border); padding: 6px 0; }
+.layout-air .meal-block-title { border-bottom: 2px solid var(--meal-primary); background: transparent; color: var(--meal-heading); padding-left: 0; }
+.layout-air .meal-header { box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.layout-air .meal-container { padding: 40px 20px; }
