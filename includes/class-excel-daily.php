@@ -222,6 +222,7 @@ class Excel_Daily {
 		$suffix   = $dept_info ? $dept_info['file_suffix'] : ( ( $type !== 'main' ) ? "-{$type}" : '' );
 		$filepath = $meal_dir . '/' . $date_obj->format( 'Y-m-d' ) . $suffix . '.xlsx';
 		( new \PhpOffice\PhpSpreadsheet\Writer\Xlsx( $spreadsheet ) )->save( $filepath );
+		meal_publish_file( $filepath );
 		return $filepath;
 	}
 
@@ -234,6 +235,15 @@ class Excel_Daily {
 			if ( filemtime( $file ) < $cutoff ) {
 				unlink( $file );
 				$deleted++;
+			}
+		}
+		$food_dir = meal_food_dir();
+		if ( is_dir( $food_dir ) ) {
+			foreach ( glob( $food_dir . '*.xlsx' ) ?: array() as $file ) {
+				if ( filemtime( $file ) < $cutoff ) {
+					unlink( $file );
+					$deleted++;
+				}
 			}
 		}
 		return $deleted;

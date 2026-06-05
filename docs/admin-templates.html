@@ -7,14 +7,17 @@
 <h1>4. Шаблоны циклов</h1>
 <p><strong>Файлы:</strong> <code>templates/admin/page-templates.php</code>, <code>templates/admin/page-template-edit.php</code></p>
 <p><strong>POST-обработчики:</strong> <code>admin_post_meal_save_template</code>, <code>admin_post_meal_add_template</code>, <code>admin_post_meal_delete_template</code></p>
+<p><strong>AJAX:</strong> <code>wp_ajax_meal_import_dropzone</code></p>
 
 <h2>Список шаблонов (page-templates)</h2>
 <ul>
 <li>Табы для переключения между типами школ</li>
 <li>Таблица: №, Название, количество блюд (завтрак/завтрак2/обед)</li>
-<li>Кнопки: «Изменить» → редактор, «Импорт» → импорт xlsx, «✕» → удалить</li>
+<li>Кнопки: «Изменить» → редактор, «✕» → удалить</li>
 <li>Защита от случайного удаления: двукратное нажатие</li>
-<li>Кнопка «+ Добавить день» внизу</li>
+<li>Кнопка «+ Добавить день»</li>
+<li><strong>Дропзона</strong> — перетащите XLSX-файлы меню для создания новых дней цикла (пакетная загрузка)</li>
+<li>При активации плагина шаблоны не создаются — изначально пусто</li>
 </ul>
 
 <h2>Редактор шаблона (page-template-edit)</h2>

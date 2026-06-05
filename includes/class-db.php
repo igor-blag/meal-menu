@@ -192,6 +192,24 @@ class DB {
 		return $result;
 	}
 
+	public function get_calendar_range( string $from, string $to, string $type ): array {
+		$c = $this->t( 'calendar' );
+		$t = $this->t( 'templates' );
+		$sql = $this->wpdb->prepare(
+			"SELECT c.*, t.label AS template_label
+			 FROM $c c
+			 LEFT JOIN $t t ON t.id = c.template_id
+			 WHERE c.date BETWEEN %s AND %s AND c.school_type = %s",
+			$from, $to, $type
+		);
+		$rows = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+		$result = array();
+		foreach ( $rows as $row ) {
+			$result[ $row['date'] ] = $row;
+		}
+		return $result;
+	}
+
 	public function get_calendar_year( int $year, string $type ): array {
 		$from = sprintf( '%04d-01-01', $year );
 		$to   = sprintf( '%04d-12-31', $year );
@@ -214,7 +232,7 @@ class DB {
 		return $result;
 	}
 
-	public function save_calendar_day( string $date, ?int $template_id, ?string $school, ?string $dept, string $type = 'sm', int $is_cycle_start = 0 ): void {
+	public function save_calendar_day( string $date, ?int $template_id, ?string $school, ?string $dept, string $type = 'sm', int $is_cycle_start = 0, int $iterate_number = 0 ): void {
 		$c = $this->t( 'calendar' );
 		$existing = $this->get_calendar_day( $date, $type );
 		$data = array(
@@ -222,13 +240,14 @@ class DB {
 			'school'         => $school,
 			'dept'           => $dept,
 			'is_cycle_start' => $is_cycle_start ? 1 : 0,
+			'iterate_number' => $iterate_number ? 1 : 0,
 		);
 		if ( $existing ) {
 			$this->wpdb->update(
 				$c,
 				$data,
 				array( 'date' => $date, 'school_type' => $type ),
-				array( '%d', '%s', '%s', '%d' ),
+				array( '%d', '%s', '%s', '%d', '%d' ),
 				array( '%s', '%s' )
 			);
 		} else {
@@ -237,7 +256,7 @@ class DB {
 			$this->wpdb->insert(
 				$c,
 				$data,
-				array( '%s', '%d', '%s', '%s', '%d', '%s' )
+				array( '%d', '%s', '%s', '%d', '%d', '%s', '%s' )
 			);
 		}
 	}
@@ -248,7 +267,7 @@ class DB {
 		$this->wpdb->query( $sql );
 	}
 
-	public function assign_cycle( string $start_date, int $start_day, string $type, ?string $school, ?string $dept, ?string $end_date = null, array $workdays = array( 1, 2, 3, 4, 5 ) ): int {
+	public function assign_cycle( string $start_date, int $start_day, string $type, ?string $school, ?string $dept, ?string $end_date = null, array $workdays = array( 1, 2, 3, 4, 5 ), bool $overwrite = false ): int {
 		$templates = $this->get_templates_ordered( $type );
 		$cycle_len = count( $templates );
 		if ( $cycle_len === 0 ) {
@@ -265,16 +284,22 @@ class DB {
 
 		while ( $cur <= $end ) {
 			$wday = (int) $cur->format( 'N' );
-			if ( in_array( $wday, $workdays, true ) ) {
-				$date_str = $cur->format( 'Y-m-d' );
-				$existing = $this->get_calendar_day( $date_str, $type );
-				if ( $existing === null || $existing['template_id'] !== null ) {
+			$date_str = $cur->format( 'Y-m-d' );
+			$existing = $this->get_calendar_day( $date_str, $type );
+
+			$is_scheduled = in_array( $wday, $workdays, true );
+			$is_user_holiday = $existing && $existing['template_id'] === null && !$existing['iterate_number'];
+			$is_user_workday = $existing && $existing['template_id'] === null && $existing['iterate_number'];
+			$has_menu = $existing && $existing['template_id'] !== null;
+
+			if ( ($is_scheduled && !$is_user_holiday) || $is_user_workday ) {
+				if ( $overwrite || !$has_menu ) {
 					$day_num = $keys[ $idx % $cycle_len ];
 					$tpl_id  = $templates[ $day_num ];
 					$this->save_calendar_day( $date_str, $tpl_id, $school, $dept, $type, $first ? 1 : 0 );
-					$idx++;
 					$count++;
 				}
+				$idx++;
 				$first = false;
 			}
 			$cur->modify( '+1 day' );
@@ -293,11 +318,17 @@ class DB {
 				continue;
 			}
 
+			$existing = $this->get_calendar_day( $date, $type );
+			$iterate_number = $d['iterate_number'] ?? ( $existing ? $existing['iterate_number'] : 0 );
+
 			if ( $day_num === -1 ) {
 				$this->delete_calendar_day( $date, $type );
 			} elseif ( $day_num === 0 ) {
-				$this->save_calendar_day( $date, null, $d['school'] ?? null, $d['dept'] ?? null, $type, 0 );
+				$this->save_calendar_day( $date, null, $d['school'] ?? null, $d['dept'] ?? null, $type, 0, $iterate_number );
 			} else {
+				if ( $existing && $existing['template_id'] !== null ) {
+					continue;
+				}
 				$tpl_id = $templates[ $day_num ] ?? null;
 				if ( $tpl_id ) {
 					$this->save_calendar_day(
@@ -306,7 +337,8 @@ class DB {
 						$d['school'] ?? null,
 						$d['dept'] ?? null,
 						$type,
-						! empty( $d['is_cycle_start'] ) ? 1 : 0
+						! empty( $d['is_cycle_start'] ) ? 1 : 0,
+						$iterate_number
 					);
 				}
 			}
@@ -419,7 +451,7 @@ class DB {
 	public function save_department( int $id, array $data ): void {
 		$t       = $this->t( 'departments' );
 		$allowed = array( 'label', 'label_short', 'dept_name', 'is_enabled', 'is_builtin',
-			'is_boarding', 'workdays', 'publish_xlsx', 'file_suffix', 'sort_order', 'note', 'ignore_vacations' );
+			'is_boarding', 'workdays', 'publish_xlsx', 'file_suffix', 'sort_order', 'note', 'ignore_vacations', 'merged_with' );
 		$update  = array();
 		$formats = array();
 		foreach ( $data as $k => $v ) {

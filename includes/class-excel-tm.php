@@ -280,6 +280,7 @@ class Excel_TM {
 		}
 		$filepath = $meal_dir . "/tm{$year}-{$school_type}.xlsx";
 		( new \PhpOffice\PhpSpreadsheet\Writer\Xlsx( $spreadsheet ) )->save( $filepath );
+		meal_publish_file( $filepath );
 		return $filepath;
 	}
 

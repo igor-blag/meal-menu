@@ -1,1 +1,2 @@
-vendor/
+# vendor/ — коммитится, т.к. плагин работает через симлинк и composer
+# не везде доступен (не хватает ext-zip, ext-gd, ext-fileinfo)

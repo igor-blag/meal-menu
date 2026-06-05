@@ -20,12 +20,14 @@ class Core {
 		add_action( 'wp_ajax_meal_upload_oc', array( $self, 'ajax_upload_oc' ) );
 		add_action( 'wp_ajax_meal_list_files', array( $self, 'ajax_list_files' ) );
 		add_action( 'wp_ajax_meal_save_theme', array( $self, 'ajax_save_theme' ) );
+		add_action( 'wp_ajax_meal_import_dropzone', array( $self, 'ajax_import_dropzone' ) );
 		add_action( 'phpmailer_init', array( $self, 'configure_smtp' ) );
 		add_action( 'admin_post_meal_save_template', array( $self, 'handle_save_template' ) );
 		add_action( 'admin_post_meal_add_template', array( $self, 'handle_add_template' ) );
 		add_action( 'admin_post_meal_delete_template', array( $self, 'handle_delete_template' ) );
 		add_action( 'admin_post_meal_import_confirm', array( $self, 'handle_import_confirm' ) );
 		add_action( 'admin_post_meal_import_upload', array( $self, 'handle_import_upload' ) );
+		add_action( 'admin_post_meal_export_data', array( $self, 'handle_export_data' ) );
 		add_action( 'meal_daily_check', array( $self, 'run_daily_cron' ) );
 		add_filter( 'cron_schedules', array( $self, 'add_cron_schedules' ) );
 
@@ -92,11 +94,20 @@ class Core {
 
 		add_submenu_page(
 			'meal-calendar',
-			__( 'Настройки', 'meal-menu' ),
-			__( 'Настройки', 'meal-menu' ),
+			__( 'Настройки пищеблока', 'meal-menu' ),
+			__( 'Настройки пищеблока', 'meal-menu' ),
 			'manage_meal_menu',
 			'meal-settings',
 			array( $this, 'render_settings' )
+		);
+
+		add_submenu_page(
+			'meal-calendar',
+			__( 'Настройки плагина', 'meal-menu' ),
+			__( 'Настройки плагина', 'meal-menu' ),
+			'manage_meal_menu',
+			'meal-plugin-settings',
+			array( $this, 'render_plugin_settings' )
 		);
 
 		add_submenu_page(
@@ -204,7 +215,11 @@ class Core {
 	}
 
 	public function render_settings(): void {
-		$this->render_admin_template( 'settings' );
+		$this->render_admin_template( 'kitchen-settings' );
+	}
+
+	public function render_plugin_settings(): void {
+		$this->render_admin_template( 'plugin-settings' );
 	}
 
 	public function render_help(): void {
@@ -257,7 +272,10 @@ class Core {
 	}
 
 	public function ajax_save_day(): void {
-		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		$data = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
+		if ( ! wp_verify_nonce( $data['nonce'] ?? '', 'meal_menu_nonce' ) ) {
+			wp_die( -1 );
+		}
 		if ( ! current_user_can( 'manage_meal_menu' ) ) {
 			wp_die( -1 );
 		}
@@ -266,7 +284,11 @@ class Core {
 	}
 
 	public function ajax_save_settings(): void {
-		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		$data = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
+		$nonce = $data['nonce'] ?? '';
+		if ( ! wp_verify_nonce( $nonce, 'meal_menu_nonce' ) ) {
+			wp_die( -1 );
+		}
 		if ( ! current_user_can( 'manage_meal_menu' ) ) {
 			wp_die( -1 );
 		}
@@ -302,17 +324,52 @@ class Core {
 	}
 
 	public function ajax_save_theme(): void {
+		$data = json_decode( file_get_contents( 'php://input' ), true );
+		if ( ! $data || ! wp_verify_nonce( $data['nonce'] ?? '', 'meal_menu_nonce' ) ) {
+			wp_die( -1 );
+		}
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+		update_option( 'meal_theme_palette', sanitize_key( $data['palette'] ?? 'retro' ) );
+		update_option( 'meal_theme_layout', sanitize_key( $data['layout'] ?? 'classic' ) );
+		wp_send_json( array( 'ok' => true ) );
+	}
+
+	public function ajax_import_dropzone(): void {
 		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
 		if ( ! current_user_can( 'manage_meal_menu' ) ) {
 			wp_die( -1 );
 		}
-		$data = json_decode( file_get_contents( 'php://input' ), true );
-		if ( $data ) {
-			update_option( 'meal_theme_palette', sanitize_key( $data['palette'] ?? 'retro' ) );
-			update_option( 'meal_theme_layout', sanitize_key( $data['layout'] ?? 'classic' ) );
-			wp_send_json( array( 'ok' => true ) );
+
+		$type = sanitize_key( $_POST['type'] ?? 'sm' );
+		if ( ! isset( $_FILES['xlsx'] ) || $_FILES['xlsx']['error'] !== UPLOAD_ERR_OK ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка загрузки файла', 'meal-menu' ) ) );
 		}
-		wp_send_json( array( 'ok' => false, 'error' => 'Invalid data' ) );
+
+		$allowed = array(
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'application/zip',
+			'application/octet-stream',
+		);
+		if ( ! in_array( mime_content_type( $_FILES['xlsx']['tmp_name'] ), $allowed, true ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверный формат файла', 'meal-menu' ) ) );
+		}
+
+		try {
+			$items = \Meal_Menu\Importer::parse( $_FILES['xlsx']['tmp_name'] );
+			if ( empty( $items ) ) {
+				wp_send_json( array( 'ok' => false, 'error' => __( 'В файле нет блюд', 'meal-menu' ) ) );
+			}
+
+			$db    = DB::instance();
+			$tpl_id = $db->add_template( $type );
+			$db->save_template_items( $tpl_id, $items );
+
+			wp_send_json( array( 'ok' => true, 'id' => $tpl_id ) );
+		} catch ( \Exception $e ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка обработки файла', 'meal-menu' ) ) );
+		}
 	}
 
 	public function handle_save_template(): void {
@@ -455,13 +512,17 @@ class Core {
 		echo "  02. Ядро плагина          → " . esc_url( $base . 'core.html' ) . "\n";
 		echo "  03. Календарь питания     → " . esc_url( $base . 'admin-calendar.html' ) . "\n";
 		echo "  04. Шаблоны циклов        → " . esc_url( $base . 'admin-templates.html' ) . "\n";
-		echo "  05. Настройки             → " . esc_url( $base . 'admin-settings.html' ) . "\n";
-		echo "  06. ОК Питания            → " . esc_url( $base . 'admin-oc.html' ) . "\n";
-		echo "  07. Импорт меню           → " . esc_url( $base . 'admin-import.html' ) . "\n";
-		echo "  08. Публичная часть       → " . esc_url( $base . 'public-shortcodes.html' ) . "\n";
-		echo "  09. Excel-генерация       → " . esc_url( $base . 'excel-generators.html' ) . "\n";
-		echo "  10. Cron и Email          → " . esc_url( $base . 'cron-email.html' ) . "\n";
-		echo "  11. Темы оформления       → " . esc_url( $base . 'themes.html' ) . "\n";
+		echo "  05. Настройки пищеблока   → " . esc_url( $base . 'admin-settings.html' ) . "\n";
+		echo "  06. Настройки плагина     → " . esc_url( $base . 'plugin-settings.html' ) . "\n";
+		echo "  07. ОК Питания            → " . esc_url( $base . 'admin-oc.html' ) . "\n";
+		echo "  08. Импорт меню           → " . esc_url( $base . 'admin-import.html' ) . "\n";
+		echo "  09. Публичная часть       → " . esc_url( $base . 'public-shortcodes.html' ) . "\n";
+		echo "  10. Excel-генерация       → " . esc_url( $base . 'excel-generators.html' ) . "\n";
+		echo "  11. Cron и Email          → " . esc_url( $base . 'cron-email.html' ) . "\n";
+		echo "  12. Темы оформления       → " . esc_url( $base . 'themes.html' ) . "\n";
+		echo "  13. Публикация в /food/   → " . esc_url( $base . 'publish-food.html' ) . "\n";
+		echo "  14. Импорт/Экспорт данных → " . esc_url( $base . 'plugin-settings.html#import-export' ) . "\n";
+		echo "  15. Сброс данных          → " . esc_url( $base . 'plugin-settings.html#reset' ) . "\n";
 		echo "=================================================================\n";
 		echo "  Таблицы БД: wp_meal_users, wp_meal_templates, wp_meal_items,\n";
 		echo "  wp_meal_calendar, wp_meal_kitchen_settings, wp_meal_departments,\n";
@@ -551,6 +612,37 @@ class Core {
 			}
 		}
 		wp_redirect( admin_url( 'admin.php?page=meal-import' ) );
+		exit;
+	}
+
+	public function handle_export_data(): void {
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+		check_admin_referer( 'meal_export_data' );
+
+		global $wpdb;
+		$p     = $wpdb->prefix . 'meal_';
+		$tables = array( 'templates', 'items', 'calendar', 'kitchen_settings', 'departments', 'vacations', 'oc_monitoring', 'users', 'email_tokens' );
+
+		$data = array();
+		foreach ( $tables as $table ) {
+			$data[ $table ] = $wpdb->get_results( "SELECT * FROM {$p}{$table}", ARRAY_A ) ?: array();
+		}
+
+		$options = array();
+		foreach ( array( 'meal_admin_email', 'meal_mail_from', 'meal_mail_from_name', 'meal_smtp_host', 'meal_smtp_user', 'meal_smtp_pass', 'meal_smtp_port', 'meal_smtp_secure', 'meal_food_dir', 'meal_theme_palette', 'meal_theme_layout', 'meal_delete_after_days' ) as $opt ) {
+			$val = get_option( $opt, null );
+			if ( $val !== null ) {
+				$options[ $opt ] = $val;
+			}
+		}
+		$data['_options'] = $options;
+
+		$filename = 'meal-menu-' . current_time( 'Y-m-d' ) . '.json';
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		echo json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE );
 		exit;
 	}
 

@@ -28,6 +28,7 @@ class Excel_KP {
 		}
 
 		( new \PhpOffice\PhpSpreadsheet\Writer\Xlsx( $spreadsheet ) )->save( $filepath );
+		meal_publish_file( $filepath );
 		return $filepath;
 	}
 

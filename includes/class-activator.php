@@ -123,6 +123,7 @@ class Activator {
 			sort_order smallint NOT NULL default 0,
 			note varchar(255) default NULL,
 			ignore_vacations tinyint(1) NOT NULL default 0,
+			merged_with varchar(20) default NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY code (code)
 		)";
@@ -169,30 +170,15 @@ class Activator {
 		foreach ( $sql as $create ) {
 			$wpdb->query( $create );
 		}
+
+		$d = $wpdb->prefix . 'meal_departments';
+		if ( ! $wpdb->get_var( "SELECT sql FROM sqlite_master WHERE type='table' AND name='$d' AND sql LIKE '%merged_with%'" ) ) {
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN merged_with varchar(20) default NULL" );
+		}
 	}
 
 	private static function seed_default_data(): void {
 		global $wpdb;
-
-		$templates_table = $wpdb->prefix . 'meal_templates';
-		$count = $wpdb->get_var( "SELECT COUNT(*) FROM `$templates_table`" );
-		if ( $count > 0 ) {
-			return;
-		}
-
-		foreach ( array( 'sm', 'main', 'ss' ) as $type ) {
-			for ( $d = 1; $d <= 14; $d++ ) {
-				$wpdb->insert(
-					$templates_table,
-					array(
-						'day_number'  => $d,
-						'school_type' => $type,
-						'label'       => "День $d",
-					),
-					array( '%d', '%s', '%s' )
-				);
-			}
-		}
 
 		$s = $wpdb->prefix . 'meal_kitchen_settings';
 		if ( ! $wpdb->get_var( "SELECT COUNT(*) FROM `$s`" ) ) {
@@ -218,7 +204,7 @@ class Activator {
 				'publish_xlsx' => 1, 'file_suffix' => '', 'sort_order' => 30,
 			) );
 			$wpdb->insert( $d, array(
-				'code' => 'ss', 'label' => 'Старшая школа', 'label_short' => 'Стар.',
+				'code' => 'ss', 'label' => 'Средняя школа', 'label_short' => 'Ср.',
 				'is_enabled' => 0, 'is_builtin' => 1, 'is_boarding' => 0,
 				'publish_xlsx' => 1, 'file_suffix' => '-ss', 'sort_order' => 40,
 				'note' => 'Включайте только если меню отличается от основной школы',

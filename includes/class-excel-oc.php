@@ -65,6 +65,7 @@ class Excel_OC {
 		}
 		$filepath = $meal_dir . '/findex.xlsx';
 		( new \PhpOffice\PhpSpreadsheet\Writer\Xlsx( $spreadsheet ) )->save( $filepath );
+		meal_publish_file( $filepath );
 		return $filepath;
 	}
 }

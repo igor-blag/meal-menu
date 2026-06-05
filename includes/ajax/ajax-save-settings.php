@@ -1,5 +1,4 @@
 <?php
-$data   = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
 $action = $data['action'] ?? ( $_POST['action'] ?? '' );
 
 try {
@@ -19,6 +18,15 @@ try {
 				sanitize_text_field( $data['academic_year_end'] ?? '05-31' ),
 				(int) ( $data['reset_cycle_after_vacation'] ?? 0 )
 			);
+		}
+
+		if ( isset( $data['meal_food_dir'] ) ) {
+			$path = sanitize_text_field( $data['meal_food_dir'] );
+			if ( $path === '' || $path === ABSPATH . 'food' || $path === ABSPATH . 'food/' ) {
+				delete_option( 'meal_food_dir' );
+			} else {
+				update_option( 'meal_food_dir', untrailingslashit( $path ) );
+			}
 		}
 
 		$smtp_keys = array( 'meal_admin_email', 'meal_mail_from', 'meal_mail_from_name', 'meal_smtp_host', 'meal_smtp_user', 'meal_smtp_pass', 'meal_smtp_port', 'meal_smtp_secure' );
@@ -114,6 +122,63 @@ try {
 
 		$vacations = $db->get_vacations( $academic_year );
 		wp_send_json( array( 'ok' => true, 'vacations' => $vacations, 'message' => __( 'Типовые каникулы добавлены', 'meal-menu' ) ) );
+
+	} elseif ( $action === 'import_data' ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Недостаточно прав', 'meal-menu' ) ) );
+		}
+		$payload = $data['payload'] ?? null;
+		if ( ! $payload || ! is_array( $payload ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверный формат данных', 'meal-menu' ) ) );
+		}
+
+		global $wpdb;
+		$p     = $wpdb->prefix . 'meal_';
+		$parents = array( 'templates', 'users', 'departments', 'kitchen_settings', 'vacations', 'oc_monitoring' );
+		$children = array( 'items', 'calendar', 'email_tokens' );
+		$all = array_merge( $children, $parents );
+
+		try {
+			foreach ( $all as $table ) {
+				$wpdb->query( "DELETE FROM {$p}{$table}" );
+			}
+
+			foreach ( $parents as $table ) {
+				if ( empty( $payload[ $table ] ) ) {
+					continue;
+				}
+				foreach ( $payload[ $table ] as $row ) {
+					$wpdb->insert( "{$p}{$table}", $row );
+				}
+			}
+
+			foreach ( $children as $table ) {
+				if ( empty( $payload[ $table ] ) ) {
+					continue;
+				}
+				foreach ( $payload[ $table ] as $row ) {
+					$wpdb->insert( "{$p}{$table}", $row );
+				}
+			}
+
+			if ( ! empty( $payload['_options'] ) ) {
+				foreach ( $payload['_options'] as $opt => $val ) {
+					update_option( $opt, $val );
+				}
+			}
+		} catch ( \Exception $e ) {
+			wp_send_json( array( 'ok' => false, 'error' => $e->getMessage() ) );
+		}
+
+		wp_send_json( array( 'ok' => true ) );
+
+	} elseif ( $action === 'reset_data' ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Недостаточно прав', 'meal-menu' ) ) );
+		}
+		\Meal_Menu\Activator::uninstall();
+		\Meal_Menu\Activator::activate();
+		wp_send_json( array( 'ok' => true ) );
 
 	} else {
 		wp_send_json( array( 'ok' => false, 'error' => __( 'Неизвестное действие', 'meal-menu' ) ) );

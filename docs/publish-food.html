@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Публикация в /food/</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>12. Публикация XLSX в /food/</h1>
+<p><strong>Доработка:</strong> 2026-06-03</p>
+<p>Все сгенерированные XLSX-файлы автоматически копируются в папку <code>/food/</code> корневого каталога WordPress (рядом с <code>wp-config.php</code>). Это нужно для интеграции с внешним мониторинговым ботом ФЦМПО, который забирает файлы из <code>https://school.ru/food/*.xlsx</code>.</p>
+
+<h2>Как это работает</h2>
+<ol>
+<li>Функция <code>meal_food_dir()</code> (в <code>meal-menu.php</code>) возвращает путь к папке публикации. Сначала проверяет опцию <code>meal_food_dir</code>, при пустом значении — <code>ABSPATH . 'food/'</code>.</li>
+<li>Функция <code>meal_publish_file($filepath)</code> копирует готовый XLSX в эту директорию.</li>
+<li>Каждый Excel-генератор вызывает <code>meal_publish_file()</code> после сохранения файла в штатную папку <code>wp-content/uploads/meal-menu/</code>.</li>
+</ol>
+
+<h2>Настройка через админку</h2>
+<p>Поле <strong>«Путь к папке публикации»</strong> находится на странице <strong>Питание → Настройки</strong> в панели «Публикация XLSX-файлов».</p>
+<ul>
+<li>Оставьте поле пустым — будет использован путь по умолчанию: <code><?= esc_html( ABSPATH . 'food/' ) ?></code></li>
+<li>Укажите свой путь, например <code>/home/site/public_html/food</code> или <code>C:/inetpub/wwwroot/food</code></li>
+<li>Трейлинг-слеш не обязателен — добавляется автоматически</li>
+</ul>
+
+<h2>Затронутые файлы</h2>
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;background:#fff">
+<tr style="background:#f5e6c8"><th>Файл</th><th>Изменение</th></tr>
+<tr><td><code>meal-menu.php</code></td><td>Добавлена функция <code>meal_food_dir()</code> и <code>meal_publish_file()</code></td></tr>
+<tr><td><code>includes/class-excel-daily.php</code></td><td><code>generate()</code> — вызов <code>meal_publish_file()</code> после сохранения; <code>cleanup_old_files()</code> — очистка также и <code>/food/</code></td></tr>
+<tr><td><code>includes/class-excel-tm.php</code></td><td><code>generate()</code> — вызов <code>meal_publish_file()</code> после сохранения</td></tr>
+<tr><td><code>includes/class-excel-kp.php</code></td><td><code>generate()</code> — вызов <code>meal_publish_file()</code> после сохранения</td></tr>
+<tr><td><code>includes/class-excel-oc.php</code></td><td><code>generate()</code> — вызов <code>meal_publish_file()</code> после сохранения</td></tr>
+<tr><td><code>templates/admin/page-settings.php</code></td><td>Добавлена панель «Публикация XLSX-файлов» с полем ввода пути</td></tr>
+<tr><td><code>includes/ajax/ajax-save-settings.php</code></td><td>Сохранение/сброс опции <code>meal_food_dir</code></td></tr>
+</table>
+
+<h2>Программная конфигурация</h2>
+<p>Путь можно переопределить через фильтр (фильтр срабатывает только при пустой опции):</p>
+<pre>add_filter( 'meal_food_dir', function() {
+    return '/custom/path/to/food/';
+} );</pre>
+<p>Или напрямую через <code>update_option('meal_food_dir', '/custom/path')</code>.</p>
+
+<h2>Очистка</h2>
+<p><code>Excel_Daily::cleanup_old_files()</code> удаляет устаревшие XLSX-файлы и из <code>wp-content/uploads/meal-menu/</code>, и из папки публикации. Период хранения (по умолчанию 14 дней) настраивается опцией <code>meal_delete_after_days</code>.</p>
+
+<h2>Права доступа</h2>
+<p>Папка публикации должна быть доступна для записи веб-сервером (chmod 755 или 775). Плагин создаёт её автоматически при первой публикации через <code>wp_mkdir_p()</code>.</p>
+</body>
+</html>

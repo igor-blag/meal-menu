@@ -50,17 +50,9 @@ foreach ( $departments as $d ) {
 				</div>
 				<div class="dept-body">
 					<div class="form-row">
-						<div class="field">
-							<label><?php _e( 'Полное название', 'meal-menu' ); ?></label>
-							<input type="text" class="inp-label" value="<?php echo esc_attr( $d['label'] ); ?>">
-						</div>
-						<div class="field">
-							<label><?php _e( 'Краткое (для вкладок)', 'meal-menu' ); ?></label>
-							<input type="text" class="inp-label-short" value="<?php echo esc_attr( $d['label_short'] ); ?>">
-						</div>
-						<div class="field">
-							<label><?php _e( 'Отд./корпус', 'meal-menu' ); ?></label>
-							<input type="text" class="inp-dept-name" value="<?php echo esc_attr( $d['dept_name'] ); ?>" placeholder="<?php esc_attr_e( 'Корпус 1', 'meal-menu' ); ?>">
+						<div class="field" style="max-width:350px">
+							<label><?php _e( 'Название', 'meal-menu' ); ?></label>
+							<input type="text" class="inp-dept-name" value="<?php echo esc_attr( $d['dept_name'] ); ?>" placeholder="<?php echo esc_attr( $d['code'] === 'main' ? 'Старшеклассники' : $d['label'] ); ?>" data-code="<?php echo esc_attr( $d['code'] ); ?>">
 						</div>
 					</div>
 
@@ -116,6 +108,19 @@ foreach ( $departments as $d ) {
 							<?php else: ?>
 								<input type="text" class="inp-suffix" value="<?php echo esc_attr( $d['file_suffix'] ); ?>" placeholder="-custom">
 							<?php endif; ?>
+						</div>
+					</div>
+
+					<div class="form-row">
+						<div class="field" style="max-width:300px">
+							<label><?php _e( 'Объединить календарь с', 'meal-menu' ); ?></label>
+							<select class="sel-merge">
+								<option value="">—</option>
+								<?php foreach ( $departments as $other ): if ( $other['id'] === $d['id'] ) continue; ?>
+								<option value="<?php echo esc_attr( $other['code'] ); ?>"<?php echo $d['merged_with'] === $other['code'] ? ' selected' : ''; ?>><?php echo esc_html( $other['label'] ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным. Отделение с таким же количеством шаблонов.', 'meal-menu' ); ?></span>
 						</div>
 					</div>
 				</div>
@@ -207,84 +212,18 @@ foreach ( $departments as $d ) {
 		</div>
 	</div>
 
-	<!-- Публикация файлов -->
-	<div class="panel">
-		<div class="panel-title"><?php _e( 'Публикация XLSX-файлов', 'meal-menu' ); ?></div>
-		<p class="text-muted mb-2">
-			<?php _e( 'Путь к папке, куда копируются сгенерированные Excel-файлы для доступа из внешних систем (мониторинг ФЦМПО). По умолчанию — папка /food/ в корне сайта.', 'meal-menu' ); ?>
-		</p>
-		<div class="form-group">
-			<label for="meal_food_dir"><?php _e( 'Путь к папке публикации', 'meal-menu' ); ?></label>
-			<input type="text" id="meal_food_dir" class="form-control"
-				value="<?php echo esc_attr( get_option( 'meal_food_dir', '' ) ); ?>"
-				placeholder="/food">
-			<p class="text-muted" style="margin-top:4px;font-size:.78rem">
-				<?php _e( 'Оставьте пустым — файлы будут доступны по адресу:', 'meal-menu' ); ?>
-				<code><?php echo esc_url( home_url( '/food/' ) ); ?></code>
-			</p>
-		</div>
-	</div>
-
-	<!-- Email -->
-	<div class="panel">
-		<div class="panel-title"><?php _e( 'Email-уведомления', 'meal-menu' ); ?></div>
-		<div class="form-group">
-			<label for="meal_admin_email"><?php _e( 'Email администратора (на него приходят напоминания)', 'meal-menu' ); ?></label>
-			<input type="email" id="meal_admin_email" class="form-control"
-				value="<?php echo esc_attr( get_option( 'meal_admin_email', '' ) ); ?>"
-				placeholder="admin@school.ru">
-		</div>
-		<div class="form-group">
-			<label for="meal_mail_from"><?php _e( 'Email отправителя', 'meal-menu' ); ?></label>
-			<input type="email" id="meal_mail_from" class="form-control"
-				value="<?php echo esc_attr( get_option( 'meal_mail_from', 'noreply@school.ru' ) ); ?>"
-				placeholder="noreply@school.ru">
-		</div>
-		<div class="form-group">
-			<label for="meal_mail_from_name"><?php _e( 'Имя отправителя', 'meal-menu' ); ?></label>
-			<input type="text" id="meal_mail_from_name" class="form-control"
-				value="<?php echo esc_attr( get_option( 'meal_mail_from_name', 'Мониторинг питания' ) ); ?>">
-		</div>
-		<hr>
-		<p class="text-muted mb-2"><?php _e( 'SMTP (оставьте пустым для использования стандартной функции wp_mail).', 'meal-menu' ); ?></p>
-		<div style="display:flex;gap:12px;flex-wrap:wrap">
-			<div class="field" style="flex:2;min-width:200px">
-				<label><?php _e( 'SMTP-хост', 'meal-menu' ); ?></label>
-				<input type="text" id="meal_smtp_host" class="form-control" value="<?php echo esc_attr( get_option( 'meal_smtp_host', '' ) ); ?>" placeholder="smtp.example.com">
-			</div>
-			<div class="field" style="flex:1;min-width:100px">
-				<label><?php _e( 'Порт', 'meal-menu' ); ?></label>
-				<input type="number" id="meal_smtp_port" class="form-control" value="<?php echo esc_attr( get_option( 'meal_smtp_port', '587' ) ); ?>">
-			</div>
-			<div class="field" style="flex:1;min-width:100px">
-				<label><?php _e( 'SMTP-пользователь', 'meal-menu' ); ?></label>
-				<input type="text" id="meal_smtp_user" class="form-control" value="<?php echo esc_attr( get_option( 'meal_smtp_user', '' ) ); ?>">
-			</div>
-			<div class="field" style="flex:1;min-width:100px">
-				<label><?php _e( 'SMTP-пароль', 'meal-menu' ); ?></label>
-				<input type="password" id="meal_smtp_pass" class="form-control" value="<?php echo esc_attr( get_option( 'meal_smtp_pass', '' ) ); ?>">
-			</div>
-			<div class="field" style="flex:1;min-width:100px">
-				<label><?php _e( 'SMTP-шифрование', 'meal-menu' ); ?></label>
-				<select id="meal_smtp_secure" style="width:100%;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
-					<option value=""<?php selected( get_option( 'meal_smtp_secure', '' ), '' ); ?>><?php _e( 'Нет', 'meal-menu' ); ?></option>
-					<option value="tls"<?php selected( get_option( 'meal_smtp_secure', '' ), 'tls' ); ?>>TLS</option>
-					<option value="ssl"<?php selected( get_option( 'meal_smtp_secure', '' ), 'ssl' ); ?>>SSL</option>
-				</select>
-			</div>
-		</div>
-	</div>
-
 	<div class="mt-2" style="text-align:right">
 		<button type="button" class="btn btn-primary" id="btn-save"><?php _e( 'Сохранить настройки', 'meal-menu' ); ?></button>
+		<div id="btn-msg" class="btn-msg"></div>
 	</div>
 </div>
 
 <script>
 (function($) {
-	var msgEl = document.getElementById('meal-msg');
 	var ajaxUrl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
 	var nonce = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
+	var btnSave = document.getElementById('btn-save');
+	var btnMsg = document.getElementById('btn-msg');
 
 	function apiPost(data, cb) {
 		data.nonce = nonce;
@@ -295,11 +234,10 @@ foreach ( $departments as $d ) {
 	}
 
 	function showMsg(text, isError) {
-		msgEl.innerHTML = '<div class="alert ' + (isError ? 'alert-error' : 'alert-success') + '">' + text + '</div>';
-		setTimeout(function() { msgEl.innerHTML = ''; }, 4000);
+		btnMsg.innerHTML = '<span style="color:' + (isError ? 'var(--error, #a02020)' : 'var(--success, #4a7a2a)') + '">' + text + '</span>';
+		setTimeout(function() { btnMsg.innerHTML = ''; }, 4000);
 	}
 
-	// Тоггл карточек
 	document.getElementById('dept-list').addEventListener('change', function(e) {
 		if (e.target.classList.contains('dept-toggle')) {
 			var card = e.target.closest('.dept-card');
@@ -307,7 +245,6 @@ foreach ( $departments as $d ) {
 		}
 	});
 
-	// Добавление кастомного отделения
 	var addForm = document.getElementById('add-dept-form');
 	document.getElementById('btn-add-dept').addEventListener('click', function() { addForm.classList.toggle('show'); });
 	document.getElementById('btn-cancel-add').addEventListener('click', function() { addForm.classList.remove('show'); });
@@ -323,7 +260,6 @@ foreach ( $departments as $d ) {
 		});
 	});
 
-	// Удаление кастомного отделения
 	document.getElementById('dept-list').addEventListener('click', function(e) {
 		var btn = e.target.closest('.btn-delete-dept');
 		if (!btn) return;
@@ -334,7 +270,20 @@ foreach ( $departments as $d ) {
 		});
 	});
 
-	// Сохранение
+	function defaultDeptName(card) {
+		var code = card.querySelector('.inp-dept-name').dataset.code;
+		if (code === 'main') {
+			var cards = document.querySelectorAll('.dept-card');
+			for (var i = 0; i < cards.length; i++) {
+				var inp = cards[i].querySelector('.inp-dept-name');
+				if (inp && inp.dataset.code === 'ss') {
+					return cards[i].querySelector('.dept-toggle').checked ? 'Основная школа' : 'Старшеклассники';
+				}
+			}
+		}
+		return card.querySelector('.dept-title').textContent.trim();
+	}
+
 	document.getElementById('btn-save').addEventListener('click', function() {
 		var deps = [];
 		document.querySelectorAll('.dept-card').forEach(function(card) {
@@ -343,24 +292,25 @@ foreach ( $departments as $d ) {
 			var suffixInput = card.querySelector('.inp-suffix');
 			var ignoreVacChk = card.querySelector('.chk-ignore-vac');
 			var cycleLenInput = card.querySelector('.inp-cycle-len');
+			var nameInput = card.querySelector('.inp-dept-name');
+			var deptName = nameInput.value.trim() || defaultDeptName(card);
+			var mergeSelect = card.querySelector('.sel-merge');
 			deps.push({
 				id: parseInt(card.dataset.id),
 				is_enabled: card.querySelector('.dept-toggle').checked ? 1 : 0,
-				label: card.querySelector('.inp-label').value,
-				label_short: card.querySelector('.inp-label-short').value,
-				dept_name: card.querySelector('.inp-dept-name').value,
+				dept_name: deptName,
 				workdays: workdays.join(','),
 				is_boarding: card.querySelector('.chk-boarding').checked ? 1 : 0,
 				publish_xlsx: card.querySelector('.chk-publish').checked ? 1 : 0,
 				ignore_vacations: ignoreVacChk && ignoreVacChk.checked ? 1 : 0,
 				file_suffix: suffixInput ? suffixInput.value : undefined,
-				cycle_length: cycleLenInput ? parseInt(cycleLenInput.value) || 0 : undefined
+				cycle_length: cycleLenInput ? parseInt(cycleLenInput.value) || 0 : undefined,
+				merged_with: mergeSelect ? mergeSelect.value || '' : undefined
 			});
 		});
 		apiPost({
 			action: 'save_settings',
 			org_name: document.getElementById('org-name').value,
-			meal_food_dir: document.getElementById('meal_food_dir').value,
 			tm_approver_position: document.getElementById('tm-approver-position').value,
 			tm_approver_name: document.getElementById('tm-approver-name').value,
 			academic_year_start: document.getElementById('ay-start').value.trim(),
@@ -380,15 +330,13 @@ foreach ( $departments as $d ) {
 					if (parts.length > 0) msg += ' Шаблоны: ' + parts.join(', ') + '.';
 				}
 				showMsg(msg, false);
-				if (r.sync) location.reload();
-				else window.scrollTo({top: 0, behavior: 'smooth'});
+				if (r.sync) setTimeout(function() { location.reload(); }, 1500);
 			} else {
 				showMsg(r.error || 'Ошибка сохранения', true);
 			}
 		});
 	});
 
-	// ─── Каникулы ───────────────────────────────────────────────
 	var vacYear = document.getElementById('vac-year');
 	var vacBody = document.getElementById('vac-body');
 

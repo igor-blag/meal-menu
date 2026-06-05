@@ -4,8 +4,8 @@
 <style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
 </head>
 <body>
-<h1>5. Настройки</h1>
-<p><strong>Файл:</strong> <code>templates/admin/page-settings.php</code></p>
+<h1>5. Настройки пищеблока</h1>
+<p><strong>Файл:</strong> <code>templates/admin/page-kitchen-settings.php</code></p>
 <p><strong>AJAX:</strong> <code>includes/ajax/ajax-save-settings.php</code></p>
 
 <h2>Разделы</h2>
@@ -17,7 +17,7 @@
 <p>Каждое отделение (школа/корпус) имеет:</p>
 <ul>
 <li><strong>Включено/выключено</strong> — чекбокс активации</li>
-<li><strong>Полное название, краткое название, корпус</strong></li>
+<li><strong>Название</strong> — одно поле, отображается в Excel как «Отд./корпус». Если поле пустое, подставляется дефолт: для основной школы — «Старшеклассники» (если средняя школа выключена), иначе название из шапки карточки</li>
 <li><strong>Рабочие дни</strong> — выбор дней недели (Пн–Вс)</li>
 <li><strong>Дней в цикле</strong> — длина цикла меню (синхронизирует количество шаблонов)</li>
 <li><strong>Режимы:</strong> Интернат (вкл/выкл), Публикация xlsx, Без каникул</li>
@@ -36,12 +36,11 @@
 <h3>Утверждающее лицо</h3>
 <p>Должность и ФИО — отображаются в шапке типового меню (tm-файл).</p>
 
-<h3>Email-уведомления</h3>
+<h2>Примечания</h2>
 <ul>
-<li>Email администратора</li>
-<li>Email отправителя и имя</li>
-<li>SMTP-настройки (хост, порт, пользователь, пароль, шифрование)</li>
+<li>Поля «Полное название» и «Краткое» удалены. Вместо них — одно поле «Название»</li>
+<li>«Старшая школа» переименована в «Средняя школа»</li>
+<li>Для основной школы действует умный дефолт: если средняя школа выключена — название «Старшеклассники» (общее меню)</li>
 </ul>
-<p>Настройки SMTP хранятся в WordPress Options API. При пустом хосте используется стандартный <code>wp_mail()</code>.</p>
 </body>
 </html>

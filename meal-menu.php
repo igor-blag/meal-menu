@@ -18,6 +18,32 @@ define( 'MEAL_MENU_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MEAL_MENU_URL', plugin_dir_url( __FILE__ ) );
 define( 'MEAL_MENU_BASENAME', plugin_basename( __FILE__ ) );
 
+/**
+ * Путь к публичной папке с XLSX-файлами (с трейлинг-слешем).
+ * По умолчанию ABSPATH . 'food/'. Можно изменить в настройках плагина.
+ */
+function meal_food_dir(): string {
+	$custom = get_option( 'meal_food_dir', '' );
+	if ( $custom ) {
+		return untrailingslashit( $custom ) . '/';
+	}
+	return untrailingslashit( apply_filters( 'meal_food_dir', ABSPATH . 'food' ) ) . '/';
+}
+
+/**
+ * Скопировать XLSX-файл в публичную директорию /food/.
+ */
+function meal_publish_file( string $filepath ): bool {
+	if ( ! is_file( $filepath ) ) {
+		return false;
+	}
+	$dir = meal_food_dir();
+	if ( ! is_dir( $dir ) ) {
+		wp_mkdir_p( $dir );
+	}
+	return copy( $filepath, $dir . basename( $filepath ) );
+}
+
 spl_autoload_register( function ( $class ) {
 	$prefix = 'Meal_Menu\\';
 	if ( strncmp( $class, $prefix, strlen( $prefix ) ) !== 0 ) {

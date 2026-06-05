@@ -231,14 +231,33 @@
 }
 .meal-menu-wrap .cal-cell:hover { background: var(--orange-pale); cursor: pointer; }
 .meal-menu-wrap .cal-cell.empty { background: var(--bg); }
+.meal-menu-wrap .cal-cell.cal-ghost { background: #f5f3f0; cursor: default; opacity: .55; }
+.meal-menu-wrap .cal-cell.cal-ghost .cal-ghost-day { font-size: 1.15rem; font-weight: bold; color: #b0a898; }
+.meal-menu-wrap .cal-cell.cal-ghost .cal-ghost-label { font-size: .72rem; color: #b0a898; margin-top: 4px; }
+.meal-menu-wrap .cal-cell.cal-ghost .cal-ghost-badge { color: #b0a898; }
 .meal-menu-wrap .cal-cell.weekend { background: #f7f0e8; }
 .meal-menu-wrap .cal-cell.holiday { background: #f5ebe0; }
+.meal-menu-wrap .cal-cell.user-workday { background: #fff; }
 .meal-menu-wrap .cal-cell.has-menu { background: #eef5e8; }
-.meal-menu-wrap .cal-cell.today { outline: 2px solid var(--orange); outline-offset: -2px; }
+.meal-menu-wrap .cal-cell.selected { outline: 2px solid var(--orange); outline-offset: -2px; background: var(--orange-pale); }
 .meal-menu-wrap .cal-cell .cal-day { font-size: 1.15rem; font-weight: bold; color: var(--text); }
 .meal-menu-wrap .cal-cell.has-menu .cal-day { color: var(--success); }
 .meal-menu-wrap .cal-cell .cal-label { font-size: .72rem; color: var(--orange); text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
 .meal-menu-wrap .cal-cell .cal-no-school { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+.meal-menu-wrap .cal-cell .cal-workday-label { font-size: .72rem; color: var(--muted); margin-top: 4px; font-style: italic; }
+.meal-menu-wrap .cal-cell .cal-file-badge {
+	position: absolute;
+	bottom: 3px;
+	left: 6px;
+	right: 6px;
+	font-size: .6rem;
+	line-height: 1.2;
+	color: #607860;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-align: right;
+}
 
 .meal-menu-wrap .legend {
 	display: flex;
@@ -324,3 +343,64 @@
 .meal-menu-wrap .items-table input:focus { outline: 1px solid var(--orange); background: #fffaf5; }
 .meal-menu-wrap .items-table .del-row { cursor: pointer; color: var(--error); background: none; border: none; font-size: 1rem; padding: 2px 6px; }
 .meal-menu-wrap .add-row-btn { font-size: .8rem; margin-top: 6px; }
+
+/* ─── Дропзона ──────────────────────────────────────────────── */
+.meal-menu-wrap .dropzone {
+	margin-bottom: 16px;
+	border: 2px dashed var(--border-light);
+	border-radius: var(--radius);
+	background: var(--bg);
+	cursor: pointer;
+	transition: border-color .2s, background .2s;
+}
+.meal-menu-wrap .dropzone.dz-active {
+	border-color: var(--orange);
+	background: #fffaf5;
+}
+.meal-menu-wrap .dropzone-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 28px 20px;
+	gap: 4px;
+	pointer-events: none;
+}
+.meal-menu-wrap .dropzone-icon {
+	font-size: 2rem;
+	color: var(--muted);
+	line-height: 1;
+}
+.meal-menu-wrap .dropzone.dz-active .dropzone-icon {
+	color: var(--orange);
+}
+.meal-menu-wrap .dropzone-text {
+	font-size: .95rem;
+	color: var(--text);
+}
+.meal-menu-wrap .dropzone-hint {
+	font-size: .78rem;
+	color: var(--muted);
+}
+.meal-menu-wrap .dropzone-progress {
+	margin: 0 20px 16px;
+	padding: 0 0 4px;
+}
+.meal-menu-wrap .dropzone-progress-bar {
+	height: 4px;
+	background: var(--orange);
+	border-radius: 2px;
+	transition: width .3s;
+	margin-bottom: 6px;
+}
+.meal-menu-wrap .dropzone-progress span {
+	font-size: .78rem;
+	color: var(--muted);
+}
+
+/* ─── Сообщение в кнопке ────────────────────────────────────── */
+.meal-menu-wrap .btn-msg {
+	margin-left: 8px;
+	font-size: .82rem;
+	font-style: italic;
+}

@@ -50,6 +50,19 @@ $has_tm     = file_exists( $tm_file );
 		<?php endforeach; ?>
 	</div>
 
+	<div id="dropzone" class="dropzone">
+		<div class="dropzone-inner">
+			<span class="dropzone-icon">&#x21E9;</span>
+			<span class="dropzone-text"><?php _e( 'Перетащите XLSX-файлы меню сюда', 'meal-menu' ); ?></span>
+			<span class="dropzone-hint"><?php _e( 'или нажмите для выбора (можно выбрать несколько файлов)', 'meal-menu' ); ?></span>
+			<input type="file" id="dropzone-file" multiple accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
+		</div>
+		<div id="dropzone-progress" class="dropzone-progress" style="display:none">
+			<div class="dropzone-progress-bar" id="dropzone-progress-bar"></div>
+			<div id="dropzone-status"></div>
+		</div>
+	</div>
+
 	<?php if ( ! empty( $gaps ) ): ?>
 	<div class="alert alert-error" style="margin-bottom:16px">
 		<?php _e( 'В цикле пропущены шаблоны:', 'meal-menu' ); ?> <strong>№<?php echo implode( ', №', array_map( 'esc_html', $gaps ) ); ?></strong>.
@@ -110,6 +123,7 @@ $has_tm     = file_exists( $tm_file );
 
 <script>
 (function() {
+	// ─── Удаление с подтверждением ──────────────────────────────
 	document.querySelectorAll('.del-tpl-form').forEach(function(form) {
 		var btn = form.querySelector('button');
 		var timer = null;
@@ -129,5 +143,102 @@ $has_tm     = file_exists( $tm_file );
 			}
 		});
 	});
+
+	// ─── Дропзона (пакетная загрузка) ───────────────────────────
+	var dz = document.getElementById('dropzone');
+	var dzFile = document.getElementById('dropzone-file');
+	var dzProgress = document.getElementById('dropzone-progress');
+	var dzProgressBar = document.getElementById('dropzone-progress-bar');
+	var dzStatus = document.getElementById('dropzone-status');
+	var type = '<?php echo esc_js( $type ); ?>';
+	var ajaxUrl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
+	var nonce = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
+
+	['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(ev) {
+		dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); });
+	});
+	['dragenter', 'dragover'].forEach(function(ev) {
+		dz.addEventListener(ev, function() { dz.classList.add('dz-active'); });
+	});
+	['dragleave', 'drop'].forEach(function(ev) {
+		dz.addEventListener(ev, function() { dz.classList.remove('dz-active'); });
+	});
+
+	dz.addEventListener('drop', function(e) {
+		var files = Array.from(e.dataTransfer.files);
+		if (files.length) uploadBatch(files);
+	});
+
+	dz.addEventListener('click', function() { dzFile.click(); });
+	dzFile.addEventListener('change', function() {
+		var files = Array.from(this.files);
+		if (files.length) uploadBatch(files);
+		this.value = '';
+	});
+
+	function uploadBatch(files) {
+		var xlsxFiles = files.filter(function(f) { return f.name.match(/\.xlsx$/i); });
+		if (xlsxFiles.length === 0) {
+			dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Нет файлов .xlsx', 'meal-menu' ); ?></span>';
+			return;
+		}
+		var total = xlsxFiles.length;
+		var done = 0;
+		var errors = [];
+		dzProgress.style.display = '';
+
+		function uploadNext(i) {
+			if (i >= total) {
+				dzProgressBar.style.width = '100%';
+				var msg = '<?php _e( 'Загружено:', 'meal-menu' ); ?> ' + done + '/' + total;
+				if (errors.length) msg += ' | <?php _e( 'Ошибок:', 'meal-menu' ); ?> ' + errors.length;
+				dzStatus.innerHTML = msg;
+				if (done > 0) {
+					setTimeout(function() { location.reload(); }, 1200);
+				}
+				return;
+			}
+
+			var file = xlsxFiles[i];
+			dzStatus.innerHTML = '<span><?php _e( 'Файл', 'meal-menu' ); ?> ' + (i + 1) + '/' + total + ': ' + escapeHtml(file.name) + '</span>';
+			dzProgressBar.style.width = Math.round((i / total) * 100) + '%';
+
+			var fd = new FormData();
+			fd.append('action', 'meal_import_dropzone');
+			fd.append('nonce', nonce);
+			fd.append('type', type);
+			fd.append('xlsx', file);
+
+			var xhr = new XMLHttpRequest();
+			xhr.onload = function() {
+				if (xhr.status !== 200) {
+					errors.push(file.name + ': server error');
+				} else {
+					try {
+						var r = JSON.parse(xhr.responseText);
+						if (r.ok) { done++; }
+						else { errors.push(file.name + ': ' + (r.error || '?')); }
+					} catch(e) {
+						errors.push(file.name + ': parse error');
+					}
+				}
+				uploadNext(i + 1);
+			};
+			xhr.onerror = function() {
+				errors.push(file.name + ': network error');
+				uploadNext(i + 1);
+			};
+			xhr.open('POST', ajaxUrl, true);
+			xhr.send(fd);
+		}
+
+		uploadNext(0);
+	}
+
+	function escapeHtml(s) {
+		var d = document.createElement('div');
+		d.textContent = s;
+		return d.innerHTML;
+	}
 })();
 </script>

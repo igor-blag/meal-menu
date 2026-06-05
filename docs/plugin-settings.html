@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Настройки плагина</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>6. Настройки плагина</h1>
+<p><strong>Файл:</strong> <code>templates/admin/page-plugin-settings.php</code></p>
+<p><strong>AJAX:</strong> <code>includes/ajax/ajax-save-settings.php</code></p>
+
+<h2>Разделы</h2>
+
+<h3>Публикация XLSX-файлов</h3>
+<p>Путь к папке, куда копируются сгенерированные Excel-файлы. По умолчанию — <code>/food/</code> в корне сайта. Настраивается через поле ввода или фильтр <code>meal_food_dir</code>.</p>
+
+<h3>Email-уведомления</h3>
+<ul>
+<li>Email администратора — на него приходят напоминания о незаполненных днях</li>
+<li>Email отправителя и имя</li>
+<li>SMTP-настройки (хост, порт, пользователь, пароль, шифрование)</li>
+</ul>
+<p>При пустом хосте используется стандартный <code>wp_mail()</code>.</p>
+
+<h3>Импорт / Экспорт данных</h3>
+<ul>
+<li><strong>Экспорт JSON</strong> — скачивает все таблицы плагина и опции (SMTP, food_dir, тема) в JSON-файл</li>
+<li><strong>Импорт JSON</strong> — загружает JSON-файл, очищает таблицы и вставляет данные в правильном порядке (сначала родительские, потом дочерние)</li>
+</ul>
+
+<h3>Сброс данных плагина</h3>
+<p>Удаляет все таблицы (<code>wp_meal_*</code>) и создаёт их заново с настройками по умолчанию. Файлы плагина не затрагиваются. Требуется двойное подтверждение.</p>
+
+<h2>Действия</h2>
+<p>Все действия (сохранение, импорт, сброс) требуют права <code>manage_options</code>.</p>
+</body>
+</html>
