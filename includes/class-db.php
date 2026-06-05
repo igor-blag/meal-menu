@@ -353,7 +353,7 @@ class DB {
 			'id' => 1,
 			'org_name' => '',
 			'academic_year_start' => '09-01',
-			'academic_year_end' => '05-31',
+			'academic_year_end' => '05-26',
 			'reset_cycle_after_vacation' => 0,
 			'tm_approver_position' => '',
 			'tm_approver_name' => '',

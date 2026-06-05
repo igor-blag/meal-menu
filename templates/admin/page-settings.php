@@ -6,10 +6,6 @@ $settings     = $db->get_kitchen_settings();
 $departments  = $db->get_all_departments();
 $ay_settings  = $db->get_academic_year_settings();
 
-$cycle_lengths = array();
-foreach ( $departments as $d ) {
-	$cycle_lengths[ $d['id'] ] = $db->get_cycle_length( $d['code'] );
-}
 ?>
 <div class="wrap meal-menu-wrap">
 	<h1 class="page-title"><?php _e( 'Настройки пищеблока', 'meal-menu' ); ?></h1>
@@ -79,16 +75,8 @@ foreach ( $departments as $d ) {
 						</div>
 					</div>
 
-					<div class="form-row">
-						<div class="field" style="max-width:200px">
-							<label><?php _e( 'Дней в цикле', 'meal-menu' ); ?></label>
-							<input type="number" class="inp-cycle-len" min="0" max="99"
-								value="<?php echo (int) ( $cycle_lengths[ $d['id'] ] ?? 0 ); ?>"
-								style="width:80px;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
-							<span class="text-muted" style="font-size:.78rem;margin-left:6px"><?php printf( __( 'шаблонов: %d', 'meal-menu' ), $cycle_lengths[ $d['id'] ] ?? 0 ); ?></span>
-						</div>
-					</div>
 
+				
 					<div class="opt-row">
 						<label class="opt-label<?php echo $d['code'] === 'preschool' ? ' disabled' : ''; ?>">
 							<input type="checkbox" class="chk-boarding"
@@ -342,7 +330,6 @@ foreach ( $departments as $d ) {
 			var workdays = Array.from(wdChecks).map(function(c) { return parseInt(c.value); });
 			var suffixInput = card.querySelector('.inp-suffix');
 			var ignoreVacChk = card.querySelector('.chk-ignore-vac');
-			var cycleLenInput = card.querySelector('.inp-cycle-len');
 			deps.push({
 				id: parseInt(card.dataset.id),
 				is_enabled: card.querySelector('.dept-toggle').checked ? 1 : 0,
@@ -353,8 +340,7 @@ foreach ( $departments as $d ) {
 				is_boarding: card.querySelector('.chk-boarding').checked ? 1 : 0,
 				publish_xlsx: card.querySelector('.chk-publish').checked ? 1 : 0,
 				ignore_vacations: ignoreVacChk && ignoreVacChk.checked ? 1 : 0,
-				file_suffix: suffixInput ? suffixInput.value : undefined,
-				cycle_length: cycleLenInput ? parseInt(cycleLenInput.value) || 0 : undefined
+				file_suffix: suffixInput ? suffixInput.value : undefined
 			});
 		});
 		apiPost({
@@ -369,19 +355,8 @@ foreach ( $departments as $d ) {
 			departments: deps
 		}, function(r) {
 			if (r.ok) {
-				var msg = 'Настройки сохранены.';
-				if (r.sync) {
-					var parts = [];
-					for (var code in r.sync) {
-						var s = r.sync[code];
-						if (s.added > 0) parts.push(code + ': +' + s.added + ' шабл.');
-						if (s.removed > 0) parts.push(code + ': −' + s.removed + ' шабл.');
-					}
-					if (parts.length > 0) msg += ' Шаблоны: ' + parts.join(', ') + '.';
-				}
-				showMsg(msg, false);
-				if (r.sync) location.reload();
-				else window.scrollTo({top: 0, behavior: 'smooth'});
+				showMsg('Настройки сохранены.', false);
+				window.scrollTo({top: 0, behavior: 'smooth'});
 			} else {
 				showMsg(r.error || 'Ошибка сохранения', true);
 			}
@@ -423,10 +398,14 @@ foreach ( $departments as $d ) {
 			return;
 		}
 		list.forEach(function(v) {
+			var isHoliday = v.date_from === v.date_to;
 			var tr = document.createElement('tr');
 			tr.dataset.id = v.id;
+			if (isHoliday) tr.style.background = '#fff8e1';
 			tr.innerHTML =
-				'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '"></td>' +
+				'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '">' +
+				(isHoliday ? '<span style="font-size:.65rem;background:#ffc107;color:#333;padding:1px 6px;border-radius:3px;margin-left:4px;vertical-align:middle">праздник</span>' : '') +
+				'</td>' +
 				'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
 				'<td><input type="date" class="vac-to" value="' + v.date_to + '"></td>' +
 				'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +

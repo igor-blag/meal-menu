@@ -15,7 +15,7 @@ try {
 		if ( isset( $data['academic_year_start'] ) || isset( $data['academic_year_end'] ) || isset( $data['reset_cycle_after_vacation'] ) ) {
 			$db->save_academic_year_settings(
 				sanitize_text_field( $data['academic_year_start'] ?? '09-01' ),
-				sanitize_text_field( $data['academic_year_end'] ?? '05-31' ),
+				sanitize_text_field( $data['academic_year_end'] ?? '05-26' ),
 				(int) ( $data['reset_cycle_after_vacation'] ?? 0 )
 			);
 		}
@@ -36,7 +36,6 @@ try {
 			}
 		}
 
-		$sync_result = array();
 		if ( isset( $data['departments'] ) && is_array( $data['departments'] ) ) {
 			foreach ( $data['departments'] as $dept_data ) {
 				$id = (int) ( $dept_data['id'] ?? 0 );
@@ -44,16 +43,10 @@ try {
 					continue;
 				}
 				$db->save_department( $id, $dept_data );
-
-				$dept_row = $db->get_department_by_id( $id );
-				if ( $dept_row && isset( $dept_data['cycle_length'] ) ) {
-					$code = $dept_row['code'];
-					$sync_result[ $code ] = $db->sync_templates_to_cycle_length( $code, (int) $dept_data['cycle_length'] );
-				}
 			}
 		}
 
-		wp_send_json( array( 'ok' => true, 'sync' => $sync_result ) );
+		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'add_department' ) {
 		$code        = sanitize_key( $data['code'] ?? '' );
@@ -109,15 +102,45 @@ try {
 		$parts = explode( '-', $academic_year );
 		$y     = (int) $parts[0];
 
+		$ny = $y + 1;
 		$defaults = array(
-			array( 'Осенние каникулы',   "$y-10-28", "$y-11-05" ),
-			array( 'Зимние каникулы',    ( $y + 1 ) . '-01-01', ( $y + 1 ) . '-01-08' ),
-			array( 'Весенние каникулы',  ( $y + 1 ) . '-03-24', ( $y + 1 ) . '-03-31' ),
-			array( 'Летние каникулы',    ( $y + 1 ) . '-06-01', ( $y + 1 ) . '-08-31' ),
+			array( 'Осенние каникулы',
+				date_create( "last monday of October $y" )->format( 'Y-m-d' ),
+				date_create( "last monday of October $y +6 days" )->format( 'Y-m-d' ),
+			),
+			array( 'Зимние каникулы',
+				date_create( "last monday of December $y" )->format( 'Y-m-d' ),
+				date_create( "second monday of January $ny -1 day" )->format( 'Y-m-d' ),
+			),
+			array( 'Весенние каникулы',
+				date_create( "last monday of March $ny" )->format( 'Y-m-d' ),
+				date_create( "last monday of March $ny +6 days" )->format( 'Y-m-d' ),
+			),
+			array( 'Летние каникулы', "$ny-06-01", "$ny-08-31" ),
 		);
 
 		foreach ( $defaults as $def ) {
 			$db->add_vacation( $academic_year, $def[0], $def[1], $def[2] );
+		}
+
+		// Праздники с переносом с выходных на понедельник
+		$holidays = array(
+			array( 'День народного единства',   "$y-11-04" ),
+			array( 'День защитника Отечества',  "$ny-02-23" ),
+			array( 'Международный женский день', "$ny-03-08" ),
+			array( 'Праздник Весны и Труда',    "$ny-05-01" ),
+			array( 'День Победы',               "$ny-05-09" ),
+		);
+		foreach ( $holidays as $h ) {
+			$dt  = date_create( $h[1] );
+			$dow = (int) $dt->format( 'w' );
+			if ( $dow === 6 ) {       // суббота → понедельник +2
+				$dt->modify( '+2 days' );
+			} elseif ( $dow === 0 ) { // воскресенье → понедельник +1
+				$dt->modify( '+1 days' );
+			}
+			$date = $dt->format( 'Y-m-d' );
+			$db->add_vacation( $academic_year, $h[0], $date, $date );
 		}
 
 		$vacations = $db->get_vacations( $academic_year );

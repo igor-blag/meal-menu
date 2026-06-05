@@ -6,9 +6,13 @@ $settings     = $db->get_kitchen_settings();
 $departments  = $db->get_all_departments();
 $ay_settings  = $db->get_academic_year_settings();
 
-$cycle_lengths = array();
+$merged_into = array();
+$merged_by   = array();
 foreach ( $departments as $d ) {
-	$cycle_lengths[ $d['id'] ] = $db->get_cycle_length( $d['code'] );
+	if ( ! empty( $d['merged_with'] ) ) {
+		$merged_into[ $d['merged_with'] ] = true;
+		$merged_by[ $d['merged_with'] ][] = $d['dept_name'] ?: $d['label'];
+	}
 }
 ?>
 <div class="wrap meal-menu-wrap">
@@ -36,7 +40,7 @@ foreach ( $departments as $d ) {
 		<?php foreach ( $departments as $d ):
 			$wd = explode( ',', $d['workdays'] );
 		?>
-			<div class="dept-card<?php echo $d['is_enabled'] ? ' enabled' : ''; ?>" data-id="<?php echo (int) $d['id']; ?>">
+			<div class="dept-card<?php echo $d['is_enabled'] ? ' enabled' : ''; ?>" data-id="<?php echo (int) $d['id']; ?>" data-code="<?php echo esc_attr( $d['code'] ); ?>">
 				<div class="dept-header">
 					<input type="checkbox" class="dept-toggle"<?php echo $d['is_enabled'] ? ' checked' : ''; ?>>
 					<span class="dept-title"><?php echo esc_html( $d['label'] ); ?></span>
@@ -63,7 +67,8 @@ foreach ( $departments as $d ) {
 								<?php foreach ( array( 1 => 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс' ) as $i => $name ): ?>
 								<label class="wd-label">
 									<input type="checkbox" class="wd-chk" value="<?php echo $i; ?>"
-										<?php echo in_array( (string) $i, $wd, true ) ? 'checked' : ''; ?>>
+										<?php echo in_array( (string) $i, $wd, true ) ? 'checked' : ''; ?>
+										<?php echo $d['merged_with'] ? 'disabled' : ''; ?>>
 									<?php echo $name; ?>
 								</label>
 								<?php endforeach; ?>
@@ -71,16 +76,8 @@ foreach ( $departments as $d ) {
 						</div>
 					</div>
 
-					<div class="form-row">
-						<div class="field" style="max-width:200px">
-							<label><?php _e( 'Дней в цикле', 'meal-menu' ); ?></label>
-							<input type="number" class="inp-cycle-len" min="0" max="99"
-								value="<?php echo (int) ( $cycle_lengths[ $d['id'] ] ?? 0 ); ?>"
-								style="width:80px;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
-							<span class="text-muted" style="font-size:.78rem;margin-left:6px"><?php printf( __( 'шаблонов: %d', 'meal-menu' ), $cycle_lengths[ $d['id'] ] ?? 0 ); ?></span>
-						</div>
-					</div>
 
+				
 					<div class="opt-row">
 						<label class="opt-label<?php echo $d['code'] === 'preschool' ? ' disabled' : ''; ?>">
 							<input type="checkbox" class="chk-boarding"
@@ -95,12 +92,13 @@ foreach ( $departments as $d ) {
 						</label>
 						<label class="opt-label">
 							<input type="checkbox" class="chk-ignore-vac"
-								<?php echo ! empty( $d['ignore_vacations'] ) ? 'checked' : ''; ?>>
+								<?php echo ! empty( $d['ignore_vacations'] ) ? 'checked' : ''; ?>
+								<?php echo $d['merged_with'] ? 'disabled' : ''; ?>>
 							<?php _e( 'Без каникул (круглый год)', 'meal-menu' ); ?>
 						</label>
 					</div>
 
-					<div class="form-row">
+					<div class="form-row suffix-row"<?php echo ! $d['publish_xlsx'] ? ' style="display:none"' : ''; ?>>
 						<div class="field" style="max-width:300px">
 							<label><?php _e( 'Постфикс файлов', 'meal-menu' ); ?></label>
 							<?php if ( $d['is_builtin'] ): ?>
@@ -111,18 +109,24 @@ foreach ( $departments as $d ) {
 						</div>
 					</div>
 
-					<div class="form-row">
-						<div class="field" style="max-width:300px">
-							<label><?php _e( 'Объединить календарь с', 'meal-menu' ); ?></label>
-							<select class="sel-merge">
-								<option value="">—</option>
-								<?php foreach ( $departments as $other ): if ( $other['id'] === $d['id'] ) continue; ?>
-								<option value="<?php echo esc_attr( $other['code'] ); ?>"<?php echo $d['merged_with'] === $other['code'] ? ' selected' : ''; ?>><?php echo esc_html( $other['label'] ); ?></option>
-								<?php endforeach; ?>
-							</select>
-							<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным. Отделение с таким же количеством шаблонов.', 'meal-menu' ); ?></span>
-						</div>
+					<div class="form-row merge-select-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
+					<div class="field" style="max-width:300px">
+						<label><?php _e( 'Объединить календарь с', 'meal-menu' ); ?></label>
+						<select class="sel-merge">
+							<option value="">—</option>
+							<?php foreach ( $departments as $other ): if ( $other['id'] === $d['id'] || ! $other['is_enabled'] ) continue; ?>
+							<option value="<?php echo esc_attr( $other['code'] ); ?>"<?php echo $d['merged_with'] === $other['code'] ? ' selected' : ''; ?>><?php echo esc_html( $other['label'] ); ?></option>
+							<?php endforeach; ?>
+						</select>
+						<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным.', 'meal-menu' ); ?></span>
 					</div>
+				</div>
+				<div class="form-row merge-static-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
+					<div class="field" style="max-width:300px">
+						<label><?php _e( 'Объединение календарей', 'meal-menu' ); ?></label>
+						<span class="text-muted merge-static-text" style="font-size:.82rem;display:block;margin-top:4px"><?php printf( __( 'Источник данных для: %s', 'meal-menu' ), isset( $merged_by[ $d['code'] ] ) ? implode( ', ', $merged_by[ $d['code'] ] ) : '' ); ?></span>
+					</div>
+				</div>
 				</div>
 			</div>
 		<?php endforeach; ?>
@@ -241,7 +245,128 @@ foreach ( $departments as $d ) {
 	document.getElementById('dept-list').addEventListener('change', function(e) {
 		if (e.target.classList.contains('dept-toggle')) {
 			var card = e.target.closest('.dept-card');
-			card.classList.toggle('enabled', e.target.checked);
+			var enabled = e.target.checked;
+			card.classList.toggle('enabled', enabled);
+			var code = card.dataset.code;
+			var label = card.querySelector('.dept-title').textContent.trim();
+
+			if (!enabled) {
+				// Remove this department from all other dropdown options
+				document.querySelectorAll('.sel-merge').forEach(function(sel) {
+					var opt = sel.querySelector('option[value="' + code + '"]');
+					if (opt) {
+						if (opt.selected) {
+							sel.value = '';
+							sel._prev = '';
+							var tCard = document.querySelector('.dept-card[data-code="' + code + '"]');
+							if (tCard) {
+								tCard.querySelector('.merge-select-row').style.display = '';
+								tCard.querySelector('.merge-static-row').style.display = 'none';
+							}
+						}
+						sel.removeChild(opt);
+					}
+				});
+				// Clear this department's own merge and restore its target
+				var ownSel = card.querySelector('.sel-merge');
+				if (ownSel && ownSel.value) {
+					var tCode = ownSel.value;
+					ownSel.value = '';
+					ownSel._prev = '';
+					var tCard = document.querySelector('.dept-card[data-code="' + tCode + '"]');
+					if (tCard) {
+						tCard.querySelector('.merge-select-row').style.display = '';
+						tCard.querySelector('.merge-static-row').style.display = 'none';
+					}
+				}
+				card.querySelector('.merge-select-row').style.display = '';
+				card.querySelector('.merge-static-row').style.display = 'none';
+				card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = false; });
+				var vac = card.querySelector('.chk-ignore-vac');
+				if (vac) vac.disabled = false;
+			} else {
+				document.querySelectorAll('.sel-merge').forEach(function(sel) {
+					if (sel.closest('.dept-card').dataset.code === code) return;
+					if (sel.querySelector('option[value="' + code + '"]')) return;
+					var opt = document.createElement('option');
+					opt.value = code;
+					opt.textContent = label;
+					sel.insertBefore(opt, sel.options[1] || null);
+				});
+				// Sync disabled state on the re-enabled card itself
+				var ownSel = card.querySelector('.sel-merge');
+				if (ownSel && ownSel.value) {
+					card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = true; });
+					var vac = card.querySelector('.chk-ignore-vac');
+					if (vac) vac.disabled = true;
+				}
+			}
+		}
+	});
+
+	// Real-time merge toggling
+	document.querySelectorAll('.sel-merge').forEach(function(sel) {
+		sel._prev = sel.value;
+	});
+
+	document.getElementById('dept-list').addEventListener('change', function(e) {
+		if (!e.target.classList.contains('sel-merge')) return;
+		var sel = e.target;
+		var card = sel.closest('.dept-card');
+		var prevCode = sel._prev;
+		var newCode = sel.value;
+
+		// Restore previously selected target if no other select points to it
+		if (prevCode) {
+			var stillReferenced = false;
+			document.querySelectorAll('.sel-merge').forEach(function(s) {
+				if (s !== sel && s.value === prevCode) stillReferenced = true;
+			});
+			if (!stillReferenced) {
+				var prevCard = document.querySelector('.dept-card[data-code="' + prevCode + '"]');
+				if (prevCard) {
+					prevCard.querySelector('.merge-select-row').style.display = '';
+					prevCard.querySelector('.merge-static-row').style.display = 'none';
+				}
+			}
+		}
+
+		// Disable/enable calendar fields in source department
+		function setMergeDisabled(card, disabled) {
+			card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = disabled; });
+			var vac = card.querySelector('.chk-ignore-vac');
+			if (vac) vac.disabled = disabled;
+		}
+
+		if (newCode) {
+			setMergeDisabled(card, true);
+			var targetCard = document.querySelector('.dept-card[data-code="' + newCode + '"]');
+			if (targetCard) {
+				targetCard.querySelector('.merge-select-row').style.display = 'none';
+				var sources = [];
+				document.querySelectorAll('.sel-merge').forEach(function(s) {
+					if (s.value === newCode) {
+						var srcCard = s.closest('.dept-card');
+						var srcName = (srcCard.querySelector('.inp-dept-name').value || srcCard.querySelector('.dept-title').textContent).trim();
+						sources.push(srcName);
+					}
+				});
+				targetCard.querySelector('.merge-static-text').textContent = 'Источник данных для: ' + sources.join(', ');
+				targetCard.querySelector('.merge-static-row').style.display = '';
+			}
+		} else if (prevCode) {
+			setMergeDisabled(card, false);
+		}
+
+		sel._prev = newCode;
+	});
+
+	// Toggle suffix row with publish checkbox
+	document.getElementById('dept-list').addEventListener('change', function(e) {
+		if (e.target.classList.contains('chk-publish')) {
+			var card = e.target.closest('.dept-card');
+			var suffixRow = card.querySelector('.suffix-row');
+			if (suffixRow) suffixRow.style.display = e.target.checked ? '' : 'none';
 		}
 	});
 
@@ -291,7 +416,6 @@ foreach ( $departments as $d ) {
 			var workdays = Array.from(wdChecks).map(function(c) { return parseInt(c.value); });
 			var suffixInput = card.querySelector('.inp-suffix');
 			var ignoreVacChk = card.querySelector('.chk-ignore-vac');
-			var cycleLenInput = card.querySelector('.inp-cycle-len');
 			var nameInput = card.querySelector('.inp-dept-name');
 			var deptName = nameInput.value.trim() || defaultDeptName(card);
 			var mergeSelect = card.querySelector('.sel-merge');
@@ -304,7 +428,6 @@ foreach ( $departments as $d ) {
 				publish_xlsx: card.querySelector('.chk-publish').checked ? 1 : 0,
 				ignore_vacations: ignoreVacChk && ignoreVacChk.checked ? 1 : 0,
 				file_suffix: suffixInput ? suffixInput.value : undefined,
-				cycle_length: cycleLenInput ? parseInt(cycleLenInput.value) || 0 : undefined,
 				merged_with: mergeSelect ? mergeSelect.value || '' : undefined
 			});
 		});
@@ -319,18 +442,7 @@ foreach ( $departments as $d ) {
 			departments: deps
 		}, function(r) {
 			if (r.ok) {
-				var msg = 'Настройки сохранены.';
-				if (r.sync) {
-					var parts = [];
-					for (var code in r.sync) {
-						var s = r.sync[code];
-						if (s.added > 0) parts.push(code + ': +' + s.added + ' шабл.');
-						if (s.removed > 0) parts.push(code + ': −' + s.removed + ' шабл.');
-					}
-					if (parts.length > 0) msg += ' Шаблоны: ' + parts.join(', ') + '.';
-				}
-				showMsg(msg, false);
-				if (r.sync) setTimeout(function() { location.reload(); }, 1500);
+				showMsg('Настройки сохранены.', false);
 			} else {
 				showMsg(r.error || 'Ошибка сохранения', true);
 			}
@@ -371,10 +483,14 @@ foreach ( $departments as $d ) {
 			return;
 		}
 		list.forEach(function(v) {
+			var isHoliday = v.date_from === v.date_to;
 			var tr = document.createElement('tr');
 			tr.dataset.id = v.id;
+			if (isHoliday) tr.style.background = '#fff8e1';
 			tr.innerHTML =
-				'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '"></td>' +
+				'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '">' +
+				(isHoliday ? '<span style="font-size:.65rem;background:#ffc107;color:#333;padding:1px 6px;border-radius:3px;margin-left:4px;vertical-align:middle">праздник</span>' : '') +
+				'</td>' +
 				'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
 				'<td><input type="date" class="vac-to" value="' + v.date_to + '"></td>' +
 				'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +

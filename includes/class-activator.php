@@ -99,7 +99,7 @@ class Activator {
 			id int(10) unsigned NOT NULL auto_increment,
 			org_name varchar(255) NOT NULL default '',
 			academic_year_start varchar(5) NOT NULL default '09-01',
-			academic_year_end varchar(5) NOT NULL default '05-31',
+			academic_year_end varchar(5) NOT NULL default '05-26',
 			reset_cycle_after_vacation tinyint(1) NOT NULL default 0,
 			tm_approver_position varchar(100) NOT NULL default '',
 			tm_approver_name varchar(100) NOT NULL default '',
