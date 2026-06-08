@@ -3,7 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 $atts = shortcode_atts( array( 'date' => '', 'type' => '' ), $atts ?? array() );
 
 $db   = \Meal_Menu\DB::instance();
-$date = $atts['date'] ?: ( $_GET['date'] ?? '' );
+$date = $atts['date'] ?: ( $_GET['meal_date'] ?? '' );
 if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! strtotime( $date ) ) {
 	echo '<div class="meal-wrapper"><p>' . __( 'Дата не указана.', 'meal-menu' ) . '</p></div>';
 	return;
@@ -12,7 +12,8 @@ if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! strtotime( $date ) ) {
 $enabled_depts = $db->get_enabled_departments();
 $org_name      = $db->get_org_name();
 $valid_types   = array_column( $enabled_depts, 'code' );
-$type = $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' );
+$req_type = $_GET['meal_type'] ?? '';
+$type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
 
 $dt = new \DateTimeImmutable( $date );
 
@@ -72,7 +73,7 @@ $layout  = get_option( 'meal_theme_layout', 'classic' );
 		<div class="meal-date"><?php echo esc_html( $day_str ); ?></div>
 
 		<div style="margin-bottom:16px">
-			<a class="meal-back-link" href="<?php echo esc_url( add_query_arg( array( 'y' => $dt->format( 'Y' ), 'm' => $dt->format( 'n' ) ), remove_query_arg( 'date' ) ) ); ?>">← <?php _e( 'Назад к календарю', 'meal-menu' ); ?></a>
+			<a class="meal-back-link" href="<?php echo esc_url( add_query_arg( array( 'meal_y' => $dt->format( 'Y' ), 'meal_m' => $dt->format( 'n' ) ), remove_query_arg( 'meal_date' ) ) ); ?>">← <?php _e( 'Назад к календарю', 'meal-menu' ); ?></a>
 		</div>
 
 		<?php if ( $has_xls ): ?>

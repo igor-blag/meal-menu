@@ -7,22 +7,17 @@ $db = \Meal_Menu\DB::instance();
 $enabled_depts = $db->get_enabled_departments();
 $valid_types   = array_column( $enabled_depts, 'code' );
 $type_labels   = array_combine( array_column( $enabled_depts, 'code' ), array_column( $enabled_depts, 'label' ) );
-$type = $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' );
+$req_type = $_GET['meal_type'] ?? '';
+$type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
 
 $org_name = $db->get_org_name();
 
-$today_dt      = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
-$first_allowed = new \DateTimeImmutable( $today_dt->format( 'Y-m-01' ) );
+$today_dt = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
 
-$year  = (int) ( $_GET['y'] ?? $today_dt->format( 'Y' ) );
-$month = (int) ( $_GET['m'] ?? $today_dt->format( 'n' ) );
+$year  = (int) ( $_GET['meal_y'] ?? $today_dt->format( 'Y' ) );
+$month = (int) ( $_GET['meal_m'] ?? $today_dt->format( 'n' ) );
 
 $req_dt = new \DateTimeImmutable( "$year-$month-01" );
-if ( $req_dt < $first_allowed ) {
-	$req_dt = $first_allowed;
-	$year  = (int) $req_dt->format( 'Y' );
-	$month = (int) $req_dt->format( 'n' );
-}
 
 $days_in_month = (int) $req_dt->format( 't' );
 $first_dow     = (int) $req_dt->format( 'N' );
@@ -32,7 +27,7 @@ $c = $db->get_table_name( 'calendar' );
 $t = $db->get_table_name( 'templates' );
 global $wpdb;
 $rows = $wpdb->get_results( $wpdb->prepare(
-	"SELECT c.date, c.template_id, mt.day_number
+	"SELECT c.date, c.template_id, mt.day_number, mt.label
 	 FROM $c c
 	 LEFT JOIN $t mt ON mt.id = c.template_id
 	 WHERE c.school_type = %s AND YEAR(c.date) = %d AND MONTH(c.date) = %d",
@@ -56,32 +51,19 @@ $palette = get_option( 'meal_theme_palette', 'retro' );
 $layout  = get_option( 'meal_theme_layout', 'classic' );
 ?>
 <div class="meal-wrapper palette-<?php echo esc_attr( $palette ); ?> layout-<?php echo esc_attr( $layout ); ?>">
-	<header class="meal-header">
-		<div class="meal-logo"><?php echo esc_html( $org_name ?: __( 'Организация питания', 'meal-menu' ) ); ?></div>
-		<nav class="meal-nav">
-			<a class="meal-nav-link" href="<?php echo esc_url( add_query_arg( array( 'type' => $type ), remove_query_arg( array( 'y', 'm', 'day' ) ) ) ); ?>"><?php _e( 'Календарь', 'meal-menu' ); ?></a>
-			<a class="meal-nav-link" href="<?php echo esc_url( add_query_arg( array( 'type' => $type, 'page' => 'meal_menu' ), remove_query_arg( array( 'y', 'm', 'day' ) ) ) ); ?>"><?php _e( 'Типовое меню', 'meal-menu' ); ?></a>
-			<a class="meal-nav-link" href="<?php echo esc_url( add_query_arg( 'page', 'meal_oc' ) ); ?>"><?php _e( 'Общ. контроль', 'meal-menu' ); ?></a>
-		</nav>
-	</header>
-
 	<div class="meal-container">
 		<div class="meal-title"><?php _e( 'Календарь питания', 'meal-menu' ); ?></div>
 
 		<div class="meal-tabs">
 			<?php foreach ( $type_labels as $t => $label ): ?>
-			<a class="meal-tab<?php echo $type === $t ? ' meal-tab--active' : ''; ?>" href="<?php echo esc_url( add_query_arg( array( 'type' => $t, 'y' => $year, 'm' => $month ) ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<a class="meal-tab<?php echo $type === $t ? ' meal-tab--active' : ''; ?>" href="<?php echo esc_url( add_query_arg( array( 'meal_type' => $t, 'meal_y' => $year, 'meal_m' => $month ) ) ); ?>"><?php echo esc_html( $label ); ?></a>
 			<?php endforeach; ?>
 		</div>
 
 		<div class="meal-nav-month">
-			<?php if ( $prev_dt >= $first_allowed ): ?>
-			<a href="<?php echo esc_url( add_query_arg( array( 'y' => $prev_dt->format( 'Y' ), 'm' => $prev_dt->format( 'n' ) ) ) ); ?>">← <?php echo $month_names[ (int) $prev_dt->format( 'n' ) ]; ?></a>
-			<?php else: ?>
-			<a class="meal-disabled">←</a>
-			<?php endif; ?>
+			<a href="<?php echo esc_url( add_query_arg( array( 'meal_y' => $prev_dt->format( 'Y' ), 'meal_m' => $prev_dt->format( 'n' ) ) ) ); ?>">← <?php echo $month_names[ (int) $prev_dt->format( 'n' ) ]; ?></a>
 			<h2><?php echo $month_names[ $month ]; ?> <?php echo $year; ?></h2>
-			<a href="<?php echo esc_url( add_query_arg( array( 'y' => $next_dt->format( 'Y' ), 'm' => $next_dt->format( 'n' ) ) ) ); ?>"><?php echo $month_names[ (int) $next_dt->format( 'n' ) ]; ?> →</a>
+			<a href="<?php echo esc_url( add_query_arg( array( 'meal_y' => $next_dt->format( 'Y' ), 'meal_m' => $next_dt->format( 'n' ) ) ) ); ?>"><?php echo $month_names[ (int) $next_dt->format( 'n' ) ]; ?> →</a>
 		</div>
 
 		<div class="meal-cal-grid">
@@ -112,7 +94,7 @@ $layout  = get_option( 'meal_theme_layout', 'classic' );
 			<div class="<?php echo implode( ' ', $classes ); ?>">
 				<div class="meal-cal-day"><?php echo $d; ?></div>
 				<?php if ( $has_menu ): ?>
-				<a class="meal-cal-link" href="<?php echo esc_url( add_query_arg( array( 'date' => $date_str, 'type' => $type, 'page' => 'meal_day' ) ) ); ?>"><?php _e( 'Меню', 'meal-menu' ); ?></a>
+				<a class="meal-cal-link meal-menu-trigger" href="#" data-date="<?php echo esc_attr( $date_str ); ?>" data-type="<?php echo esc_attr( $type ); ?>"><?php echo esc_html( $entry['label'] ?? __( 'Меню', 'meal-menu' ) ); ?></a>
 				<?php elseif ( $is_holiday ): ?>
 				<div class="meal-holiday-label"><?php _e( 'Выходной', 'meal-menu' ); ?></div>
 				<?php endif; ?>
@@ -130,6 +112,18 @@ $layout  = get_option( 'meal_theme_layout', 'classic' );
 			<div class="meal-legend-item"><div class="meal-legend-dot no-menu"></div> <?php _e( 'Нет данных', 'meal-menu' ); ?></div>
 			<div class="meal-legend-item"><div class="meal-legend-dot holiday"></div> <?php _e( 'Выходной / праздник', 'meal-menu' ); ?></div>
 			<div class="meal-legend-item"><div class="meal-legend-dot vacation"></div> <?php _e( 'Каникулы', 'meal-menu' ); ?></div>
+		</div>
+	</div>
+
+	<div id="meal-modal" class="meal-modal-overlay" style="display:none">
+		<div class="meal-modal-dialog">
+			<div class="meal-modal-header">
+				<span class="meal-modal-title" id="meal-modal-title"></span>
+				<button class="meal-modal-close" id="meal-modal-close">&times;</button>
+			</div>
+			<div class="meal-modal-body" id="meal-modal-body">
+				<div class="meal-modal-loader"><?php _e( 'Загрузка…', 'meal-menu' ); ?></div>
+			</div>
 		</div>
 	</div>
 

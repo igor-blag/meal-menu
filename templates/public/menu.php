@@ -8,12 +8,13 @@ $enabled_depts = $db->get_enabled_departments();
 $org_name      = $db->get_org_name();
 $valid_types   = array_column( $enabled_depts, 'code' );
 $type_labels   = array_combine( array_column( $enabled_depts, 'code' ), array_column( $enabled_depts, 'label' ) );
-$type = $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' );
+$req_type = $_GET['meal_type'] ?? '';
+$type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
 
 $templates = $db->get_templates( $type );
 $cycle_len = count( $templates );
 
-$sel_id = (int) ( $_GET['day'] ?? ( $templates[0]['id'] ?? 0 ) );
+$sel_id = (int) ( $_GET['meal_day'] ?? ( $templates[0]['id'] ?? 0 ) );
 $items  = array();
 $sel_tpl = null;
 foreach ( $templates as $t ) {
@@ -57,12 +58,12 @@ $layout  = get_option( 'meal_theme_layout', 'classic' );
 
 		<div class="meal-tabs">
 			<?php foreach ( $templates as $t ): ?>
-			<a class="meal-tab<?php echo (int) $t['id'] === $sel_id ? ' meal-tab--active' : ''; ?>" href="<?php echo esc_url( add_query_arg( 'day', (int) $t['id'] ) ); ?>"><?php echo esc_html( $t['label'] ); ?></a>
+			<a class="meal-tab<?php echo (int) $t['id'] === $sel_id ? ' meal-tab--active' : ''; ?>" href="<?php echo esc_url( add_query_arg( 'meal_day', (int) $t['id'] ) ); ?>"><?php echo esc_html( $t['label'] ); ?></a>
 			<?php endforeach; ?>
 		</div>
 
 		<div style="margin:16px 0">
-			<a class="meal-back-link" href="<?php echo esc_url( remove_query_arg( 'day' ) ); ?>">← <?php _e( 'Назад к календарю', 'meal-menu' ); ?></a>
+			<a class="meal-back-link" href="<?php echo esc_url( remove_query_arg( 'meal_day' ) ); ?>">← <?php _e( 'Назад к календарю', 'meal-menu' ); ?></a>
 		</div>
 
 		<?php foreach ( $meal_names as $mtype => $mname ):

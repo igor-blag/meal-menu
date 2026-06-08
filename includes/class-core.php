@@ -21,6 +21,10 @@ class Core {
 		add_action( 'wp_ajax_meal_list_files', array( $self, 'ajax_list_files' ) );
 		add_action( 'wp_ajax_meal_save_theme', array( $self, 'ajax_save_theme' ) );
 		add_action( 'wp_ajax_meal_import_dropzone', array( $self, 'ajax_import_dropzone' ) );
+		add_action( 'wp_ajax_meal_delete_file', array( $self, 'ajax_delete_file' ) );
+		add_action( 'wp_ajax_meal_cleanup_files', array( $self, 'ajax_cleanup_files' ) );
+		add_action( 'wp_ajax_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
+		add_action( 'wp_ajax_nopriv_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
 		add_action( 'phpmailer_init', array( $self, 'configure_smtp' ) );
 		add_action( 'admin_post_meal_save_template', array( $self, 'handle_save_template' ) );
 		add_action( 'admin_post_meal_add_template', array( $self, 'handle_add_template' ) );
@@ -132,7 +136,8 @@ class Core {
 			return;
 		}
 		wp_enqueue_style( 'meal-menu-admin', MEAL_MENU_URL . 'assets/css/admin.css', array(), MEAL_MENU_VERSION );
-		wp_enqueue_style( 'meal-menu-admin-themes', MEAL_MENU_URL . 'assets/css/themes.css', array( 'meal-menu-admin' ), MEAL_MENU_VERSION );
+		wp_enqueue_style( 'meal-menu-public', MEAL_MENU_URL . 'assets/css/public.css', array(), MEAL_MENU_VERSION );
+		wp_enqueue_style( 'meal-menu-admin-themes', MEAL_MENU_URL . 'assets/css/themes.css', array( 'meal-menu-public' ), MEAL_MENU_VERSION );
 		wp_enqueue_script( 'meal-menu-admin', MEAL_MENU_URL . 'assets/js/admin.js', array(), MEAL_MENU_VERSION, true );
 		wp_localize_script( 'meal-menu-admin', 'mealMenu', array(
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
@@ -153,6 +158,11 @@ class Core {
 		}
 		wp_enqueue_style( 'meal-menu-public', MEAL_MENU_URL . 'assets/css/public.css', array(), MEAL_MENU_VERSION );
 		wp_enqueue_style( 'meal-menu-themes', MEAL_MENU_URL . 'assets/css/themes.css', array( 'meal-menu-public' ), MEAL_MENU_VERSION );
+		wp_enqueue_script( 'meal-menu-public', MEAL_MENU_URL . 'assets/js/public.js', array(), MEAL_MENU_VERSION, true );
+		wp_localize_script( 'meal-menu-public', 'mealMenu', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'meal_menu_nonce' ),
+		) );
 	}
 
 	public function add_cron_schedules( array $schedules ): array {
@@ -268,6 +278,17 @@ class Core {
 		require MEAL_MENU_DIR . 'includes/ajax/ajax-save-day.php';
 	}
 
+	public function ajax_get_day_menu(): void {
+		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		$date = $_GET['date'] ?? '';
+		$type = $_GET['type'] ?? '';
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! $type ) {
+			wp_die( -1 );
+		}
+		$db = DB::instance();
+		require MEAL_MENU_DIR . 'includes/ajax/ajax-get-day-menu.php';
+	}
+
 	public function ajax_save_settings(): void {
 		$data = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
 		$nonce = $data['nonce'] ?? '';
@@ -306,6 +327,73 @@ class Core {
 		}
 		$db = DB::instance();
 		require MEAL_MENU_DIR . 'includes/ajax/ajax-list-files.php';
+	}
+
+	public function ajax_delete_file(): void {
+		$data = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
+		if ( ! wp_verify_nonce( $data['nonce'] ?? '', 'meal_menu_nonce' ) ) {
+			wp_die( -1 );
+		}
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+		$files = isset( $data['files'] ) && is_array( $data['files'] ) ? $data['files'] : array( $data['file'] ?? '' );
+		$upload_dir = wp_upload_dir();
+		$deleted = 0;
+		$errors = array();
+		foreach ( $files as $filename ) {
+			$filename = basename( $filename );
+			if ( ! $filename ) continue;
+			$filepath = $upload_dir['basedir'] . '/meal-menu/' . $filename;
+			if ( ! is_file( $filepath ) ) {
+				$errors[] = sprintf( __( 'Файл не найден: %s', 'meal-menu' ), $filename );
+				continue;
+			}
+			if ( unlink( $filepath ) ) {
+				$deleted++;
+				$food_path = meal_food_dir() . $filename;
+				if ( is_file( $food_path ) ) {
+					unlink( $food_path );
+				}
+			} else {
+				$errors[] = sprintf( __( 'Не удалось удалить: %s', 'meal-menu' ), $filename );
+			}
+		}
+		wp_send_json( array(
+			'ok'      => true,
+			'deleted' => $deleted,
+			'errors'  => $errors,
+		) );
+	}
+
+	public function ajax_cleanup_files(): void {
+		$data = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
+		if ( ! wp_verify_nonce( $data['nonce'] ?? '', 'meal_menu_nonce' ) ) {
+			wp_die( -1 );
+		}
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+		$days  = max( 1, (int) ( $data['days'] ?? 15 ) );
+		$cutoff = time() - ( $days * 86400 );
+		$deleted = 0;
+		$upload_dir = wp_upload_dir();
+		$meal_dir   = $upload_dir['basedir'] . '/meal-menu';
+		foreach ( glob( $meal_dir . '/*.xlsx' ) ?: array() as $filepath ) {
+			$name = basename( $filepath );
+			if ( str_starts_with( $name, 'kp' ) || str_starts_with( $name, 'tm' ) || str_starts_with( $name, 'findex' ) ) {
+				continue;
+			}
+			if ( filemtime( $filepath ) < $cutoff ) {
+				unlink( $filepath );
+				$deleted++;
+				$food_path = meal_food_dir() . $name;
+				if ( is_file( $food_path ) ) {
+					unlink( $food_path );
+				}
+			}
+		}
+		wp_send_json( array( 'ok' => true, 'deleted' => $deleted ) );
 	}
 
 	public function ajax_save_theme(): void {
@@ -559,6 +647,11 @@ class Core {
 		$col = $wpdb->get_results( "SELECT * FROM pragma_table_info('$v') WHERE name='actual_date'" );
 		if ( empty( $col ) ) {
 			$wpdb->query( "ALTER TABLE $v ADD COLUMN actual_date date NULL default NULL" );
+		}
+		$c = $wpdb->prefix . 'meal_calendar';
+		$col = $wpdb->get_results( "SELECT * FROM pragma_table_info('$c') WHERE name='iterate_number'" );
+		if ( empty( $col ) ) {
+			$wpdb->query( "ALTER TABLE $c ADD COLUMN iterate_number integer NOT NULL DEFAULT 0" );
 		}
 	}
 }
