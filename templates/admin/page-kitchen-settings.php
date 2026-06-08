@@ -163,12 +163,12 @@ foreach ( $departments as $d ) {
 
 		<div class="ay-fields">
 			<div class="field">
-				<label><?php _e( 'Начало уч. года (ММ-ДД)', 'meal-menu' ); ?></label>
-				<input type="text" id="ay-start" value="<?php echo esc_attr( $ay_settings['academic_year_start'] ); ?>" placeholder="09-01">
+				<label><?php _e( 'Начало уч. года (ДД.ММ)', 'meal-menu' ); ?></label>
+				<input type="text" id="ay-start" placeholder="01.09">
 			</div>
 			<div class="field">
-				<label><?php _e( 'Конец уч. года (ММ-ДД)', 'meal-menu' ); ?></label>
-				<input type="text" id="ay-end" value="<?php echo esc_attr( $ay_settings['academic_year_end'] ); ?>" placeholder="05-31">
+				<label><?php _e( 'Конец уч. года (ДД.ММ)', 'meal-menu' ); ?></label>
+				<input type="text" id="ay-end" placeholder="31.05">
 			</div>
 			<div class="field" style="min-width:auto">
 				<label class="opt-label" style="margin-top:20px">
@@ -185,6 +185,7 @@ foreach ( $departments as $d ) {
 			<select class="vac-year-select" id="vac-year"></select>
 		</div>
 
+		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px"><?php _e( 'Каникулы', 'meal-menu' ); ?></h2>
 		<table class="vac-table">
 			<thead>
 				<tr><th style="width:35%"><?php _e( 'Название', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'С', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'По', 'meal-menu' ); ?></th><th style="width:15%"></th></tr>
@@ -192,9 +193,18 @@ foreach ( $departments as $d ) {
 			<tbody id="vac-body"></tbody>
 		</table>
 
+		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px"><?php _e( 'Праздники', 'meal-menu' ); ?></h2>
+		<table class="vac-table">
+			<thead>
+				<tr><th style="width:35%"><?php _e( 'Название', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'Дата', 'meal-menu' ); ?></th><th style="width:25%"></th><th style="width:15%"></th></tr>
+			</thead>
+			<tbody id="holiday-body"></tbody>
+		</table>
+
 		<div class="vac-actions">
 			<button type="button" class="btn btn-outline btn-sm" id="btn-add-vac">+ <?php _e( 'Добавить каникулы', 'meal-menu' ); ?></button>
-			<button type="button" class="btn btn-outline btn-sm" id="btn-fill-default"><?php _e( 'Типовые каникулы РФ', 'meal-menu' ); ?></button>
+			<button type="button" class="btn btn-outline btn-sm" id="btn-add-holiday">+ <?php _e( 'Добавить праздник', 'meal-menu' ); ?></button>
+			<button type="button" class="btn btn-outline btn-sm" id="btn-fill-default"><?php _e( 'Типовые каникулы и праздники РФ', 'meal-menu' ); ?></button>
 		</div>
 	</div>
 
@@ -436,8 +446,8 @@ foreach ( $departments as $d ) {
 			org_name: document.getElementById('org-name').value,
 			tm_approver_position: document.getElementById('tm-approver-position').value,
 			tm_approver_name: document.getElementById('tm-approver-name').value,
-			academic_year_start: document.getElementById('ay-start').value.trim(),
-			academic_year_end: document.getElementById('ay-end').value.trim(),
+			academic_year_start: ddmmToMmdd(document.getElementById('ay-start').value.trim()),
+			academic_year_end: ddmmToMmdd(document.getElementById('ay-end').value.trim()),
 			reset_cycle_after_vacation: document.getElementById('ay-reset').checked ? 1 : 0,
 			departments: deps
 		}, function(r) {
@@ -451,6 +461,21 @@ foreach ( $departments as $d ) {
 
 	var vacYear = document.getElementById('vac-year');
 	var vacBody = document.getElementById('vac-body');
+	var holidayBody = document.getElementById('holiday-body');
+
+	function mmddToDdmm(v) {
+		if (!v || v.indexOf('-') < 0) return v;
+		var p = v.split('-');
+		return p[1] + '.' + p[0];
+	}
+	function ddmmToMmdd(v) {
+		if (!v || v.indexOf('.') < 0) return v;
+		var p = v.split('.');
+		return p[1] + '-' + p[0];
+	}
+
+	document.getElementById('ay-start').value = mmddToDdmm(<?php echo json_encode( $ay_settings['academic_year_start'] ); ?>);
+	document.getElementById('ay-end').value = mmddToDdmm(<?php echo json_encode( $ay_settings['academic_year_end'] ); ?>);
 
 	(function() {
 		var now = new Date();
@@ -460,7 +485,7 @@ foreach ( $departments as $d ) {
 		for (var y = startY + 1; y >= startY - 2; y--) {
 			var opt = document.createElement('option');
 			opt.value = y + '-' + (y + 1);
-			opt.textContent = y + '-' + (y + 1);
+			opt.textContent = y + '/' + ('' + (y + 1)).slice(-2);
 			vacYear.appendChild(opt);
 		}
 		vacYear.value = startY + '-' + (startY + 1);
@@ -476,54 +501,84 @@ foreach ( $departments as $d ) {
 		});
 	}
 
-	function renderVacations(list) {
-		vacBody.innerHTML = '';
-		if (!list || list.length === 0) {
-			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
-			return;
-		}
-		list.forEach(function(v) {
-			var isHoliday = v.date_from === v.date_to;
-			var tr = document.createElement('tr');
-			tr.dataset.id = v.id;
-			if (isHoliday) tr.style.background = '#fff8e1';
-			tr.innerHTML =
-				'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '">' +
-				(isHoliday ? '<span style="font-size:.65rem;background:#ffc107;color:#333;padding:1px 6px;border-radius:3px;margin-left:4px;vertical-align:middle">праздник</span>' : '') +
-				'</td>' +
-				'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
-				'<td><input type="date" class="vac-to" value="' + v.date_to + '"></td>' +
-				'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +
-				'<button class="btn btn-outline btn-sm vac-save-btn" style="margin-left:4px;padding:2px 8px;font-size:.78rem">OK</button></td>';
-			vacBody.appendChild(tr);
-		});
+	function renderVacationRow(v) {
+		var tr = document.createElement('tr');
+		tr.dataset.id = v.id;
+		tr.innerHTML =
+			'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '"></td>' +
+			'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
+			'<td><input type="date" class="vac-to" value="' + v.date_to + '"></td>' +
+			'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +
+			'<button class="btn btn-outline btn-sm vac-save-btn" style="margin-left:4px;padding:2px 8px;font-size:.78rem">OK</button></td>';
+		return tr;
 	}
 
-	vacBody.addEventListener('click', function(e) {
-		var btn = e.target;
-		var tr = btn.closest('tr');
-		if (!tr) return;
-		var id = parseInt(tr.dataset.id);
-		if (btn.classList.contains('btn-del-vac')) {
-			if (!confirm('Удалить эти каникулы?')) return;
-			apiPost({action: 'delete_vacation', id: id}, function(r) {
-				if (r.ok) loadVacations();
-				else showMsg(r.error || 'Ошибка', true);
-			});
+	function renderHolidayRow(v) {
+		var tr = document.createElement('tr');
+		tr.dataset.id = v.id;
+		tr.style.background = '#fff8e1';
+		tr.innerHTML =
+			'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '"></td>' +
+			'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
+			'<td></td>' +
+			'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +
+			'<button class="btn btn-outline btn-sm vac-save-btn" style="margin-left:4px;padding:2px 8px;font-size:.78rem">OK</button></td>';
+		return tr;
+	}
+
+	function renderVacations(list) {
+		vacBody.innerHTML = '';
+		holidayBody.innerHTML = '';
+		var vacations = [];
+		var holidays = [];
+		(list || []).forEach(function(v) {
+			if (v.date_from === v.date_to) {
+				holidays.push(v);
+			} else {
+				vacations.push(v);
+			}
+		});
+		if (vacations.length === 0) {
+			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
+		} else {
+			vacations.forEach(function(v) { vacBody.appendChild(renderVacationRow(v)); });
 		}
-		if (btn.classList.contains('vac-save-btn')) {
-			apiPost({
-				action: 'update_vacation',
-				id: id,
-				label: tr.querySelector('.vac-label').value,
-				date_from: tr.querySelector('.vac-from').value,
-				date_to: tr.querySelector('.vac-to').value
-			}, function(r) {
-				if (r.ok) showMsg('Сохранено', false);
-				else showMsg(r.error || 'Ошибка', true);
-			});
+		if (holidays.length === 0) {
+			holidayBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Праздники не заданы</td></tr>';
+		} else {
+			holidays.forEach(function(v) { holidayBody.appendChild(renderHolidayRow(v)); });
 		}
-	});
+	}
+
+	function registerVacClick(tbody) {
+		tbody.addEventListener('click', function(e) {
+			var btn = e.target;
+			var tr = btn.closest('tr');
+			if (!tr) return;
+			var id = parseInt(tr.dataset.id);
+			if (btn.classList.contains('btn-del-vac')) {
+				if (!confirm('Удалить запись?')) return;
+				apiPost({action: 'delete_vacation', id: id}, function(r) {
+					if (r.ok) loadVacations();
+					else showMsg(r.error || 'Ошибка', true);
+				});
+			}
+			if (btn.classList.contains('vac-save-btn')) {
+				apiPost({
+					action: 'update_vacation',
+					id: id,
+					label: tr.querySelector('.vac-label').value,
+					date_from: tr.querySelector('.vac-from').value,
+					date_to: tr.querySelector('.vac-to').value
+				}, function(r) {
+					if (r.ok) showMsg('Сохранено', false);
+					else showMsg(r.error || 'Ошибка', true);
+				});
+			}
+		});
+	}
+	registerVacClick(vacBody);
+	registerVacClick(holidayBody);
 
 	document.getElementById('btn-add-vac').addEventListener('click', function() {
 		var label = prompt('Название каникул:', 'Каникулы');
@@ -541,10 +596,26 @@ foreach ( $departments as $d ) {
 		});
 	});
 
+	document.getElementById('btn-add-holiday').addEventListener('click', function() {
+		var label = prompt('Название праздника:', 'Праздник');
+		if (!label) return;
+		var parts = vacYear.value.split('-');
+		apiPost({
+			action: 'add_vacation',
+			academic_year: vacYear.value,
+			label: label,
+			date_from: parts[0] + '-01-01',
+			date_to: parts[0] + '-01-01'
+		}, function(r) {
+			if (r.ok) loadVacations();
+			else showMsg(r.error || 'Ошибка', true);
+		});
+	});
+
 	document.getElementById('btn-fill-default').addEventListener('click', function() {
-		if (!confirm('Добавить типовые каникулы для ' + vacYear.value + '?\n(Существующие не удаляются)')) return;
+		if (!confirm('Добавить типовые каникулы и праздники для ' + vacYear.value + '?\n(Существующие не удаляются)')) return;
 		apiPost({action: 'fill_default_vacations', academic_year: vacYear.value}, function(r) {
-			if (r.ok) { renderVacations(r.vacations); showMsg('Типовые каникулы добавлены', false); }
+			if (r.ok) { renderVacations(r.vacations); showMsg('Типовые каникулы и праздники добавлены', false); }
 			else { showMsg(r.error || 'Ошибка', true); }
 		});
 	});

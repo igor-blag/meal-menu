@@ -160,9 +160,8 @@
 	color: var(--orange);
 	border-color: var(--orange);
 	font-weight: bold;
-	position: relative;
-	bottom: -2px;
 	padding-bottom: 9px;
+	margin-bottom: -2px;
 }
 .meal-menu-wrap .tab-bar + .panel,
 .meal-menu-wrap .tab-bar + .cal-layout .cal-main > .panel { border-top: none; }
@@ -228,6 +227,7 @@
 	padding: 6px 8px;
 	position: relative;
 	transition: background .12s;
+	min-width: 0;
 }
 .meal-menu-wrap .cal-cell:hover { background: var(--orange-pale); cursor: pointer; }
 .meal-menu-wrap .cal-cell.empty { background: var(--bg); }
@@ -237,6 +237,15 @@
 .meal-menu-wrap .cal-cell.cal-ghost .cal-ghost-badge { color: #b0a898; }
 .meal-menu-wrap .cal-cell.weekend { background: #f7f0e8; }
 .meal-menu-wrap .cal-cell.holiday { background: #f5ebe0; }
+.meal-menu-wrap .cal-cell.actual-holiday .cal-day { color: #c00; }
+.meal-menu-wrap .cal-cell .cal-actual-holiday {
+	font-size: .55rem;
+	color: #c00;
+	line-height: 1.1;
+	margin-top: 1px;
+	word-break: break-word;
+	overflow-wrap: break-word;
+}
 .meal-menu-wrap .cal-cell.user-workday { background: #fff; }
 .meal-menu-wrap .cal-cell.has-menu { background: #eef5e8; }
 .meal-menu-wrap .cal-cell.selected { outline: 2px solid var(--orange); outline-offset: -2px; background: var(--orange-pale); }
@@ -320,7 +329,7 @@
 .meal-menu-wrap .btn-delete-dept { background: none; border: none; color: var(--error); cursor: pointer; font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; padding: 4px 8px; }
 .meal-menu-wrap .btn-delete-dept:hover { text-decoration: underline; }
 
-.meal-menu-wrap .vac-year-select { font-size: .92rem; padding: 6px 10px; border: 1px solid var(--border-light); border-radius: var(--radius); font-family: 'Source Serif 4', Georgia, serif; }
+.meal-menu-wrap .vac-year-select { font-size: .92rem; padding: 6px 26px 6px 10px; border: 1px solid var(--border-light); border-radius: var(--radius); font-family: 'Source Serif 4', Georgia, serif; }
 .meal-menu-wrap .vac-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
 .meal-menu-wrap .vac-table th { text-align: left; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--border-light); }
 .meal-menu-wrap .vac-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-light); font-size: .9rem; }
@@ -403,4 +412,196 @@
 	margin-left: 8px;
 	font-size: .82rem;
 	font-style: italic;
+}
+
+/* ─── Адаптивный лейаут календаря ──────────────────────────── */
+.meal-menu-wrap.cal-layout {
+	display: flex;
+	gap: 24px;
+	align-items: flex-start;
+}
+.meal-menu-wrap .cal-main {
+	flex: 1;
+	min-width: 0;
+}
+.meal-menu-wrap .cal-help-sidebar {
+	width: 240px;
+	flex-shrink: 0;
+	font-size: .8rem;
+	line-height: 1.5;
+	position: sticky;
+	top: 12px;
+}
+
+@media (max-width: 1024px) {
+	.meal-menu-wrap.cal-layout {
+		flex-direction: column;
+	}
+	.meal-menu-wrap .cal-help-sidebar {
+		width: 100%;
+		position: static;
+	}
+	.meal-menu-wrap .cal-help-sidebar > div {
+		max-width: 480px;
+	}
+}
+
+@media (max-width: 900px) {
+	.meal-menu-wrap .cal-cell {
+		min-height: 56px;
+		padding: 4px 5px;
+	}
+	.meal-menu-wrap .cal-cell .cal-day {
+		font-size: 1rem;
+	}
+	.meal-menu-wrap .cal-cell .cal-label,
+	.meal-menu-wrap .cal-cell .cal-no-school,
+	.meal-menu-wrap .cal-cell .cal-workday-label,
+	.meal-menu-wrap .cal-cell .cal-vacation {
+		font-size: .65rem;
+	}
+	.meal-menu-wrap .cal-cell .cal-file-badge {
+		font-size: .55rem;
+	}
+	.meal-menu-wrap .cal-head {
+		padding: 5px 2px;
+		font-size: .7rem;
+	}
+}
+
+@media (max-width: 600px) {
+	.meal-menu-wrap {
+		padding: 12px;
+	}
+	.meal-menu-wrap h1.page-title {
+		font-size: 1.1rem;
+	}
+	.meal-menu-wrap .cal-cell {
+		min-height: 40px;
+		padding: 2px 3px;
+	}
+	.meal-menu-wrap .cal-cell .cal-day {
+		font-size: .85rem;
+	}
+	.meal-menu-wrap .cal-cell .cal-label,
+	.meal-menu-wrap .cal-cell .cal-no-school,
+	.meal-menu-wrap .cal-cell .cal-workday-label,
+	.meal-menu-wrap .cal-cell .cal-vacation {
+		font-size: .55rem;
+		line-height: 1.1;
+		margin-top: 1px;
+	}
+	.meal-menu-wrap .cal-cell .cal-file-badge {
+		display: none;
+	}
+	.meal-menu-wrap .cal-head {
+		padding: 4px 1px;
+		font-size: .6rem;
+		letter-spacing: .04em;
+	}
+	.meal-menu-wrap .tab-item {
+		padding: 6px 10px;
+		font-size: .7rem;
+	}
+	.meal-menu-wrap .tab-item.active {
+		padding-bottom: 8px;
+	}
+	.meal-menu-wrap .legend {
+		gap: 10px;
+	}
+	.meal-menu-wrap .legend-item {
+		font-size: .7rem;
+	}
+	.meal-menu-wrap .legend-dot {
+		width: 12px;
+		height: 12px;
+	}
+
+	.meal-menu-wrap .cal-nav {
+		gap: 8px;
+	}
+	.meal-menu-wrap .cal-nav h2 {
+		font-size: .9rem;
+	}
+	.meal-menu-wrap #day-popup {
+		left: 12px !important;
+		right: 12px !important;
+		max-width: none !important;
+		width: auto !important;
+	}
+	.meal-menu-wrap #day-popup .day-popup-actions button,
+	.meal-menu-wrap #day-popup #btn-fill-month {
+		width: 100%;
+		text-align: center;
+	}
+	.meal-menu-wrap #day-popup #day-num-selector {
+		justify-content: center;
+	}
+	.meal-menu-wrap #day-popup .day-popup-actions {
+		gap: 8px;
+	}
+}
+
+@media (max-width: 480px) {
+	.meal-menu-wrap {
+		padding: 8px;
+	}
+	.meal-menu-wrap .panel {
+		padding: 12px;
+	}
+	.meal-menu-wrap .cal-grid {
+		gap: 1px;
+	}
+	.meal-menu-wrap .cal-cell {
+		min-height: 34px;
+		padding: 1px 2px;
+	}
+	.meal-menu-wrap .cal-cell .cal-day {
+		font-size: .78rem;
+	}
+	.meal-menu-wrap .cal-cell .cal-label,
+	.meal-menu-wrap .cal-cell .cal-no-school,
+	.meal-menu-wrap .cal-cell .cal-workday-label,
+	.meal-menu-wrap .cal-cell .cal-vacation {
+		display: none;
+	}
+	.meal-menu-wrap .cal-head {
+		padding: 3px 1px;
+		font-size: .55rem;
+	}
+	.meal-menu-wrap .tab-bar {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		flex-wrap: nowrap;
+	}
+	.meal-menu-wrap .tab-item {
+		padding: 6px 8px;
+		font-size: .65rem;
+		white-space: nowrap;
+	}
+
+	.meal-menu-wrap .cal-nav h2 {
+		font-size: .8rem;
+	}
+	.meal-menu-wrap .cal-nav .btn-sm {
+		padding: 3px 8px;
+		font-size: .7rem;
+	}
+
+	.meal-menu-wrap .cycle-info {
+		font-size: .7rem !important;
+	}
+
+	.meal-menu-wrap .legend {
+		gap: 6px;
+		margin-top: 8px;
+	}
+	.meal-menu-wrap .legend-item {
+		font-size: .65rem;
+		gap: 4px;
+	}
+	.meal-menu-wrap .legend-dot {
+		width: 10px;
+		height: 10px;
+	}
 }

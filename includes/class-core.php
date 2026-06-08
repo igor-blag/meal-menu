@@ -25,8 +25,6 @@ class Core {
 		add_action( 'admin_post_meal_save_template', array( $self, 'handle_save_template' ) );
 		add_action( 'admin_post_meal_add_template', array( $self, 'handle_add_template' ) );
 		add_action( 'admin_post_meal_delete_template', array( $self, 'handle_delete_template' ) );
-		add_action( 'admin_post_meal_import_confirm', array( $self, 'handle_import_confirm' ) );
-		add_action( 'admin_post_meal_import_upload', array( $self, 'handle_import_upload' ) );
 		add_action( 'admin_post_meal_export_data', array( $self, 'handle_export_data' ) );
 		add_action( 'meal_daily_check', array( $self, 'run_daily_cron' ) );
 		add_filter( 'cron_schedules', array( $self, 'add_cron_schedules' ) );
@@ -72,15 +70,6 @@ class Core {
 			'manage_meal_menu',
 			'meal-templates',
 			array( $this, 'render_templates' )
-		);
-
-		add_submenu_page(
-			'meal-calendar',
-			__( 'Импорт меню', 'meal-menu' ),
-			__( 'Импорт', 'meal-menu' ),
-			'manage_meal_menu',
-			'meal-import',
-			array( $this, 'render_import' )
 		);
 
 		add_submenu_page(
@@ -204,10 +193,6 @@ class Core {
 		} else {
 			$this->render_admin_template( 'templates' );
 		}
-	}
-
-	public function render_import(): void {
-		$this->render_admin_template( 'import' );
 	}
 
 	public function render_oc(): void {
@@ -515,8 +500,7 @@ class Core {
 		echo "  05. Настройки пищеблока   → " . esc_url( $base . 'admin-settings.html' ) . "\n";
 		echo "  06. Настройки плагина     → " . esc_url( $base . 'plugin-settings.html' ) . "\n";
 		echo "  07. ОК Питания            → " . esc_url( $base . 'admin-oc.html' ) . "\n";
-		echo "  08. Импорт меню           → " . esc_url( $base . 'admin-import.html' ) . "\n";
-		echo "  09. Публичная часть       → " . esc_url( $base . 'public-shortcodes.html' ) . "\n";
+		echo "  08. Публичная часть       → " . esc_url( $base . 'public-shortcodes.html' ) . "\n";
 		echo "  10. Excel-генерация       → " . esc_url( $base . 'excel-generators.html' ) . "\n";
 		echo "  11. Cron и Email          → " . esc_url( $base . 'cron-email.html' ) . "\n";
 		echo "  12. Темы оформления       → " . esc_url( $base . 'themes.html' ) . "\n";
@@ -531,88 +515,6 @@ class Core {
 		echo "  \\Meal_Menu\\Roles, \\Meal_Menu\\Excel_Daily/TM/KP/OC, \\Meal_Menu\\Importer\n";
 		echo "=================================================================\n";
 		echo "-->\n";
-	}
-
-	public function handle_import_upload(): void {
-		if ( ! current_user_can( 'manage_meal_menu' ) ) {
-			wp_die( -1 );
-		}
-		check_admin_referer( 'meal_import_upload' );
-
-		$tpl_id = (int) ( $_POST['template_id'] ?? 0 );
-		$tpl    = $tpl_id ? DB::instance()->get_template( $tpl_id ) : null;
-		if ( ! $tpl ) {
-			wp_redirect( admin_url( 'admin.php?page=meal-import' ) );
-			exit;
-		}
-
-		if ( ! isset( $_FILES['xlsx'] ) || $_FILES['xlsx']['error'] !== UPLOAD_ERR_OK ) {
-			wp_redirect( admin_url( 'admin.php?page=meal-import&id=' . $tpl_id . '&error=upload' ) );
-			exit;
-		}
-
-		$file = $_FILES['xlsx'];
-		$allowed_mime = array(
-			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			'application/zip',
-			'application/octet-stream',
-		);
-
-		if ( ! in_array( mime_content_type( $file['tmp_name'] ), $allowed_mime, true ) ) {
-			wp_redirect( admin_url( 'admin.php?page=meal-import&id=' . $tpl_id . '&error=format' ) );
-			exit;
-		}
-
-		try {
-			$items = \Meal_Menu\Importer::parse( $file['tmp_name'] );
-			if ( empty( $items ) ) {
-				wp_redirect( admin_url( 'admin.php?page=meal-import&id=' . $tpl_id . '&error=empty' ) );
-				exit;
-			}
-
-			$upload_dir = wp_upload_dir();
-			$tmp_dir    = $upload_dir['basedir'] . '/meal-menu';
-			wp_mkdir_p( $tmp_dir );
-			$tmp_path   = $tmp_dir . '/tmp_import_' . get_current_user_id() . '.xlsx';
-			file_put_contents( $tmp_path, file_get_contents( $file['tmp_name'] ) );
-			set_transient( 'meal_import_tmp_' . get_current_user_id(), $tmp_path, HOUR_IN_SECONDS );
-			set_transient( 'meal_import_tpl_' . get_current_user_id(), $tpl_id, HOUR_IN_SECONDS );
-
-			set_transient( 'meal_import_preview_' . get_current_user_id(), $items, HOUR_IN_SECONDS );
-			wp_redirect( admin_url( 'admin.php?page=meal-import&id=' . $tpl_id . '&preview=1' ) );
-			exit;
-		} catch ( \Exception $e ) {
-			wp_redirect( admin_url( 'admin.php?page=meal-import&id=' . $tpl_id . '&error=parse' ) );
-			exit;
-		}
-	}
-
-	public function handle_import_confirm(): void {
-		if ( ! current_user_can( 'manage_meal_menu' ) ) {
-			wp_die( -1 );
-		}
-		check_admin_referer( 'meal_import_confirm' );
-
-		$tmp_path = get_transient( 'meal_import_tmp_' . get_current_user_id() );
-		$save_tpl = (int) get_transient( 'meal_import_tpl_' . get_current_user_id() );
-
-		if ( $tmp_path && file_exists( $tmp_path ) && $save_tpl ) {
-			try {
-				$items = \Meal_Menu\Importer::parse( $tmp_path );
-				DB::instance()->save_template_items( $save_tpl, $items );
-				unlink( $tmp_path );
-				delete_transient( 'meal_import_tmp_' . get_current_user_id() );
-				delete_transient( 'meal_import_tpl_' . get_current_user_id() );
-				delete_transient( 'meal_import_preview_' . get_current_user_id() );
-				wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $save_tpl . '&imported=1' ) );
-				exit;
-			} catch ( \Exception $e ) {
-				wp_redirect( admin_url( 'admin.php?page=meal-import&id=' . $save_tpl . '&error=save' ) );
-				exit;
-			}
-		}
-		wp_redirect( admin_url( 'admin.php?page=meal-import' ) );
-		exit;
 	}
 
 	public function handle_export_data(): void {
@@ -652,6 +554,11 @@ class Core {
 		$exists = $wpdb->get_var( "SELECT name FROM sqlite_master WHERE type='table' AND name='$table'" );
 		if ( ! $exists ) {
 			Activator::activate();
+		}
+		$v = $wpdb->prefix . 'meal_vacations';
+		$col = $wpdb->get_results( "SELECT * FROM pragma_table_info('$v') WHERE name='actual_date'" );
+		if ( empty( $col ) ) {
+			$wpdb->query( "ALTER TABLE $v ADD COLUMN actual_date date NULL default NULL" );
 		}
 	}
 }

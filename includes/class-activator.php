@@ -134,6 +134,7 @@ class Activator {
 			label varchar(100) NOT NULL,
 			date_from date NOT NULL,
 			date_to date NOT NULL,
+			actual_date date NULL default NULL,
 			created_at timestamp NOT NULL default CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			KEY idx_year (academic_year),

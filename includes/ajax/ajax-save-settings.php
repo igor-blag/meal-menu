@@ -73,7 +73,8 @@ try {
 		$label         = sanitize_text_field( $data['label'] ?? '' );
 		$date_from     = sanitize_text_field( $data['date_from'] ?? '' );
 		$date_to       = sanitize_text_field( $data['date_to'] ?? '' );
-		$id = $db->add_vacation( $academic_year, $label, $date_from, $date_to );
+		$actual_date   = ! empty( $data['actual_date'] ) ? sanitize_text_field( $data['actual_date'] ) : null;
+		$id = $db->add_vacation( $academic_year, $label, $date_from, $date_to, $actual_date );
 		wp_send_json( array( 'ok' => true, 'id' => $id ) );
 
 	} elseif ( $action === 'update_vacation' ) {
@@ -81,7 +82,8 @@ try {
 		$label     = sanitize_text_field( $data['label'] ?? '' );
 		$date_from = sanitize_text_field( $data['date_from'] ?? '' );
 		$date_to   = sanitize_text_field( $data['date_to'] ?? '' );
-		$db->update_vacation( $id, $label, $date_from, $date_to );
+		$actual_date   = isset( $data['actual_date'] ) ? sanitize_text_field( $data['actual_date'] ) : null;
+		$db->update_vacation( $id, $label, $date_from, $date_to, $actual_date );
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'delete_vacation' ) {
@@ -132,7 +134,8 @@ try {
 			array( 'День Победы',               "$ny-05-09" ),
 		);
 		foreach ( $holidays as $h ) {
-			$dt  = date_create( $h[1] );
+			$actual = $h[1];
+			$dt  = date_create( $actual );
 			$dow = (int) $dt->format( 'w' );
 			if ( $dow === 6 ) {       // суббота → понедельник +2
 				$dt->modify( '+2 days' );
@@ -140,7 +143,8 @@ try {
 				$dt->modify( '+1 days' );
 			}
 			$date = $dt->format( 'Y-m-d' );
-			$db->add_vacation( $academic_year, $h[0], $date, $date );
+			$actual_date = $date === $actual ? null : $actual;
+			$db->add_vacation( $academic_year, $h[0], $date, $date, $actual_date );
 		}
 
 		$vacations = $db->get_vacations( $academic_year );

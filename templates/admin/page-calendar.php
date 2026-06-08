@@ -183,9 +183,16 @@ $cur_workdays = $cur_dept_for_wd ? explode( ',', $cur_dept_for_wd['workdays'] ) 
 $cur_dept_for_vac = $merge_dept ? $merge_dept : $cur_dept;
 $vacation_days = $db->get_vacation_days_for_range( $month_from, $month_to );
 $cur_period    = $db->get_current_period( $data_type, $today_str );
+
+$actual_dates = array();
+foreach ( $vacation_days as $d => $info ) {
+	if ( ! empty( $info['actual_date'] ) ) {
+		$actual_dates[ $info['actual_date'] ] = $info['label'];
+	}
+}
 ?>
-<div class="wrap meal-menu-wrap" style="display:flex;gap:24px;align-items:flex-start">
-	<div style="flex:1;min-width:0">
+<div class="wrap meal-menu-wrap cal-layout">
+	<div class="cal-main">
 		<div class="flex items-center justify-between mb-2">
 			<h1 class="page-title" style="border:none;margin:0"><?php _e( 'Календарь меню', 'meal-menu' ); ?></h1>
 			<div class="flex gap-2">
@@ -238,6 +245,7 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 					$prev_date_str   = sprintf( '%04d-%02d-%02d', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $prev_d );
 					$prev_entry      = $prev_cal_data[ $prev_date_str ] ?? null;
 					$prev_is_vac     = isset( $prev_vacations[ $prev_date_str ] );
+					$prev_is_holiday = $prev_is_vac && $prev_vacations[ $prev_date_str ]['is_holiday'];
 					$prev_has_file   = isset( $existing_files[ $prev_date_str ] );
 					$prev_entry_json = $prev_entry ? json_encode( array(
 						'template_id'    => $prev_entry['template_id'],
@@ -251,8 +259,10 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 				?>
 					<div class="cal-cell cal-ghost" data-date="<?php echo $prev_date_str; ?>">
 						<div class="cal-day cal-ghost-day"><?php echo $prev_d; ?></div>
-						<?php if ( $prev_is_vac ): ?>
+						<?php if ( $prev_is_vac && ! $prev_is_holiday ): ?>
 							<div class="cal-ghost-label"><?php _e( 'каникулы', 'meal-menu' ); ?></div>
+						<?php elseif ( $prev_is_holiday ): ?>
+							<div class="cal-ghost-label"><?php _e( 'выходной', 'meal-menu' ); ?></div>
 						<?php elseif ( $prev_entry && $prev_entry['template_id'] ): ?>
 							<div class="cal-ghost-label"><?php echo esc_html( $prev_entry['template_label'] ); ?></div>
 						<?php elseif ( $prev_entry && $prev_entry['template_id'] === null && ! empty( $prev_entry['iterate_number'] ) ): ?>
@@ -271,7 +281,9 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 					$is_today = ( $date_str === $today_str );
 
 					$is_vacation = isset( $vacation_days[ $date_str ] );
-					$vac_label   = $is_vacation ? $vacation_days[ $date_str ] : '';
+					$vac_label   = $is_vacation ? $vacation_days[ $date_str ]['label'] : '';
+					$is_holiday  = $is_vacation && $vacation_days[ $date_str ]['is_holiday'];
+					$actual_date = $is_vacation && ! empty( $vacation_days[ $date_str ]['actual_date'] ) ? $vacation_days[ $date_str ]['actual_date'] : null;
 
 					$is_user_workday = $entry && $entry['template_id'] === null && ! empty( $entry['iterate_number'] );
 					$cls = 'cal-cell';
@@ -281,8 +293,10 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 					if ( $is_user_workday ) {
 						$cls .= ' user-workday';
 					}
-					if ( $is_vacation ) {
+					if ( $is_vacation && ! $is_holiday ) {
 						$cls .= ' vacation';
+					} elseif ( $is_vacation && $is_holiday ) {
+						$cls .= ' holiday';
 					} elseif ( $entry && $entry['template_id'] === null && empty( $entry['iterate_number'] ) ) {
 						$cls .= ' holiday';
 					} elseif ( $entry && $entry['template_id'] ) {
@@ -306,6 +320,12 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 						'iterate_number' => (int) ( $entry['iterate_number'] ?? 0 ),
 					), JSON_UNESCAPED_UNICODE ) : 'null';
 				?>
+				<?php
+					$is_actual_holiday = isset( $actual_dates[ $date_str ] );
+					if ( $is_actual_holiday ) {
+						$cls .= ' actual-holiday';
+					}
+				?>
 				<div class="<?php echo $cls; ?>"
 					data-date="<?php echo $date_str; ?>"
 					data-entry="<?php echo esc_attr( $entry_json ); ?>"
@@ -313,14 +333,19 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 					<?php echo isset( $existing_files[ $date_str ] ) ? 'data-has-file="1"' : ''; ?>
 					<?php if ( $entry && $entry['template_id'] ): ?>data-day-num="<?php echo (int) ( $templates_map[ (int) $entry['template_id'] ] ?? '' ); ?>"<?php endif; ?>>
 					<div class="cal-day"><?php echo $d; ?></div>
-					<?php if ( $is_vacation ): ?>
+					<?php if ( $is_vacation && ! $is_holiday ): ?>
 						<div class="cal-vacation" style="font-size:.72rem;color:#7a5c9a;line-height:1.2"><?php _e( 'каникулы', 'meal-menu' ); ?></div>
+					<?php elseif ( $is_holiday ): ?>
+						<div class="cal-no-school"><?php _e( 'выходной', 'meal-menu' ); ?></div>
 					<?php elseif ( $entry && $entry['template_id'] ): ?>
 						<div class="cal-label"><?php echo esc_html( $entry['template_label'] ); ?></div>
 					<?php elseif ( $entry && $entry['template_id'] === null && empty( $entry['iterate_number'] ) ): ?>
 						<div class="cal-no-school"><?php _e( 'выходной', 'meal-menu' ); ?></div>
 					<?php elseif ( $entry && $entry['template_id'] === null && ! empty( $entry['iterate_number'] ) ): ?>
 						<div class="cal-workday-label"><?php _e( 'Рабочий день', 'meal-menu' ); ?></div>
+					<?php endif; ?>
+					<?php if ( $is_actual_holiday ): ?>
+						<div class="cal-actual-holiday"><?php echo esc_html( $actual_dates[ $date_str ] ); ?></div>
 					<?php endif; ?>
 					<?php if ( isset( $existing_files[ $date_str ] ) ): ?>
 						<div class="cal-file-badge"><?php echo esc_html( $existing_files[ $date_str ] ); ?></div>
@@ -335,12 +360,15 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 				$next_date_str   = sprintf( '%04d-%02d-%02d', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $next_d );
 				$next_entry      = $next_cal_data[ $next_date_str ] ?? null;
 				$next_is_vac     = isset( $next_vacations[ $next_date_str ] );
+				$next_is_holiday = $next_is_vac && $next_vacations[ $next_date_str ]['is_holiday'];
 				$next_has_file   = isset( $existing_files[ $next_date_str ] );
 			?>
 				<div class="cal-cell cal-ghost" data-date="<?php echo $next_date_str; ?>">
 					<div class="cal-day cal-ghost-day"><?php echo $next_d; ?></div>
-					<?php if ( $next_is_vac ): ?>
+					<?php if ( $next_is_vac && ! $next_is_holiday ): ?>
 						<div class="cal-ghost-label"><?php _e( 'каникулы', 'meal-menu' ); ?></div>
+					<?php elseif ( $next_is_holiday ): ?>
+						<div class="cal-ghost-label"><?php _e( 'выходной', 'meal-menu' ); ?></div>
 					<?php elseif ( $next_entry && $next_entry['template_id'] ): ?>
 						<div class="cal-ghost-label"><?php echo esc_html( $next_entry['template_label'] ); ?></div>
 					<?php endif; ?>
@@ -365,7 +393,7 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 		</div>
 	</div>
 
-	<div class="cal-help-sidebar" style="width:240px;flex-shrink:0;font-size:.8rem;line-height:1.5;position:sticky;top:12px">
+	<div class="cal-help-sidebar">
 		<div style="background:#faf6f0;border:1px solid #ede4d8;border-radius:6px;padding:14px">
 			<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--orange);font-weight:bold;margin-bottom:10px"><?php _e( 'Как заполнить месяц', 'meal-menu' ); ?></div>
 
@@ -440,6 +468,7 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 	var publishXlsx  = <?php echo ! empty( $cur_dept_for_wd['publish_xlsx'] ) ? 'true' : 'false'; ?>;
 	var sourceDepts  = <?php echo $sources_json; ?>;
 	var vacationDays = <?php echo json_encode( array_keys( $vacation_days ) ); ?>;
+	var holidayDates = <?php echo json_encode( array_keys( array_filter( $vacation_days, function( $v ) { return $v['is_holiday']; } ) ) ); ?>;
 	var ajaxUrl      = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
 	var nonce        = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
 
@@ -557,8 +586,14 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 
 		popupTitle.textContent = date;
 		var statusHtml = '';
-		if (isVacDay) statusHtml = '<span style="color:#7a5c9a">Каникулы</span>';
-		else if (!isEffectiveWorkday) statusHtml = '<span style="color:var(--muted)">Выходной день</span>';
+		if (isVacDay) {
+			var isHol = holidayDates.indexOf(date) >= 0;
+			if (isHol) {
+				statusHtml = '<span style="color:var(--muted)">Выходной день</span>';
+			} else {
+				statusHtml = '<span style="color:#7a5c9a">Каникулы</span>';
+			}
+		} else if (!isEffectiveWorkday) statusHtml = '<span style="color:var(--muted)">Выходной день</span>';
 		popupStatus.innerHTML = statusHtml;
 
 
@@ -603,11 +638,22 @@ $cur_period    = $db->get_current_period( $data_type, $today_str );
 		popupActions.innerHTML = html;
 
 		var r = cell.getBoundingClientRect();
-		var left = r.left + window.scrollX;
-		var top = r.bottom + window.scrollY + 4;
-		if (top + 300 > window.innerHeight) top = r.top + window.scrollY - 300;
-		popup.style.left = Math.min(left, window.innerWidth - 300) + 'px';
-		popup.style.top = top + 'px';
+		if (window.innerWidth < 600) {
+			popup.style.left = '12px';
+			popup.style.right = '12px';
+			popup.style.top = Math.min(r.top + window.scrollY, window.innerHeight - 300 + window.scrollY) + 'px';
+			popup.style.maxWidth = 'none';
+			popup.style.width = 'auto';
+		} else {
+			var left = r.left + window.scrollX;
+			var top = r.bottom + window.scrollY + 4;
+			if (top + 300 > window.innerHeight) top = r.top + window.scrollY - 300;
+			popup.style.left = Math.min(left, window.innerWidth - 300) + 'px';
+			popup.style.top = top + 'px';
+			popup.style.right = 'auto';
+			popup.style.maxWidth = '280px';
+			popup.style.width = '';
+		}
 		popup.style.display = 'block';
 	});
 

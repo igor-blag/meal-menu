@@ -589,34 +589,36 @@ class DB {
 		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
 	}
 
-	public function add_vacation( string $academic_year, string $label, string $date_from, string $date_to ): int {
+	public function add_vacation( string $academic_year, string $label, string $date_from, string $date_to, ?string $actual_date = null ): int {
 		$t = $this->t( 'vacations' );
-		$this->wpdb->insert(
-			$t,
-			array(
-				'academic_year' => $academic_year,
-				'label'         => $label,
-				'date_from'     => $date_from,
-				'date_to'       => $date_to,
-			),
-			array( '%s', '%s', '%s', '%s' )
+		$data = array(
+			'academic_year' => $academic_year,
+			'label'         => $label,
+			'date_from'     => $date_from,
+			'date_to'       => $date_to,
 		);
+		$fmts = array( '%s', '%s', '%s', '%s' );
+		if ( $actual_date !== null ) {
+			$data['actual_date'] = $actual_date;
+			$fmts[] = '%s';
+		}
+		$this->wpdb->insert( $t, $data, $fmts );
 		return $this->wpdb->insert_id;
 	}
 
-	public function update_vacation( int $id, string $label, string $date_from, string $date_to ): void {
+	public function update_vacation( int $id, string $label, string $date_from, string $date_to, ?string $actual_date = null ): void {
 		$t = $this->t( 'vacations' );
-		$this->wpdb->update(
-			$t,
-			array(
-				'label'     => $label,
-				'date_from' => $date_from,
-				'date_to'   => $date_to,
-			),
-			array( 'id' => $id ),
-			array( '%s', '%s', '%s' ),
-			array( '%d' )
+		$data = array(
+			'label'     => $label,
+			'date_from' => $date_from,
+			'date_to'   => $date_to,
 		);
+		$fmts = array( '%s', '%s', '%s' );
+		if ( $actual_date !== null ) {
+			$data['actual_date'] = $actual_date;
+			$fmts[] = '%s';
+		}
+		$this->wpdb->update( $t, $data, array( 'id' => $id ), $fmts, array( '%d' ) );
 	}
 
 	public function delete_vacation( int $id ): void {
@@ -743,10 +745,16 @@ class DB {
 
 		$days = array();
 		foreach ( $vacations as $vac ) {
+			$is_holiday = $vac['date_from'] === $vac['date_to'];
+			$actual_date = ! empty( $vac['actual_date'] ) ? $vac['actual_date'] : ( $is_holiday ? $vac['date_from'] : null );
 			$cur = new \DateTime( max( $vac['date_from'], $from ) );
 			$end = new \DateTime( min( $vac['date_to'], $to ) );
 			while ( $cur <= $end ) {
-				$days[ $cur->format( 'Y-m-d' ) ] = $vac['label'];
+				$days[ $cur->format( 'Y-m-d' ) ] = array(
+					'label'       => $vac['label'],
+					'is_holiday'  => $is_holiday,
+					'actual_date' => $actual_date,
+				);
 				$cur->modify( '+1 day' );
 			}
 		}
