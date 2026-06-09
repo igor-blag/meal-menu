@@ -29,6 +29,9 @@ class DB {
 			"{$p}items",
 			"{$p}calendar",
 			"{$p}templates",
+			"{$p}camp_items",
+			"{$p}camp_calendar",
+			"{$p}camp_templates",
 			"{$p}email_tokens",
 			"{$p}users",
 			"{$p}oc_monitoring",
@@ -451,13 +454,15 @@ class DB {
 	public function save_department( int $id, array $data ): void {
 		$t       = $this->t( 'departments' );
 		$allowed = array( 'label', 'label_short', 'dept_name', 'is_enabled', 'is_builtin',
-			'is_boarding', 'workdays', 'publish_xlsx', 'file_suffix', 'sort_order', 'note', 'ignore_vacations', 'merged_with' );
+			'is_boarding', 'workdays', 'publish_xlsx', 'file_suffix', 'sort_order', 'note', 'ignore_vacations', 'merged_with',
+			'has_summer_camp', 'camp_start_date', 'camp_end_date', 'camp_workdays', 'camp_is_boarding', 'camp_publish_xlsx' );
 		$update  = array();
 		$formats = array();
 		foreach ( $data as $k => $v ) {
 			if ( in_array( $k, $allowed, true ) ) {
 				$update[ $k ] = $v;
-				if ( in_array( $k, array( 'is_enabled', 'is_builtin', 'is_boarding', 'publish_xlsx', 'sort_order', 'ignore_vacations' ), true ) ) {
+				if ( in_array( $k, array( 'is_enabled', 'is_builtin', 'is_boarding', 'publish_xlsx', 'sort_order', 'ignore_vacations',
+					'has_summer_camp', 'camp_is_boarding', 'camp_publish_xlsx' ), true ) ) {
 					$formats[] = '%d';
 				} else {
 					$formats[] = '%s';
@@ -817,6 +822,356 @@ class DB {
 
 	public function get_table_name( string $table ): string {
 		return $this->prefix . $table;
+	}
+
+	// ─── Летний лагерь ─────────────────────────────────────
+
+	public function is_camp_period( string $type, ?string $date = null ): bool {
+		$dept = $this->get_department( $type );
+		if ( ! $dept || empty( $dept['has_summer_camp'] ) ) {
+			return false;
+		}
+		if ( ! $dept['camp_start_date'] || ! $dept['camp_end_date'] ) {
+			return false;
+		}
+		$date = $date ?? current_time( 'Y-m-d' );
+		return $date >= $dept['camp_start_date'] && $date <= $dept['camp_end_date'];
+	}
+
+	public function is_camp_period_for_month( string $type, int $year, int $month ): bool {
+		$month_start = sprintf( '%04d-%02d-01', $year, $month );
+		$month_end   = gmdate( 'Y-m-t', strtotime( $month_start ) );
+		$dept = $this->get_department( $type );
+		if ( ! $dept || empty( $dept['has_summer_camp'] ) || ! $dept['camp_start_date'] || ! $dept['camp_end_date'] ) {
+			return false;
+		}
+		return $month_start <= $dept['camp_end_date'] && $month_end >= $dept['camp_start_date'];
+	}
+
+	public function get_camp_templates( string $type = 'sm' ): array {
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare( "SELECT * FROM $t WHERE school_type = %s ORDER BY day_number", $type );
+		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+	}
+
+	public function get_camp_template( int $id ): ?array {
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare( "SELECT * FROM $t WHERE id = %d", $id );
+		$row = $this->wpdb->get_row( $sql, ARRAY_A );
+		return $row ?: null;
+	}
+
+	public function add_camp_template( string $type ): int {
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare( "SELECT COALESCE(MAX(day_number), 0) FROM $t WHERE school_type = %s", $type );
+		$next_day = (int) $this->wpdb->get_var( $sql ) + 1;
+		$this->wpdb->insert(
+			$t,
+			array(
+				'day_number'  => $next_day,
+				'school_type' => $type,
+				'label'       => "Лагерь № $next_day",
+			),
+			array( '%d', '%s', '%s' )
+		);
+		return $this->wpdb->insert_id;
+	}
+
+	public function delete_camp_template( int $id ): void {
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare( "DELETE FROM $t WHERE id = %d", $id );
+		$this->wpdb->query( $sql );
+	}
+
+	public function set_camp_template_boarding( int $id, int $is_boarding ): void {
+		$t = $this->t( 'camp_templates' );
+		$this->wpdb->update(
+			$t,
+			array( 'is_boarding' => $is_boarding ? 1 : 0 ),
+			array( 'id' => $id ),
+			array( '%d' ),
+			array( '%d' )
+		);
+	}
+
+	public function get_camp_templates_ordered( string $type ): array {
+		$t    = $this->t( 'camp_templates' );
+		$sql  = $this->wpdb->prepare( "SELECT id, day_number FROM $t WHERE school_type = %s ORDER BY day_number ASC", $type );
+		$rows = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+		$map  = array();
+		foreach ( $rows as $row ) {
+			$map[ (int) $row['day_number'] ] = (int) $row['id'];
+		}
+		return $map;
+	}
+
+	public function get_camp_cycle_length( string $type ): int {
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE school_type = %s", $type );
+		return (int) $this->wpdb->get_var( $sql );
+	}
+
+	public function get_camp_template_items( int $template_id ): array {
+		$t    = $this->t( 'camp_items' );
+		$sql  = $this->wpdb->prepare( "SELECT * FROM $t WHERE template_id = %d ORDER BY meal_type, sort_order, id", $template_id );
+		$rows = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+
+		$grouped = array(
+			'breakfast'       => array(),
+			'breakfast2'      => array(),
+			'lunch'           => array(),
+			'afternoon_snack' => array(),
+			'dinner'          => array(),
+			'dinner2'         => array(),
+		);
+		foreach ( $rows as $row ) {
+			if ( isset( $grouped[ $row['meal_type'] ] ) ) {
+				$grouped[ $row['meal_type'] ][] = $row;
+			}
+		}
+		return $grouped;
+	}
+
+	public function save_camp_template_items( int $template_id, array $items ): void {
+		$t = $this->t( 'camp_items' );
+		$this->wpdb->delete( $t, array( 'template_id' => $template_id ), array( '%d' ) );
+
+		foreach ( $items as $order => $item ) {
+			$this->wpdb->insert(
+				$t,
+				array(
+					'template_id' => $template_id,
+					'meal_type'   => $item['meal_type'],
+					'section'     => $item['section']    ?? null,
+					'recipe_num'  => $item['recipe_num'] ?? null,
+					'dish_name'   => $item['dish_name']  ?? null,
+					'grams'       => isset( $item['grams'] )   ? (float) $item['grams']   : null,
+					'price'       => isset( $item['price'] )   ? (float) $item['price']   : null,
+					'kcal'        => isset( $item['kcal'] )    ? (float) $item['kcal']    : null,
+					'protein'     => isset( $item['protein'] ) ? (float) $item['protein'] : null,
+					'fat'         => isset( $item['fat'] )     ? (float) $item['fat']     : null,
+					'carbs'       => isset( $item['carbs'] )   ? (float) $item['carbs']   : null,
+					'sort_order'  => $order,
+				),
+				array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%f', '%f', '%f', '%f', '%d' )
+			);
+		}
+	}
+
+	public function get_camp_calendar_day( string $date, string $type = 'sm' ): ?array {
+		$c   = $this->t( 'camp_calendar' );
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare(
+			"SELECT c.*, t.label AS template_label, t.is_boarding
+			 FROM $c c
+			 LEFT JOIN $t t ON t.id = c.template_id
+			 WHERE c.date = %s AND c.school_type = %s",
+			$date,
+			$type
+		);
+		$row = $this->wpdb->get_row( $sql, ARRAY_A );
+		return $row ?: null;
+	}
+
+	public function get_camp_calendar_month( int $year, int $month, string $type = 'sm' ): array {
+		$from = sprintf( '%04d-%02d-01', $year, $month );
+		$to   = gmdate( 'Y-m-t', strtotime( $from ) );
+		$c    = $this->t( 'camp_calendar' );
+		$t    = $this->t( 'camp_templates' );
+		$sql  = $this->wpdb->prepare(
+			"SELECT c.*, t.label AS template_label
+			 FROM $c c
+			 LEFT JOIN $t t ON t.id = c.template_id
+			 WHERE c.date BETWEEN %s AND %s AND c.school_type = %s",
+			$from,
+			$to,
+			$type
+		);
+		$rows   = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+		$result = array();
+		foreach ( $rows as $row ) {
+			$result[ $row['date'] ] = $row;
+		}
+		return $result;
+	}
+
+	public function get_camp_calendar_range( string $from, string $to, string $type ): array {
+		$c   = $this->t( 'camp_calendar' );
+		$t   = $this->t( 'camp_templates' );
+		$sql = $this->wpdb->prepare(
+			"SELECT c.*, t.label AS template_label
+			 FROM $c c
+			 LEFT JOIN $t t ON t.id = c.template_id
+			 WHERE c.date BETWEEN %s AND %s AND c.school_type = %s",
+			$from, $to, $type
+		);
+		$rows   = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+		$result = array();
+		foreach ( $rows as $row ) {
+			$result[ $row['date'] ] = $row;
+		}
+		return $result;
+	}
+
+	public function get_camp_calendar_year( int $year, string $type ): array {
+		$from = sprintf( '%04d-01-01', $year );
+		$to   = sprintf( '%04d-12-31', $year );
+		$c    = $this->t( 'camp_calendar' );
+		$t    = $this->t( 'camp_templates' );
+		$sql  = $this->wpdb->prepare(
+			"SELECT c.*, t.day_number
+			 FROM $c c
+			 LEFT JOIN $t t ON t.id = c.template_id
+			 WHERE c.date BETWEEN %s AND %s AND c.school_type = %s",
+			$from, $to, $type
+		);
+		$rows   = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+		$result = array();
+		foreach ( $rows as $row ) {
+			$result[ $row['date'] ] = $row;
+		}
+		return $result;
+	}
+
+	public function save_camp_calendar_day( string $date, ?int $template_id, ?string $school, ?string $dept, string $type = 'sm', int $is_cycle_start = 0, int $iterate_number = 0 ): void {
+		$c        = $this->t( 'camp_calendar' );
+		$existing = $this->get_camp_calendar_day( $date, $type );
+		$data = array(
+			'template_id'    => $template_id,
+			'school'         => $school,
+			'dept'           => $dept,
+			'is_cycle_start' => $is_cycle_start ? 1 : 0,
+			'iterate_number' => $iterate_number ? 1 : 0,
+		);
+		if ( $existing ) {
+			$this->wpdb->update(
+				$c,
+				$data,
+				array( 'date' => $date, 'school_type' => $type ),
+				array( '%d', '%s', '%s', '%d', '%d' ),
+				array( '%s', '%s' )
+			);
+		} else {
+			$data['date']        = $date;
+			$data['school_type'] = $type;
+			$this->wpdb->insert(
+				$c,
+				$data,
+				array( '%d', '%s', '%s', '%d', '%d', '%s', '%s' )
+			);
+		}
+	}
+
+	public function delete_camp_calendar_day( string $date, string $type = 'sm' ): void {
+		$c   = $this->t( 'camp_calendar' );
+		$sql = $this->wpdb->prepare( "DELETE FROM $c WHERE date = %s AND school_type = %s", $date, $type );
+		$this->wpdb->query( $sql );
+	}
+
+	public function assign_camp_cycle( string $start_date, int $start_day, string $type, ?string $school, ?string $dept, ?string $end_date = null, array $workdays = array( 1, 2, 3, 4, 5 ), bool $overwrite = false ): int {
+		$templates = $this->get_camp_templates_ordered( $type );
+		$cycle_len = count( $templates );
+		if ( $cycle_len === 0 ) {
+			return 0;
+		}
+
+		$keys = array_keys( $templates );
+		$idx  = ( $start_day - 1 ) % $cycle_len;
+
+		$cur   = new \DateTime( $start_date );
+		$end   = new \DateTime( $end_date ?? ( $cur->format( 'Y' ) . '-12-31' ) );
+		$count = 0;
+		$first = true;
+
+		while ( $cur <= $end ) {
+			$wday     = (int) $cur->format( 'N' );
+			$date_str = $cur->format( 'Y-m-d' );
+			$existing = $this->get_camp_calendar_day( $date_str, $type );
+
+			$is_scheduled     = in_array( $wday, $workdays, true );
+			$is_user_holiday  = $existing && $existing['template_id'] === null && !$existing['iterate_number'];
+			$is_user_workday  = $existing && $existing['template_id'] === null && $existing['iterate_number'];
+			$has_menu         = $existing && $existing['template_id'] !== null;
+
+			if ( ( $is_scheduled && !$is_user_holiday ) || $is_user_workday ) {
+				if ( $overwrite || !$has_menu ) {
+					$day_num = $keys[ $idx % $cycle_len ];
+					$tpl_id  = $templates[ $day_num ];
+					$this->save_camp_calendar_day( $date_str, $tpl_id, $school, $dept, $type, $first ? 1 : 0 );
+					$count++;
+				}
+				$idx++;
+				$first = false;
+			}
+			$cur->modify( '+1 day' );
+		}
+		return $count;
+	}
+
+	public function bulk_save_camp_calendar( array $days, string $type ): void {
+		$templates = $this->get_camp_templates_ordered( $type );
+
+		foreach ( $days as $d ) {
+			$date    = $d['date']    ?? '';
+			$day_num = (int) ( $d['day_num'] ?? 0 );
+
+			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+				continue;
+			}
+
+			$existing       = $this->get_camp_calendar_day( $date, $type );
+			$iterate_number = $d['iterate_number'] ?? ( $existing ? $existing['iterate_number'] : 0 );
+
+			if ( $day_num === -1 ) {
+				$this->delete_camp_calendar_day( $date, $type );
+			} elseif ( $day_num === 0 ) {
+				$this->save_camp_calendar_day( $date, null, $d['school'] ?? null, $d['dept'] ?? null, $type, 0, $iterate_number );
+			} else {
+				if ( $existing && $existing['template_id'] !== null ) {
+					continue;
+				}
+				$tpl_id = $templates[ $day_num ] ?? null;
+				if ( $tpl_id ) {
+					$this->save_camp_calendar_day( $date, $tpl_id, $d['school'] ?? null, $d['dept'] ?? null, $type, ! empty( $d['is_cycle_start'] ) ? 1 : 0, $iterate_number );
+				}
+			}
+		}
+	}
+
+	public function sync_camp_templates_to_cycle_length( string $type, int $desired ): array {
+		$templates = $this->get_camp_templates( $type );
+		$current   = count( $templates );
+		$result    = array( 'added' => 0, 'removed' => 0, 'kept' => $current );
+
+		if ( $desired === $current ) {
+			return $result;
+		}
+
+		if ( $desired > $current ) {
+			for ( $i = 0; $i < $desired - $current; $i++ ) {
+				$this->add_camp_template( $type );
+				$result['added']++;
+			}
+			$result['kept'] = $current;
+		} else {
+			$to_remove = $current - $desired;
+			$reversed  = array_reverse( $templates );
+			foreach ( $reversed as $tpl ) {
+				if ( $to_remove <= 0 ) break;
+				$items    = $this->get_camp_template_items( (int) $tpl['id'] );
+				$has_items = false;
+				foreach ( $items as $meal_items ) {
+					if ( ! empty( $meal_items ) ) { $has_items = true; break; }
+				}
+				if ( ! $has_items ) {
+					$this->delete_camp_template( (int) $tpl['id'] );
+					$to_remove--;
+					$result['removed']++;
+				}
+			}
+			$result['kept'] = $current - $result['removed'];
+		}
+		return $result;
 	}
 
 	public function count_filled_workdays_ahead( string $from_date ): int {

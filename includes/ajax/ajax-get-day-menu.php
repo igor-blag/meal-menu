@@ -1,9 +1,17 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-$c = $db->get_table_name( 'calendar' );
-$t = $db->get_table_name( 'templates' );
-$ti = $db->get_table_name( 'items' );
+$is_camp = ! empty( $_GET['camp'] );
+
+if ( $is_camp ) {
+	$c  = $db->get_table_name( 'camp_calendar' );
+	$t  = $db->get_table_name( 'camp_templates' );
+	$ti = $db->get_table_name( 'camp_items' );
+} else {
+	$c  = $db->get_table_name( 'calendar' );
+	$t  = $db->get_table_name( 'templates' );
+	$ti = $db->get_table_name( 'items' );
+}
 global $wpdb;
 
 $cal = $wpdb->get_row( $wpdb->prepare(

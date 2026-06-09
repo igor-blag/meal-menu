@@ -82,6 +82,39 @@
 		<div style="line-height:1.5"><?php _e( 'Если отделения не объединены — повторите шаги 2–5 для каждой вкладки. Если у отделения такой же цикл и оно уже заполнено — в боковой панели появится кнопка «Копировать из [название]».', 'meal-menu' ); ?></div>
 	</div>
 
+	<h2 style="font-size:1rem;text-transform:uppercase;letter-spacing:.08em;border-left:4px solid var(--wp-blue);padding-left:12px;margin:32px 0 16px"><?php _e( 'Летний лагерь', 'meal-menu' ); ?></h2>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">1</div>
+		<div style="line-height:1.5"><?php _e( 'Включите опцию <strong>«Летний лагерь»</strong> в Настройках пищеблока для отделения «Начальная школа».', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">2</div>
+		<div style="line-height:1.5"><?php _e( 'Заполните даты начала и окончания лагеря, выберите рабочие дни недели.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">3</div>
+		<div style="line-height:1.5"><?php _e( 'После включения появятся вкладки <strong>«Летний лагерь»</strong> на страницах Шаблоны и Календарь. Данные лагеря хранятся отдельно от основной школы.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">4</div>
+		<div style="line-height:1.5"><?php _e( 'Создайте шаблоны циклов в <strong>Питание → Шаблоны → Летний лагерь</strong>.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">5</div>
+		<div style="line-height:1.5"><?php _e( 'Заполните календарь в <strong>Питание → Календарь → Летний лагерь</strong> и сгенерируйте файлы.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="margin-top:16px;padding:12px 16px;background:var(--wp-blue-pale,#f0f6fc);border-left:3px solid var(--wp-blue);line-height:1.6">
+		<strong><?php _e( 'Примечание:', 'meal-menu' ); ?></strong>
+		<?php _e( 'В календаре лагеря активны только даты внутри указанного интервала. Остальные затенены и недоступны для редактирования. Однодневные праздники (например, День России) отображаются как выходные.', 'meal-menu' ); ?>
+		<?php _e( 'Файлы лагеря имеют те же имена, что и файлы Начальной школы (например, 2025-09-01-sm.xlsx), и перезаписывают их. В летний период на сайте отображается только календарь лагеря.', 'meal-menu' ); ?>
+	</div>
+
 	<div style="margin-top:20px;padding:12px 16px;background:var(--wp-blue-pale,#f0f6fc);border-left:3px solid var(--wp-blue);line-height:1.6">
 		<strong><?php _e( 'Подсказки:', 'meal-menu' ); ?></strong>
 		<ul style="margin:4px 0 0;padding-left:18px">

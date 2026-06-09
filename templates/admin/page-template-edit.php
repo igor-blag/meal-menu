@@ -2,18 +2,19 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 $db = \Meal_Menu\DB::instance();
 
-$id  = (int) ( $_GET['id'] ?? 0 );
-$tpl = $db->get_template( $id );
+$id      = (int) ( $_GET['id'] ?? 0 );
+$is_camp = ! empty( $_GET['camp'] );
+$tpl     = $is_camp ? $db->get_camp_template( $id ) : $db->get_template( $id );
 if ( ! $tpl ) {
 	echo '<div class="wrap meal-menu-wrap"><div class="alert alert-error">' . __( 'Шаблон не найден', 'meal-menu' ) . '</div></div>';
 	return;
 }
 
 $dept_info      = $db->get_department( $tpl['school_type'] );
-$forced_boarding = $dept_info && ! empty( $dept_info['is_boarding'] );
+$forced_boarding = $is_camp ? ( $dept_info && ! empty( $dept_info['camp_is_boarding'] ) ) : ( $dept_info && ! empty( $dept_info['is_boarding'] ) );
 
 $saved = isset( $_GET['saved'] );
-$items = $db->get_template_items( $id );
+$items = $is_camp ? $db->get_camp_template_items( $id ) : $db->get_template_items( $id );
 $is_boarding = ! empty( $tpl['is_boarding'] );
 
 $section_meta = array(
@@ -36,10 +37,12 @@ $section_meta = array(
 	<div class="flex items-center justify-between mb-2">
 		<h1 class="page-title" style="border:none;margin:0">
 			<?php printf( __( 'Редактор: %s', 'meal-menu' ), esc_html( $tpl['label'] ) ); ?>
+			<?php if ( $is_camp ): ?>
+			<span style="font-size:.72em;background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;margin-left:8px;vertical-align:middle"><?php _e( 'Летний лагерь', 'meal-menu' ); ?></span>
+			<?php endif; ?>
 		</h1>
 		<div class="flex gap-2">
-			<a href="admin.php?page=meal-import&id=<?php echo (int) $id; ?>" class="btn btn-dark btn-sm">&#x2191; <?php _e( 'Импорт из Excel', 'meal-menu' ); ?></a>
-			<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $tpl['school_type'] ); ?>" class="btn btn-outline btn-sm">&larr; <?php _e( 'Все шаблоны', 'meal-menu' ); ?></a>
+			<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $tpl['school_type'] ); ?><?php echo $is_camp ? '&camp=1' : ''; ?>" class="btn btn-outline btn-sm">&larr; <?php _e( 'Все шаблоны', 'meal-menu' ); ?></a>
 		</div>
 	</div>
 
@@ -47,8 +50,10 @@ $section_meta = array(
 		<?php wp_nonce_field( 'meal_save_template' ); ?>
 		<input type="hidden" name="action" value="meal_save_template">
 		<input type="hidden" name="template_id" value="<?php echo (int) $id; ?>">
+		<?php if ( $is_camp ): ?>
+		<input type="hidden" name="is_camp" value="1">
+		<?php endif; ?>
 
-		<!-- Флаг интерната -->
 		<div class="panel" style="margin-bottom:12px;padding:12px 16px">
 			<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:500">
 				<input type="checkbox" name="is_boarding" id="boardingCheck" value="1"
@@ -114,7 +119,7 @@ $section_meta = array(
 		</div>
 		<?php endforeach; ?>
 
-		<?php if ( $tpl['school_type'] === 'sm' ):
+		<?php if ( ! $is_camp && $tpl['school_type'] === 'sm' ):
 			$stored_date = $db->get_kitchen_settings()['tm_approve_date'] ?? '';
 		?>
 		<div class="panel" style="margin-top:12px;padding:12px 16px">
@@ -131,7 +136,7 @@ $section_meta = array(
 
 		<div class="flex gap-2 mt-3">
 			<button type="submit" class="btn btn-primary"><?php _e( 'Сохранить шаблон', 'meal-menu' ); ?></button>
-			<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $tpl['school_type'] ); ?>" class="btn btn-outline"><?php _e( 'Отмена', 'meal-menu' ); ?></a>
+			<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $tpl['school_type'] ); ?><?php echo $is_camp ? '&camp=1' : ''; ?>" class="btn btn-outline"><?php _e( 'Отмена', 'meal-menu' ); ?></a>
 		</div>
 	</form>
 </div>

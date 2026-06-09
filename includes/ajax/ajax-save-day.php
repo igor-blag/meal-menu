@@ -1,5 +1,6 @@
 <?php
 $action = $data['action'] ?? ( $_POST['action'] ?? '' );
+$is_camp = ! empty( $data['camp'] );
 
 $enabled_depts = $db->get_enabled_departments();
 $valid_types   = array_column( $enabled_depts, 'code' );
@@ -26,8 +27,11 @@ foreach ( $enabled_depts as $dep ) {
 		if ( $action === 'save' ) {
 			$date   = $data['date']   ?? '';
 			$type   = in_array( $data['type'] ?? '', $valid_types, true ) ? $data['type'] : 'sm';
-			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-			$data_type = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+			$data_type = $type;
+			if ( ! $is_camp ) {
+				$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
+				$data_type = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+			}
 			$school = $data['school'] ?? null;
 			$dept   = $data['dept']   ?? null;
 			$is_school      = ! empty( $data['is_school'] );
@@ -40,7 +44,11 @@ foreach ( $enabled_depts as $dep ) {
 			}
 
 			if ( ! $is_school ) {
-				$db->save_calendar_day( $date, null, $school, $dept, $data_type, 0, $iterate_number );
+				if ( $is_camp ) {
+					$db->save_camp_calendar_day( $date, null, $school, $dept, $data_type, 0, $iterate_number );
+				} else {
+					$db->save_calendar_day( $date, null, $school, $dept, $data_type, 0, $iterate_number );
+				}
 				wp_send_json( array( 'ok' => true, 'template_id' => null, 'day_number' => null, 'iterate_number' => $iterate_number ) );
 			}
 
@@ -48,22 +56,29 @@ foreach ( $enabled_depts as $dep ) {
 				wp_send_json( array( 'ok' => false, 'error' => __( 'Укажите день меню', 'meal-menu' ) ) );
 			}
 
-			$templates = $db->get_templates_ordered( $data_type );
+			$templates = $is_camp ? $db->get_camp_templates_ordered( $data_type ) : $db->get_templates_ordered( $data_type );
 			if ( ! isset( $templates[ $day_num ] ) ) {
 				wp_send_json( array( 'ok' => false, 'error' => sprintf( __( 'Шаблон дня %d не найден для типа %s', 'meal-menu' ), $day_num, $data_type ) ) );
 			}
 			$tpl_id = $templates[ $day_num ];
-			$db->save_calendar_day( $date, $tpl_id, $school, $dept, $data_type, $is_cycle_start, $iterate_number );
+			if ( $is_camp ) {
+				$db->save_camp_calendar_day( $date, $tpl_id, $school, $dept, $data_type, $is_cycle_start, $iterate_number );
+			} else {
+				$db->save_calendar_day( $date, $tpl_id, $school, $dept, $data_type, $is_cycle_start, $iterate_number );
+			}
 
 			$xls_path = null;
-			$merge_types = get_merge_types( $type, $dept_by_code );
+			$merge_types = $is_camp ? array( $type ) : get_merge_types( $type, $dept_by_code );
 			foreach ( $merge_types as $mt ) {
-				if ( ! empty( $dept_by_code[ $mt ]['publish_xlsx'] ) && class_exists( '\Meal_Menu\Excel_Daily' ) ) {
-					\Meal_Menu\Excel_Daily::generate( $date, $mt );
+				$should_publish = $is_camp
+					? ! empty( $dept_by_code[ $mt ]['camp_publish_xlsx'] ?? null )
+					: ! empty( $dept_by_code[ $mt ]['publish_xlsx'] );
+				if ( $should_publish && class_exists( '\Meal_Menu\Excel_Daily' ) ) {
+					\Meal_Menu\Excel_Daily::generate( $date, $mt, $is_camp );
 				}
 			}
 
-			$entry = $db->get_calendar_day( $date, $data_type );
+			$entry = $is_camp ? $db->get_camp_calendar_day( $date, $data_type ) : $db->get_calendar_day( $date, $data_type );
 			wp_send_json( array(
 				'ok'          => true,
 				'template_id' => $tpl_id,
@@ -78,9 +93,16 @@ foreach ( $enabled_depts as $dep ) {
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверная дата', 'meal-menu' ) ) );
 		}
-		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-		$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-		$db->delete_calendar_day( $date, $data_type );
+		$data_type = $type;
+		if ( ! $is_camp ) {
+			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
+			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+		}
+		if ( $is_camp ) {
+			$db->delete_camp_calendar_day( $date, $data_type );
+		} else {
+			$db->delete_calendar_day( $date, $data_type );
+		}
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'apply_cycle' ) {
@@ -99,16 +121,33 @@ foreach ( $enabled_depts as $dep ) {
 			$end_date = null;
 		}
 
-		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-		$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-		$workdays = isset( $dept_by_code[ $data_type ] ) ? $db->get_workdays( $data_type ) : array( 1, 2, 3, 4, 5 );
-		$count    = $db->assign_cycle( $date, $start_day, $data_type, $school, $dept, $end_date, $workdays, $overwrite );
+		$data_type = $type;
+		if ( ! $is_camp ) {
+			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
+			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+		}
+		if ( $is_camp ) {
+			$camp_dept = $dept_by_code['sm'] ?? array();
+			$workdays  = array_map( 'intval', explode( ',', $camp_dept['camp_workdays'] ?? '1,2,3,4,5' ) );
+			$camp_end  = $camp_dept['camp_end_date'] ?? '';
+			if ( $camp_end && ( $end_date === null || $end_date > $camp_end ) ) {
+				$end_date = $camp_end;
+			}
+			$count     = $db->assign_camp_cycle( $date, $start_day, $data_type, $school, $dept, $end_date, $workdays, $overwrite );
+		} else {
+			$workdays = isset( $dept_by_code[ $data_type ] ) ? $db->get_workdays( $data_type ) : array( 1, 2, 3, 4, 5 );
+			$count    = $db->assign_cycle( $date, $start_day, $data_type, $school, $dept, $end_date, $workdays, $overwrite );
+		}
 		wp_send_json( array( 'ok' => true, 'count' => $count ) );
 
 	} elseif ( $action === 'bulk_save' ) {
 		$type = in_array( $data['type'] ?? '', $valid_types, true ) ? $data['type'] : 'sm';
 		$days = is_array( $data['days'] ?? null ) ? $data['days'] : array();
-		$db->bulk_save_calendar( $days, $type );
+		if ( $is_camp ) {
+			$db->bulk_save_camp_calendar( $days, $type );
+		} else {
+			$db->bulk_save_calendar( $days, $type );
+		}
 		wp_send_json( array( 'ok' => true, 'saved' => count( $days ) ) );
 
 	} elseif ( $action === 'copy_month' ) {
@@ -121,17 +160,23 @@ foreach ( $enabled_depts as $dep ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверное отделение-источник', 'meal-menu' ) ) );
 		}
 
-		$source_cal = $db->get_calendar_month( $year, $month, $source );
+		$data_type = $type;
+		if ( ! $is_camp ) {
+			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
+			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+		}
+
+		$source_cal = $is_camp
+			? $db->get_camp_calendar_month( $year, $month, $source )
+			: $db->get_calendar_month( $year, $month, $source );
 		if ( empty( $source_cal ) ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'В отделении-источнике нет данных за этот месяц', 'meal-menu' ) ) );
 		}
 
-		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-		$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
 		$school    = null;
 		$dept_name = null;
 
-		$templates = $db->get_templates_ordered( $data_type );
+		$templates = $is_camp ? $db->get_camp_templates_ordered( $data_type ) : $db->get_templates_ordered( $data_type );
 		$count     = 0;
 
 		foreach ( $source_cal as $date_str => $day ) {
@@ -140,7 +185,9 @@ foreach ( $enabled_depts as $dep ) {
 			$iterate_number = 0;
 
 			if ( $day['template_id'] !== null ) {
-				$source_tpl = $db->get_template( (int) $day['template_id'] );
+				$source_tpl = $is_camp
+					? $db->get_camp_template( (int) $day['template_id'] )
+					: $db->get_template( (int) $day['template_id'] );
 				if ( ! $source_tpl ) continue;
 				$source_dn = (int) $source_tpl['day_number'];
 				if ( isset( $templates[ $source_dn ] ) ) {
@@ -154,7 +201,11 @@ foreach ( $enabled_depts as $dep ) {
 				$iterate_number = (int) $day['iterate_number'];
 			}
 
-			$db->save_calendar_day( $date_str, $tpl_id, $school, $dept_name, $data_type, $is_cycle_start, $iterate_number );
+			if ( $is_camp ) {
+				$db->save_camp_calendar_day( $date_str, $tpl_id, $school, $dept_name, $data_type, $is_cycle_start, $iterate_number );
+			} else {
+				$db->save_calendar_day( $date_str, $tpl_id, $school, $dept_name, $data_type, $is_cycle_start, $iterate_number );
+			}
 			$count++;
 		}
 
@@ -162,8 +213,11 @@ foreach ( $enabled_depts as $dep ) {
 
 	} elseif ( $action === 'recalc_period' ) {
 		$type   = in_array( $data['type'] ?? '', $valid_types, true ) ? $data['type'] : 'sm';
-		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-		$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+		$data_type = $type;
+		if ( ! $is_camp ) {
+			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
+			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
+		}
 		$dept   = $dept_by_code[ $data_type ] ?? null;
 		$school = $data['school'] ?? null;
 		$dept_name = $data['dept'] ?? null;
@@ -171,15 +225,84 @@ foreach ( $enabled_depts as $dep ) {
 		$year   = isset( $data['year'] )  ? (int) $data['year']  : null;
 		$month  = isset( $data['month'] ) ? (int) $data['month'] : null;
 
-		$templates = $db->get_templates_ordered( $data_type );
+		$templates = $is_camp ? $db->get_camp_templates_ordered( $data_type ) : $db->get_templates_ordered( $data_type );
 		$cycle_len = count( $templates );
 
 		if ( $cycle_len === 0 ) {
 			wp_send_json( array( 'ok' => false, 'error' => sprintf( __( 'Нет шаблонов для типа %s', 'meal-menu' ), $data_type ) ) );
 		}
 
-		$keys           = array_keys( $templates );
-		$workdays       = $dept ? $db->get_workdays( $data_type ) : array( 1, 2, 3, 4, 5 );
+		$keys = array_keys( $templates );
+
+		if ( $is_camp ) {
+			$camp_dept_info = $dept_by_code['sm'] ?? array();
+			$workdays       = array_map( 'intval', explode( ',', $camp_dept_info['camp_workdays'] ?? '1,2,3,4,5' ) );
+			$camp_start     = $camp_dept_info['camp_start_date'] ?? '';
+			$camp_end       = $camp_dept_info['camp_end_date'] ?? '';
+
+			if ( $year && $month ) {
+				$month_from = sprintf( '%04d-%02d-01', $year, $month );
+				$month_to   = gmdate( 'Y-m-t', strtotime( $month_from ) );
+				$from_date  = $camp_start && $camp_start > $month_from ? $camp_start : $month_from;
+				$to_date    = $camp_end   && $camp_end   < $month_to   ? $camp_end   : $month_to;
+			} else {
+				$from_date = $camp_start ?: sprintf( '%04d-06-01', current_time( 'Y' ) );
+				$to_date   = $camp_end   ?: sprintf( '%04d-08-31', current_time( 'Y' ) );
+			}
+
+			$start_idx = 0;
+			$existing_range = $db->get_camp_calendar_range( $from_date, $to_date, $data_type );
+
+			$cur  = new \DateTime( $from_date );
+			$end  = new \DateTime( $to_date );
+			$idx  = $start_idx;
+			$days = array();
+
+			while ( $cur <= $end ) {
+				$date_str   = $cur->format( 'Y-m-d' );
+				$wday       = (int) $cur->format( 'N' );
+				$is_scheduled = in_array( $wday, $workdays, true );
+				$rec        = $existing_range[ $date_str ] ?? null;
+				$is_user_holiday = $rec && $rec['template_id'] === null && !$rec['iterate_number'];
+				$is_user_workday = $rec && $rec['template_id'] === null && $rec['iterate_number'];
+				$has_menu   = $rec && $rec['template_id'] !== null;
+
+				if ( $is_scheduled && ! $is_user_holiday ) {
+					if ( ! $has_menu ) {
+						$day_num = $keys[ $idx % $cycle_len ];
+						$days[] = array(
+							'date'           => $date_str,
+							'day_num'        => $day_num,
+							'school'         => $school,
+							'dept'           => $dept_name,
+							'is_cycle_start' => $idx === $start_idx ? 1 : 0,
+						);
+					}
+					$idx++;
+				} elseif ( $is_user_workday ) {
+					if ( ! $has_menu ) {
+						$day_num = $keys[ $idx % $cycle_len ];
+						$days[] = array(
+							'date'           => $date_str,
+							'day_num'        => $day_num,
+							'school'         => $school,
+							'dept'           => $dept_name,
+							'is_cycle_start' => $idx === $start_idx ? 1 : 0,
+						);
+					}
+					$idx++;
+				}
+				$cur->modify( '+1 day' );
+			}
+
+			if ( ! empty( $days ) ) {
+				$db->bulk_save_camp_calendar( $days, $data_type );
+			}
+
+			wp_send_json( array( 'ok' => true, 'count' => count( $days ) ) );
+		}
+
+		$workdays = $dept ? $db->get_workdays( $data_type ) : array( 1, 2, 3, 4, 5 );
 
 		$ay_settings    = $db->get_academic_year_settings();
 		$reset_after_vac = (bool) $ay_settings['reset_cycle_after_vacation'];
@@ -271,18 +394,23 @@ foreach ( $enabled_depts as $dep ) {
 		$year  = isset( $data['year'] )  ? (int) $data['year']  : (int) current_time( 'Y' );
 		$month = isset( $data['month'] ) ? (int) $data['month'] : (int) current_time( 'n' );
 
-		$gen_types = get_merge_types( $type, $dept_by_code );
+		$gen_types = $is_camp ? array( $type ) : get_merge_types( $type, $dept_by_code );
 
 		$generated = array();
 		$days_in_month = (int) ( new \DateTimeImmutable( "$year-$month-01" ) )->format( 't' );
 		foreach ( $gen_types as $gt ) {
-			if ( ! isset( $dept_by_code[ $gt ] ) || empty( $dept_by_code[ $gt ]['publish_xlsx'] ) ) {
+			if ( $is_camp ) {
+				$should_publish = ! empty( $dept_by_code[ $gt ]['camp_publish_xlsx'] ?? null );
+			} else {
+				$should_publish = ! empty( $dept_by_code[ $gt ]['publish_xlsx'] );
+			}
+			if ( ! $should_publish ) {
 				continue;
 			}
 			for ( $d = 1; $d <= $days_in_month; $d++ ) {
 				$date_str = sprintf( '%04d-%02d-%02d', $year, $month, $d );
 				if ( class_exists( '\Meal_Menu\Excel_Daily' ) ) {
-					$path = \Meal_Menu\Excel_Daily::generate( $date_str, $gt );
+					$path = \Meal_Menu\Excel_Daily::generate( $date_str, $gt, $is_camp );
 					if ( $path ) {
 						$generated[] = basename( $path );
 					}
@@ -290,11 +418,11 @@ foreach ( $enabled_depts as $dep ) {
 			}
 		}
 		$kp_type = $type;
-		if ( ! empty( $dept_by_code[ $kp_type ]['merged_with'] ) ) {
+		if ( ! $is_camp && ! empty( $dept_by_code[ $kp_type ]['merged_with'] ) ) {
 			$kp_type = $dept_by_code[ $kp_type ]['merged_with'];
 		}
 		if ( class_exists( '\Meal_Menu\Excel_KP' ) ) {
-			\Meal_Menu\Excel_KP::generate( $year, $kp_type );
+			\Meal_Menu\Excel_KP::generate( $year, $kp_type, $is_camp );
 		}
 		if ( class_exists( '\Meal_Menu\Excel_TM' ) ) {
 			$_up = wp_upload_dir();
@@ -302,7 +430,7 @@ foreach ( $enabled_depts as $dep ) {
 			foreach ( $gen_types as $gt ) {
 				$tm_path = $_meal_dir . "/tm{$year}-{$gt}.xlsx";
 				if ( ! file_exists( $tm_path ) ) {
-					\Meal_Menu\Excel_TM::generate( $gt, $year );
+					\Meal_Menu\Excel_TM::generate( $gt, $year, $is_camp );
 				}
 			}
 		}

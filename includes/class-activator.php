@@ -32,6 +32,46 @@ class Activator {
 		$sql   = array();
 		$p     = $wpdb->prefix . 'meal_';
 
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}camp_templates (
+			id int(10) unsigned NOT NULL auto_increment,
+			day_number tinyint(3) unsigned NOT NULL,
+			school_type varchar(20) NOT NULL default 'sm',
+			is_boarding tinyint(1) NOT NULL default 0,
+			label varchar(100) NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY uq_day_type (day_number, school_type)
+		)";
+
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}camp_items (
+			id int(10) unsigned NOT NULL auto_increment,
+			template_id int(10) unsigned NOT NULL,
+			meal_type varchar(20) NOT NULL default 'breakfast',
+			section varchar(50) default NULL,
+			recipe_num varchar(30) default NULL,
+			dish_name varchar(255) default NULL,
+			grams decimal(8,1) default NULL,
+			price decimal(8,2) default NULL,
+			kcal decimal(8,2) default NULL,
+			protein decimal(8,2) default NULL,
+			fat decimal(8,2) default NULL,
+			carbs decimal(8,2) default NULL,
+			sort_order smallint NOT NULL default 0,
+			PRIMARY KEY  (id),
+			KEY template_id (template_id)
+		)";
+
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}camp_calendar (
+			date date NOT NULL,
+			school_type varchar(20) NOT NULL default 'sm',
+			template_id int(10) unsigned default NULL,
+			school varchar(100) default NULL,
+			dept varchar(50) default NULL,
+			is_cycle_start tinyint(1) NOT NULL default 0,
+			iterate_number tinyint(1) NOT NULL default 0,
+			PRIMARY KEY  (date, school_type),
+			KEY template_id (template_id)
+		)";
+
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}users (
 			id int(10) unsigned NOT NULL auto_increment,
 			username varchar(50) NOT NULL,
@@ -176,6 +216,14 @@ class Activator {
 		$d = $wpdb->prefix . 'meal_departments';
 		if ( ! $wpdb->get_var( "SELECT sql FROM sqlite_master WHERE type='table' AND name='$d' AND sql LIKE '%merged_with%'" ) ) {
 			$wpdb->query( "ALTER TABLE $d ADD COLUMN merged_with varchar(20) default NULL" );
+		}
+		if ( ! $wpdb->get_var( "SELECT sql FROM sqlite_master WHERE type='table' AND name='$d' AND sql LIKE '%has_summer_camp%'" ) ) {
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN has_summer_camp tinyint(1) NOT NULL default 0" );
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_start_date date default NULL" );
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_end_date date default NULL" );
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_workdays varchar(20) NOT NULL default '1,2,3,4,5'" );
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_is_boarding tinyint(1) NOT NULL default 0" );
+			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_publish_xlsx tinyint(1) NOT NULL default 0" );
 		}
 	}
 

@@ -5,11 +5,11 @@ defined( 'ABSPATH' ) || exit;
 
 class Excel_TM {
 
-	public static function generate( string $school_type, int $year ): string {
+	public static function generate( string $school_type, int $year, bool $is_camp = false ): string {
 		require_once MEAL_MENU_DIR . 'vendor/autoload.php';
 
 		$db        = DB::instance();
-		$templates = $db->get_templates( $school_type );
+		$templates = $is_camp ? $db->get_camp_templates( $school_type ) : $db->get_templates( $school_type );
 		$settings  = $db->get_kitchen_settings();
 
 		$org_name    = $settings['org_name']            ?? '';

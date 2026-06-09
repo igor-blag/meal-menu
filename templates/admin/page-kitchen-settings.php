@@ -127,6 +127,58 @@ foreach ( $departments as $d ) {
 						<span class="text-muted merge-static-text" style="font-size:.82rem;display:block;margin-top:4px"><?php printf( __( 'Источник данных для: %s', 'meal-menu' ), isset( $merged_by[ $d['code'] ] ) ? implode( ', ', $merged_by[ $d['code'] ] ) : '' ); ?></span>
 					</div>
 				</div>
+
+				<?php if ( $d['code'] === 'sm' ): ?>
+				<div class="form-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--wp-border-subtle)">
+					<div class="field" style="max-width:100%">
+						<label class="opt-label">
+							<input type="checkbox" class="chk-camp" <?php echo ! empty( $d['has_summer_camp'] ) ? 'checked' : ''; ?>>
+							<?php _e( 'Летний лагерь', 'meal-menu' ); ?>
+						</label>
+						<div class="camp-fields"<?php echo empty( $d['has_summer_camp'] ) ? ' style="display:none"' : ''; ?>>
+							<div class="form-row" style="margin-top:8px">
+								<div class="field" style="max-width:200px">
+									<label><?php _e( 'Начало лагеря', 'meal-menu' ); ?></label>
+									<input type="date" class="camp-start" value="<?php echo esc_attr( $d['camp_start_date'] ?? '' ); ?>">
+								</div>
+								<div class="field" style="max-width:200px">
+									<label><?php _e( 'Конец лагеря', 'meal-menu' ); ?></label>
+									<input type="date" class="camp-end" value="<?php echo esc_attr( $d['camp_end_date'] ?? '' ); ?>">
+								</div>
+							</div>
+							<div class="form-row" style="margin-top:8px">
+								<div class="field">
+									<label><?php _e( 'Рабочие дни лагеря', 'meal-menu' ); ?></label>
+									<div class="wd-group">
+										<?php $camp_wd = explode( ',', $d['camp_workdays'] ?? '1,2,3,4,5' ); ?>
+										<?php foreach ( array( 1 => 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс' ) as $i => $name ): ?>
+										<label class="wd-label">
+											<input type="checkbox" class="camp-wd-chk" value="<?php echo $i; ?>"
+												<?php echo in_array( (string) $i, $camp_wd, true ) ? 'checked' : ''; ?>>
+											<?php echo $name; ?>
+										</label>
+										<?php endforeach; ?>
+									</div>
+								</div>
+							</div>
+							<div class="form-row" style="margin-top:8px">
+								<div class="field" style="display:flex;gap:16px;flex-wrap:wrap">
+									<label class="opt-label">
+										<input type="checkbox" class="camp-boarding"
+											<?php echo ! empty( $d['camp_is_boarding'] ) ? 'checked' : ''; ?>>
+										<?php _e( 'Интернат', 'meal-menu' ); ?>
+									</label>
+									<label class="opt-label">
+										<input type="checkbox" class="camp-publish"
+											<?php echo ! empty( $d['camp_publish_xlsx'] ) ? 'checked' : ''; ?>>
+										<?php _e( 'Публикация файлов', 'meal-menu' ); ?>
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<?php endif; ?>
 				</div>
 			</div>
 		<?php endforeach; ?>
@@ -378,6 +430,11 @@ foreach ( $departments as $d ) {
 			var suffixRow = card.querySelector('.suffix-row');
 			if (suffixRow) suffixRow.style.display = e.target.checked ? '' : 'none';
 		}
+		if (e.target.classList.contains('chk-camp')) {
+			var card = e.target.closest('.dept-card');
+			var campFields = card.querySelector('.camp-fields');
+			if (campFields) campFields.style.display = e.target.checked ? '' : 'none';
+		}
 	});
 
 	var addForm = document.getElementById('add-dept-form');
@@ -429,6 +486,21 @@ foreach ( $departments as $d ) {
 			var nameInput = card.querySelector('.inp-dept-name');
 			var deptName = nameInput.value.trim() || defaultDeptName(card);
 			var mergeSelect = card.querySelector('.sel-merge');
+
+			var campObj = {};
+			var campChk = card.querySelector('.chk-camp');
+			if (campChk) {
+				var campWd = card.querySelectorAll('.camp-wd-chk:checked');
+				campObj = {
+					has_summer_camp: campChk.checked ? 1 : 0,
+					camp_start_date: campChk.checked ? (card.querySelector('.camp-start').value || null) : null,
+					camp_end_date: campChk.checked ? (card.querySelector('.camp-end').value || null) : null,
+					camp_workdays: campChk.checked ? Array.from(campWd).map(function(c) { return parseInt(c.value); }).join(',') : '1,2,3,4,5',
+					camp_is_boarding: campChk.checked && card.querySelector('.camp-boarding').checked ? 1 : 0,
+					camp_publish_xlsx: campChk.checked && card.querySelector('.camp-publish').checked ? 1 : 0,
+				};
+			}
+
 			deps.push({
 				id: parseInt(card.dataset.id),
 				is_enabled: card.querySelector('.dept-toggle').checked ? 1 : 0,
@@ -438,7 +510,13 @@ foreach ( $departments as $d ) {
 				publish_xlsx: card.querySelector('.chk-publish').checked ? 1 : 0,
 				ignore_vacations: ignoreVacChk && ignoreVacChk.checked ? 1 : 0,
 				file_suffix: suffixInput ? suffixInput.value : undefined,
-				merged_with: mergeSelect ? mergeSelect.value || '' : undefined
+				merged_with: mergeSelect ? mergeSelect.value || '' : undefined,
+				has_summer_camp: campObj.has_summer_camp !== undefined ? campObj.has_summer_camp : undefined,
+				camp_start_date: campObj.camp_start_date !== undefined ? campObj.camp_start_date : undefined,
+				camp_end_date: campObj.camp_end_date !== undefined ? campObj.camp_end_date : undefined,
+				camp_workdays: campObj.camp_workdays !== undefined ? campObj.camp_workdays : undefined,
+				camp_is_boarding: campObj.camp_is_boarding !== undefined ? campObj.camp_is_boarding : undefined,
+				camp_publish_xlsx: campObj.camp_publish_xlsx !== undefined ? campObj.camp_publish_xlsx : undefined,
 			});
 		});
 		apiPost({

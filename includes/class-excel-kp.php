@@ -5,19 +5,19 @@ defined( 'ABSPATH' ) || exit;
 
 class Excel_KP {
 
-	public static function generate( int $year, string $type = 'sm' ): string {
+	public static function generate( int $year, string $type = 'sm', bool $is_camp = false ): string {
 		require_once MEAL_MENU_DIR . 'vendor/autoload.php';
 
 		$db      = DB::instance();
 		$dept_info = $db->get_department( $type );
 		$data_type = $type;
-		if ( $dept_info && ! empty( $dept_info['merged_with'] ) ) {
+		if ( ! $is_camp && $dept_info && ! empty( $dept_info['merged_with'] ) ) {
 			$target = $db->get_department( $dept_info['merged_with'] );
 			if ( $target ) {
 				$data_type = $target['code'];
 			}
 		}
-		$cal_data = $db->get_calendar_year( $year, $data_type );
+		$cal_data = $is_camp ? $db->get_camp_calendar_year( $year, $data_type ) : $db->get_calendar_year( $year, $data_type );
 
 		$upload_dir = wp_upload_dir();
 		$meal_dir   = $upload_dir['basedir'] . '/meal-menu';

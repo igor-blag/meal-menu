@@ -248,6 +248,9 @@
 	min-width: 0;
 }
 .meal-menu-wrap .cal-cell:hover { background: #f8f9fa; cursor: pointer; }
+.meal-menu-wrap .cal-cell.outside-camp { background: #f6f7f7; cursor: default; opacity: .5; }
+.meal-menu-wrap .cal-cell.outside-camp:hover { background: #f6f7f7; }
+.meal-menu-wrap .cal-cell .cal-outside-label { font-size: .72rem; color: #a7aaad; margin-top: 4px; }
 .meal-menu-wrap .cal-cell.empty { background: var(--wp-bg-panel); }
 .meal-menu-wrap .cal-cell.cal-ghost { background: #f6f7f7; cursor: default; opacity: .6; }
 .meal-menu-wrap .cal-cell.cal-ghost .cal-ghost-day { font-size: 1.15rem; font-weight: bold; color: #a7aaad; }
@@ -495,7 +498,8 @@
 	.meal-menu-wrap .cal-cell .cal-label,
 	.meal-menu-wrap .cal-cell .cal-no-school,
 	.meal-menu-wrap .cal-cell .cal-workday-label,
-	.meal-menu-wrap .cal-cell .cal-vacation {
+	.meal-menu-wrap .cal-cell .cal-vacation,
+	.meal-menu-wrap .cal-cell .cal-outside-label {
 		font-size: .65rem;
 	}
 	.meal-menu-wrap .cal-cell .cal-file-badge {
@@ -524,7 +528,8 @@
 	.meal-menu-wrap .cal-cell .cal-label,
 	.meal-menu-wrap .cal-cell .cal-no-school,
 	.meal-menu-wrap .cal-cell .cal-workday-label,
-	.meal-menu-wrap .cal-cell .cal-vacation {
+	.meal-menu-wrap .cal-cell .cal-vacation,
+	.meal-menu-wrap .cal-cell .cal-outside-label {
 		font-size: .55rem;
 		line-height: 1.1;
 		margin-top: 1px;
@@ -600,7 +605,8 @@
 	.meal-menu-wrap .cal-cell .cal-label,
 	.meal-menu-wrap .cal-cell .cal-no-school,
 	.meal-menu-wrap .cal-cell .cal-workday-label,
-	.meal-menu-wrap .cal-cell .cal-vacation {
+	.meal-menu-wrap .cal-cell .cal-vacation,
+	.meal-menu-wrap .cal-cell .cal-outside-label {
 		display: none;
 	}
 	.meal-menu-wrap .cal-head {

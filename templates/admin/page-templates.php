@@ -10,7 +10,9 @@ $type_labels   = array_combine(
 );
 $type = isset( $_GET['type'] ) && in_array( $_GET['type'], $valid_types, true ) ? $_GET['type'] : ( $valid_types[0] ?? 'sm' );
 
-$templates = $db->get_templates( $type );
+$is_camp = ! empty( $_GET['camp'] ) && $type === 'sm' && ! empty( $db->get_department( 'sm' )['has_summer_camp'] );
+
+$templates = $is_camp ? $db->get_camp_templates( $type ) : $db->get_templates( $type );
 $cycle_len = count( $templates );
 
 $day_nums = array_column( $templates, 'day_number' );
@@ -29,15 +31,18 @@ $has_tm     = file_exists( $tm_file );
 ?>
 <div class="wrap meal-menu-wrap">
 	<div class="flex items-center justify-between mb-2">
-		<h1 class="page-title" style="border:none;margin:0"><?php echo esc_html( $cycle_title ); ?></h1>
+		<h1 class="page-title" style="border:none;margin:0"><?php echo esc_html( $cycle_title ) . ( $is_camp ? ' · Летний лагерь' : '' ); ?></h1>
 		<div class="flex gap-2">
-			<?php if ( $type === 'sm' && $has_tm ): ?>
+			<?php if ( $type === 'sm' && $has_tm && ! $is_camp ): ?>
 			<a href="<?php echo esc_url( $upload_dir['baseurl'] . '/meal-menu/tm' . current_time( 'Y' ) . '-sm.xlsx' ); ?>" class="btn btn-outline btn-sm" download>&#x2193; tm-файл</a>
 			<?php endif; ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
 				<?php wp_nonce_field( 'meal_add_template' ); ?>
 				<input type="hidden" name="action" value="meal_add_template">
 				<input type="hidden" name="type" value="<?php echo esc_attr( $type ); ?>">
+				<?php if ( $is_camp ): ?>
+				<input type="hidden" name="camp" value="1">
+				<?php endif; ?>
 				<button type="submit" class="btn btn-primary btn-sm">+ <?php _e( 'Добавить день', 'meal-menu' ); ?></button>
 			</form>
 		</div>
@@ -46,8 +51,12 @@ $has_tm     = file_exists( $tm_file );
 	<div class="tab-bar">
 		<?php foreach ( $type_labels as $t => $label ): ?>
 		<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $t ); ?>"
-		   class="tab-item<?php echo $type === $t ? ' active' : ''; ?>"><?php echo esc_html( $label ); ?></a>
+		   class="tab-item<?php echo ! $is_camp && $type === $t ? ' active' : ''; ?>"><?php echo esc_html( $label ); ?></a>
 		<?php endforeach; ?>
+		<?php if ( $db->get_department( 'sm' )['has_summer_camp'] ?? false ): ?>
+		<a href="admin.php?page=meal-templates&type=sm&camp=1"
+		   class="tab-item<?php echo $is_camp ? ' active' : ''; ?>"><?php _e( 'Летний лагерь', 'meal-menu' ); ?></a>
+		<?php endif; ?>
 	</div>
 
 	<div id="dropzone" class="dropzone">
@@ -87,7 +96,7 @@ $has_tm     = file_exists( $tm_file );
 			</thead>
 			<tbody>
 				<?php foreach ( $templates as $t ):
-					$items = $db->get_template_items( (int) $t['id'] );
+					$items = $is_camp ? $db->get_camp_template_items( (int) $t['id'] ) : $db->get_template_items( (int) $t['id'] );
 					$c1 = count( $items['breakfast'] );
 					$c2 = count( $items['breakfast2'] );
 					$c3 = count( $items['lunch'] );
@@ -104,12 +113,15 @@ $has_tm     = file_exists( $tm_file );
 					<td class="center"><?php echo $c2 ? '<span style="color:var(--success)">✓ ' . $c2 . '</span>' : '<span class="text-muted">—</span>'; ?></td>
 					<td class="center"><?php echo $c3 ? '<span style="color:var(--success)">✓ ' . $c3 . '</span>' : '<span class="text-muted">—</span>'; ?></td>
 					<td class="center" style="white-space:nowrap">
-						<a href="admin.php?page=meal-templates&id=<?php echo (int) $t['id']; ?>" class="btn btn-outline btn-sm"><?php _e( 'Изменить', 'meal-menu' ); ?></a>
+						<a href="admin.php?page=meal-templates&id=<?php echo (int) $t['id']; ?><?php echo $is_camp ? '&camp=1' : ''; ?>" class="btn btn-outline btn-sm"><?php _e( 'Изменить', 'meal-menu' ); ?></a>
 						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="del-tpl-form" style="display:inline;margin-left:4px" data-label="<?php echo esc_attr( $t['label'] ); ?>">
 							<?php wp_nonce_field( 'meal_delete_template' ); ?>
 							<input type="hidden" name="action" value="meal_delete_template">
 							<input type="hidden" name="id" value="<?php echo (int) $t['id']; ?>">
 							<input type="hidden" name="school_type" value="<?php echo esc_attr( $type ); ?>">
+							<?php if ( $is_camp ): ?>
+							<input type="hidden" name="camp" value="1">
+							<?php endif; ?>
 							<button type="submit" class="btn btn-danger btn-sm" title="<?php esc_attr_e( 'Удалить шаблон', 'meal-menu' ); ?>">✕</button>
 						</form>
 					</td>
@@ -123,7 +135,6 @@ $has_tm     = file_exists( $tm_file );
 
 <script>
 (function() {
-	// ─── Удаление с подтверждением ──────────────────────────────
 	document.querySelectorAll('.del-tpl-form').forEach(function(form) {
 		var btn = form.querySelector('button');
 		var timer = null;
@@ -144,13 +155,13 @@ $has_tm     = file_exists( $tm_file );
 		});
 	});
 
-	// ─── Дропзона (пакетная загрузка) ───────────────────────────
 	var dz = document.getElementById('dropzone');
 	var dzFile = document.getElementById('dropzone-file');
 	var dzProgress = document.getElementById('dropzone-progress');
 	var dzProgressBar = document.getElementById('dropzone-progress-bar');
 	var dzStatus = document.getElementById('dropzone-status');
 	var type = '<?php echo esc_js( $type ); ?>';
+	var isCamp = <?php echo $is_camp ? 'true' : 'false'; ?>;
 	var ajaxUrl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
 	var nonce = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
 
@@ -207,6 +218,7 @@ $has_tm     = file_exists( $tm_file );
 			fd.append('action', 'meal_import_dropzone');
 			fd.append('nonce', nonce);
 			fd.append('type', type);
+			if (isCamp) fd.append('camp', '1');
 			fd.append('xlsx', file);
 
 			var xhr = new XMLHttpRequest();

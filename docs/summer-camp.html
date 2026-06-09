@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Летний лагерь</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #c8a070;padding:6px 10px;text-align:left}th{background:#f5e6c8}</style>
+</head>
+<body>
+<h1>Летний лагерь</h1>
+<p>Опция «Летний лагерь» доступна для отделения <strong>Начальная школа (sm)</strong> в Настройках пищеблока.</p>
+<p>Позволяет вести отдельное меню для пришкольного лагеря в летний период с собственными шаблонами, календарём и генерацией файлов.</p>
+
+<h2>Включение</h2>
+<ol>
+<li>Перейти в <strong>Питание → Настройки пищеблока</strong></li>
+<li>Выбрать отделение <strong>Начальная школа</strong></li>
+<li>Включить опцию <strong>«Летний лагерь»</strong></li>
+<li>Заполнить даты начала и окончания лагеря, рабочие дни недели, интернат (принудительно для всех шаблонов лагеря) и публикацию xlsx</li>
+</ol>
+
+<h2>Отдельные таблицы БД</h2>
+<p>Данные лагеря хранятся в отдельных таблицах (не пересекаются с основными):</p>
+<table>
+<tr><th>Таблица</th><th>Назначение</th></tr>
+<tr><td><code>wp_meal_camp_templates</code></td><td>Шаблоны циклов лагеря</td></tr>
+<tr><td><code>wp_meal_camp_items</code></td><td>Блюда шаблонов лагеря</td></tr>
+<tr><td><code>wp_meal_camp_calendar</code></td><td>Календарь лагеря (даты → шаблоны)</td></tr>
+</table>
+
+<h2>Поля в wp_meal_departments</h2>
+<table>
+<tr><th>Поле</th><th>Тип</th><th>Описание</th></tr>
+<tr><td><code>has_summer_camp</code></td><td>tinyint</td><td>Включён ли лагерь для отделения (0/1)</td></tr>
+<tr><td><code>camp_start_date</code></td><td>date</td><td>Дата начала лагеря</td></tr>
+<tr><td><code>camp_end_date</code></td><td>date</td><td>Дата окончания лагеря</td></tr>
+<tr><td><code>camp_workdays</code></td><td>varchar</td><td>Рабочие дни недели через запятую (1-7, где 1=Пн)</td></tr>
+<tr><td><code>camp_is_boarding</code></td><td>tinyint</td><td>Принудительный интернат для всех шаблонов лагеря</td></tr>
+<tr><td><code>camp_publish_xlsx</code></td><td>tinyint</td><td>Публиковать xlsx-файлы лагеря (перезаписывают файлы Начальной школы)</td></tr>
+</table>
+
+<h2>Админ-страницы</h2>
+<h3>Шаблоны (Питание → Шаблоны → Летний лагерь)</h3>
+<ul>
+<li>Отдельная вкладка «Летний лагерь» (показывается, если в настройках включён лагерь)</li>
+<li>Создание, редактирование, удаление шаблонов лагеря</li>
+<li>Импорт из XLSX через дропзону — создаёт шаблон лагеря</li>
+</ul>
+
+<h3>Календарь (Питание → Календарь → Летний лагерь)</h3>
+<ul>
+<li>Вкладка «Летний лагерь» активна первой в летний период (если лагерь работает в текущем месяце)</li>
+<li>В период лагеря на фронте показывается только вкладка лагеря (остальные отделения скрыты)</li>
+<li><strong>Отображаются только даты внутри интервала лагеря</strong> (camp_start_date…camp_end_date). Даты вне интервала затенены, не кликаются, подписаны «вне смены»</li>
+<li><strong>Однодневные праздники</strong> в пределах интервала (например, День России 12 июня) отображаются как выходные. Многодневные каникулы скрыты</li>
+<li>Те же операции: назначение дня цикла, выходной, заполнить месяц, создать файлы</li>
+<li>«Заполнить месяц» использует рабочие дни лагеря (camp_workdays), начинается с меню №1, игнорирует даты вне интервала</li>
+<li>«Заполнить до конца месяца» не выходит за camp_end_date</li>
+</ul>
+
+<h3>Настройки пищеблока</h3>
+<ul>
+<li>Карточка Начальной школы содержит блок «Летний лагерь» с чекбоксом, датами, рабочими днями, интернатом и публикацией</li>
+</ul>
+
+<h2>Excel-генерация</h2>
+<p>Файлы лагеря имеют <strong>те же имена</strong>, что и файлы Начальной школы (перезаписывают их):</p>
+<ul>
+<li><code>{YYYY-MM-DD}-sm.xlsx</code> — ежедневное меню</li>
+<li><code>kp{YYYY}.xlsx</code> — годовой план-график</li>
+<li><code>tm{YYYY}-sm.xlsx</code> — типовое меню</li>
+</ul>
+
+<h2>Фронт (шорткод/блок)</h2>
+<ul>
+<li>Шорткод <code>[meal_calendar camp="1"]</code> — календарь лагеря</li>
+<li>В летний период авто-определение: если текущая дата внутри лагерного периода, календарь показывает только лагерь</li>
+<li>AJAX-эндпоинты: <code>admin-ajax.php?action=meal_get_calendar&meal_camp=1</code></li>
+<li>AJAX-эндпоинт дня: <code>admin-ajax.php?action=meal_get_day_menu&camp=1</code></li>
+</ul>
+
+<h2>Методы БД (DB)</h2>
+<pre>is_camp_period(type)                          — работает ли лагерь сейчас
+is_camp_period_for_month(type, year, month)   — работает ли лагерь в указанном месяце
+get_camp_templates(type)                       — все шаблоны лагеря
+get_camp_template(id)                          — один шаблон лагеря
+add_camp_template(type)                        — создать шаблон лагеря
+delete_camp_template(id)                       — удалить шаблон лагеря
+get_camp_templates_ordered(type)               — шаблоны в виде [day_number => id]
+get_camp_cycle_length(type)                    — количество шаблонов в цикле
+get_camp_template_items(template_id)           — блюда шаблона лагеря
+save_camp_template_items(template_id, items)   — сохранить блюда шаблона лагеря
+get_camp_calendar_day(date, type)              — запись календаря лагеря на дату
+get_camp_calendar_month(year, month, type)     — календарь лагеря за месяц
+get_camp_calendar_range(from, to, type)        — календарь лагеря за диапазон
+get_camp_calendar_year(year, type)             — календарь лагеря за год
+save_camp_calendar_day(...)                    — сохранить запись календаря лагеря
+delete_camp_calendar_day(date, type)           — удалить запись календаря лагеря
+assign_camp_cycle(...)                         — заполнить цикл лагеря на диапазон
+bulk_save_camp_calendar(days, type)            — массовое сохранение календаря лагеря
+set_camp_template_boarding(id, is_boarding)    — установить флаг интерната для шаблона лагеря</pre>
+
+<h2>AJAX-эндпоинты</h2>
+<pre>wp_ajax_meal_save_day          — поддержка camp в save, delete, apply_cycle, bulk_save, copy_month, recalc_period, generate_files
+wp_ajax_meal_import_dropzone   — импорт XLSX в шаблоны лагеря (POST camp=1)
+admin_post_meal_add_template   — добавление шаблона лагеря (POST camp=1)
+admin_post_meal_delete_template — удаление шаблона лагеря (POST camp=1)
+admin_post_meal_save_template  — сохранение шаблона лагеря (POST is_camp=1)</pre>
+</body>
+</html>

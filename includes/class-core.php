@@ -256,14 +256,32 @@ class Core {
 			'palette' => '',
 			'layout'  => '',
 			'show_oc' => true,
+			'camp'    => null,
 		), $atts );
 		$db   = \Meal_Menu\DB::instance();
 
 		$enabled_depts = $db->get_enabled_departments();
 		$valid_types   = array_column( $enabled_depts, 'code' );
 
-		$req_type = $_GET['meal_type'] ?? '';
+		$req_type   = $_GET['meal_type'] ?? '';
+		$is_camp    = $atts['camp'] === '1' || $atts['camp'] === true || $atts['camp'] === 1 || isset( $_GET['meal_camp'] );
+		$req_camp   = isset( $_GET['meal_camp'] ) ? ( $_GET['meal_camp'] === '1' ) : $is_camp;
+
 		$type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
+
+		// Auto-detect camp mode
+		if ( ! $req_camp && $db->is_camp_period_for_month( $type, (int) ( $_GET['meal_y'] ?? current_time( 'Y' ) ), (int) ( $_GET['meal_m'] ?? current_time( 'n' ) ) ) ) {
+			$any_normal = false;
+			foreach ( $enabled_depts as $dep ) {
+				if ( ! $db->is_camp_period_for_month( $dep['code'], (int) ( $_GET['meal_y'] ?? current_time( 'Y' ) ), (int) ( $_GET['meal_m'] ?? current_time( 'n' ) ) ) ) {
+					$any_normal = true;
+					break;
+				}
+			}
+			if ( ! $any_normal ) {
+				$req_camp = true;
+			}
+		}
 
 		$today_dt = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
 		$year  = (int) ( $_GET['meal_y'] ?? $today_dt->format( 'Y' ) );
@@ -278,7 +296,7 @@ class Core {
 		<div class="meal-wrapper palette-<?php echo esc_attr( $palette ); ?> layout-<?php echo esc_attr( $layout ); ?>" id="meal-calendar-root">
 			<div class="meal-container">
 				<div class="meal-title"><?php _e( 'Календарь питания', 'meal-menu' ); ?></div>
-				<div id="meal-calendar-body"><?php echo self::render_calendar_body( $type, $year, $month ); ?></div>
+				<div id="meal-calendar-body"><?php echo self::render_calendar_body( $type, $year, $month, $req_camp ); ?></div>
 				<?php if ( $show_oc ) { echo self::render_oc_content(); } ?>
 			</div>
 
@@ -302,36 +320,85 @@ class Core {
 		return ob_get_clean();
 	}
 
-	public static function render_calendar_body( string $type, int $year, int $month ): string {
+	public static function render_calendar_body( string $type, int $year, int $month, bool $is_camp = false ): string {
 		$db = \Meal_Menu\DB::instance();
 
-		$enabled_depts = $db->get_enabled_departments();
-		$valid_types   = array_column( $enabled_depts, 'code' );
-		$type_labels   = array_combine( array_column( $enabled_depts, 'code' ), array_column( $enabled_depts, 'label' ) );
+		if ( $is_camp ) {
+			$enabled_depts = $db->get_enabled_departments();
+			$camp_types    = array();
+			foreach ( $enabled_depts as $dep ) {
+				if ( ! empty( $dep['has_summer_camp'] ) ) {
+					$camp_types[] = $dep['code'];
+				}
+			}
+			if ( empty( $camp_types ) ) {
+				$camp_types = array( $type );
+			}
+			$valid_types = $camp_types;
+			$type_labels = array_combine( $camp_types, array_map( function( $c ) {
+				return 'Летний лагерь';
+			}, $camp_types ) );
+			$dept = $db->get_department( $type );
+			$real_type = $type;
 
-		$dept = $db->get_department( $type );
-		$real_type = ( $dept && ! empty( $dept['merged_with'] ) ) ? $dept['merged_with'] : $type;
+			$cal_rows = array();
+			$c = $db->get_table_name( 'camp_calendar' );
+			$t = $db->get_table_name( 'camp_templates' );
+			global $wpdb;
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT c.date, c.template_id, mt.day_number, mt.label
+				 FROM $c c
+				 LEFT JOIN $t mt ON mt.id = c.template_id
+				 WHERE c.school_type = %s AND c.date >= %s AND c.date <= %s",
+				$real_type,
+				sprintf( '%04d-%02d-01', $year, $month ),
+				gmdate( 'Y-m-t', strtotime( sprintf( '%04d-%02d-01', $year, $month ) ) )
+			), ARRAY_A ) ?: array();
+			foreach ( $rows as $r ) {
+				$cal_rows[ $r['date'] ] = $r;
+			}
+		} else {
+			$enabled_depts = $db->get_enabled_departments();
+			$valid_types   = array_column( $enabled_depts, 'code' );
+			$type_labels   = array_combine( array_column( $enabled_depts, 'code' ), array_column( $enabled_depts, 'label' ) );
+
+			// Filter out departments that are in camp period (they will show as camp tab)
+			$filtered_labels = array();
+			foreach ( $type_labels as $t => $label ) {
+				if ( ! $db->is_camp_period_for_month( $t, $year, $month ) ) {
+					$filtered_labels[ $t ] = $label;
+				}
+			}
+			if ( ! empty( $filtered_labels ) ) {
+				$type_labels = $filtered_labels;
+				$valid_types = array_keys( $filtered_labels );
+			}
+
+			$dept = $db->get_department( $type );
+			$real_type = ( $dept && ! empty( $dept['merged_with'] ) ) ? $dept['merged_with'] : $type;
+
+			$cal_rows = array();
+			$c = $db->get_table_name( 'calendar' );
+			$t = $db->get_table_name( 'templates' );
+			global $wpdb;
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT c.date, c.template_id, mt.day_number, mt.label
+				 FROM $c c
+				 LEFT JOIN $t mt ON mt.id = c.template_id
+				 WHERE c.school_type = %s AND c.date >= %s AND c.date <= %s",
+				$real_type,
+				sprintf( '%04d-%02d-01', $year, $month ),
+				gmdate( 'Y-m-t', strtotime( sprintf( '%04d-%02d-01', $year, $month ) ) )
+			), ARRAY_A ) ?: array();
+			foreach ( $rows as $r ) {
+				$cal_rows[ $r['date'] ] = $r;
+			}
+		}
 
 		$today_dt = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
-		$req_dt = new \DateTimeImmutable( "$year-$month-01" );
-
+		$req_dt   = new \DateTimeImmutable( "$year-$month-01" );
 		$days_in_month = (int) $req_dt->format( 't' );
 		$first_dow     = (int) $req_dt->format( 'N' );
-
-		$cal_rows = array();
-		$c = $db->get_table_name( 'calendar' );
-		$t = $db->get_table_name( 'templates' );
-		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT c.date, c.template_id, mt.day_number, mt.label
-			 FROM $c c
-			 LEFT JOIN $t mt ON mt.id = c.template_id
-			 WHERE c.school_type = %s AND YEAR(c.date) = %d AND MONTH(c.date) = %d",
-			$real_type, $year, $month
-		), ARRAY_A ) ?: array();
-		foreach ( $rows as $r ) {
-			$cal_rows[ $r['date'] ] = $r;
-		}
 
 		$prev_dt = $req_dt->modify( '-1 month' );
 		$next_dt = $req_dt->modify( '+1 month' );
@@ -343,12 +410,31 @@ class Core {
 
 		$month_names = array( 1=>'Январь',2=>'Февраль',3=>'Март',4=>'Апрель',5=>'Май',6=>'Июнь',7=>'Июль',8=>'Август',9=>'Сентябрь',10=>'Октябрь',11=>'Ноябрь',12=>'Декабрь' );
 
+		// If camp is active and no other tabs show, show camp as default
+		if ( ! $is_camp && empty( $type_labels ) ) {
+			return self::render_calendar_body( $type, $year, $month, true );
+		}
+
+		// If requesting camp but we already have regular tabs, add camp tab
+		$show_camp_tab = false;
+		if ( ! $is_camp ) {
+			foreach ( $enabled_depts as $dep ) {
+				if ( ! empty( $dep['has_summer_camp'] ) && $db->is_camp_period_for_month( $dep['code'], $year, $month ) ) {
+					$show_camp_tab = true;
+					break;
+				}
+			}
+		}
+
 		ob_start();
 		?>
 		<div class="meal-tabs">
 			<?php foreach ( $type_labels as $t => $label ): ?>
-			<a class="meal-tab<?php echo $type === $t ? ' meal-tab--active' : ''; ?>" data-type="<?php echo esc_attr( $t ); ?>" data-year="<?php echo $year; ?>" data-month="<?php echo $month; ?>" href="<?php echo esc_url( add_query_arg( array( 'meal_type' => $t, 'meal_y' => $year, 'meal_m' => $month ) ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<a class="meal-tab<?php echo ( ! $is_camp && $type === $t ) ? ' meal-tab--active' : ''; ?>" data-type="<?php echo esc_attr( $t ); ?>" data-year="<?php echo $year; ?>" data-month="<?php echo $month; ?>" data-camp="0" href="<?php echo esc_url( add_query_arg( array( 'meal_type' => $t, 'meal_y' => $year, 'meal_m' => $month ) ) ); ?>"><?php echo esc_html( $label ); ?></a>
 			<?php endforeach; ?>
+			<?php if ( $show_camp_tab ): ?>
+			<a class="meal-tab<?php echo $is_camp ? ' meal-tab--active' : ''; ?>" data-type="<?php echo esc_attr( $type ); ?>" data-year="<?php echo $year; ?>" data-month="<?php echo $month; ?>" data-camp="1" href="<?php echo esc_url( add_query_arg( array( 'meal_type' => $type, 'meal_y' => $year, 'meal_m' => $month, 'meal_camp' => '1' ) ) ); ?>"><?php _e( 'Летний лагерь', 'meal-menu' ); ?></a>
+			<?php endif; ?>
 		</div>
 
 		<div class="meal-nav-month">
@@ -389,7 +475,7 @@ class Core {
 			<div class="<?php echo implode( ' ', $classes ); ?>">
 				<div class="meal-cal-day"><?php echo $d; ?></div>
 				<?php if ( $has_menu ): ?>
-				<a class="meal-cal-link meal-menu-trigger" href="#" data-date="<?php echo esc_attr( $date_str ); ?>" data-type="<?php echo esc_attr( $real_type ); ?>"><?php echo esc_html( $entry['label'] ?? __( 'Меню', 'meal-menu' ) ); ?></a>
+				<a class="meal-cal-link meal-menu-trigger" href="#" data-date="<?php echo esc_attr( $date_str ); ?>" data-type="<?php echo esc_attr( $real_type ?? $type ); ?>" data-camp="<?php echo $is_camp ? '1' : '0'; ?>"><?php echo esc_html( $entry['label'] ?? __( 'Меню', 'meal-menu' ) ); ?></a>
 				<?php elseif ( $is_holiday ): ?>
 				<div class="meal-holiday-label"><?php _e( 'Выходной', 'meal-menu' ); ?></div>
 				<?php endif; ?>
@@ -413,15 +499,16 @@ class Core {
 	}
 
 	public function ajax_get_calendar(): void {
-		$type  = sanitize_key( $_GET['meal_type'] ?? '' );
-		$year  = (int) ( $_GET['meal_y'] ?? 0 );
-		$month = (int) ( $_GET['meal_m'] ?? 0 );
+		$type   = sanitize_key( $_GET['meal_type'] ?? '' );
+		$year   = (int) ( $_GET['meal_y'] ?? 0 );
+		$month  = (int) ( $_GET['meal_m'] ?? 0 );
+		$is_camp = ! empty( $_GET['meal_camp'] );
 
 		if ( ! $type || ! $year || ! $month || $month < 1 || $month > 12 ) {
 			wp_send_json( array( 'ok' => false, 'html' => '' ) );
 		}
 
-		$html = self::render_calendar_body( $type, $year, $month );
+		$html = self::render_calendar_body( $type, $year, $month, $is_camp );
 		wp_send_json( array( 'ok' => true, 'html' => $html ) );
 	}
 
@@ -553,8 +640,9 @@ class Core {
 
 	public function ajax_get_day_menu(): void {
 		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
-		$date = $_GET['date'] ?? '';
-		$type = $_GET['type'] ?? '';
+		$date    = $_GET['date'] ?? '';
+		$type    = $_GET['type'] ?? '';
+		$_GET['camp'] = ! empty( $_GET['camp'] ) ? '1' : '';
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) || ! $type ) {
 			wp_die( -1 );
 		}
@@ -688,7 +776,8 @@ class Core {
 			wp_die( -1 );
 		}
 
-		$type = sanitize_key( $_POST['type'] ?? 'sm' );
+		$type    = sanitize_key( $_POST['type'] ?? 'sm' );
+		$is_camp = ! empty( $_POST['camp'] );
 		if ( ! isset( $_FILES['xlsx'] ) || $_FILES['xlsx']['error'] !== UPLOAD_ERR_OK ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка загрузки файла', 'meal-menu' ) ) );
 		}
@@ -708,9 +797,13 @@ class Core {
 				wp_send_json( array( 'ok' => false, 'error' => __( 'В файле нет блюд', 'meal-menu' ) ) );
 			}
 
-			$db    = DB::instance();
-			$tpl_id = $db->add_template( $type );
-			$db->save_template_items( $tpl_id, $items );
+			$db     = DB::instance();
+			$tpl_id = $is_camp ? $db->add_camp_template( $type ) : $db->add_template( $type );
+			if ( $is_camp ) {
+				$db->save_camp_template_items( $tpl_id, $items );
+			} else {
+				$db->save_template_items( $tpl_id, $items );
+			}
 
 			wp_send_json( array( 'ok' => true, 'id' => $tpl_id ) );
 		} catch ( \Exception $e ) {
@@ -724,19 +817,25 @@ class Core {
 		}
 		check_admin_referer( 'meal_save_template' );
 
-		$id  = (int) ( $_POST['template_id'] ?? 0 );
-		$db  = DB::instance();
-		$tpl = $db->get_template( $id );
+		$id      = (int) ( $_POST['template_id'] ?? 0 );
+		$is_camp = ! empty( $_POST['is_camp'] );
+		$db      = DB::instance();
+
+		$tpl = $is_camp ? $db->get_camp_template( $id ) : $db->get_template( $id );
 		if ( ! $tpl ) {
 			wp_redirect( admin_url( 'admin.php?page=meal-templates' ) );
 			exit;
 		}
 
-		$dept_info     = $db->get_department( $tpl['school_type'] );
-		$forced_boarding = $dept_info && ! empty( $dept_info['is_boarding'] );
-		$is_boarding   = $forced_boarding ? 1 : ( ! empty( $_POST['is_boarding'] ) ? 1 : 0 );
+		$dept_info       = $db->get_department( $tpl['school_type'] );
+		$forced_boarding = $is_camp ? ( $dept_info && ! empty( $dept_info['camp_is_boarding'] ) ) : ( $dept_info && ! empty( $dept_info['is_boarding'] ) );
+		$is_boarding     = $forced_boarding ? 1 : ( ! empty( $_POST['is_boarding'] ) ? 1 : 0 );
 
-		$db->set_template_boarding( $id, $is_boarding );
+		if ( $is_camp ) {
+			$db->set_camp_template_boarding( $id, $is_boarding );
+		} else {
+			$db->set_template_boarding( $id, $is_boarding );
+		}
 
 		$meal_types = array( 'breakfast', 'breakfast2', 'lunch' );
 		if ( $is_boarding ) {
@@ -777,9 +876,13 @@ class Core {
 			}
 		}
 
-		$db->save_template_items( $id, $all_items );
+		if ( $is_camp ) {
+			$db->save_camp_template_items( $id, $all_items );
+		} else {
+			$db->save_template_items( $id, $all_items );
+		}
 
-		if ( $tpl['school_type'] === 'sm' ) {
+		if ( $tpl['school_type'] === 'sm' && ! $is_camp ) {
 			$approve_date = trim( $_POST['tm_approve_date'] ?? '' );
 			if ( $approve_date ) {
 				$db->save_tm_approve_date( $approve_date );
@@ -788,8 +891,11 @@ class Core {
 				\Meal_Menu\Excel_TM::generate( 'sm', (int) current_time( 'Y' ) );
 			}
 		}
+		if ( $is_camp && class_exists( '\Meal_Menu\Excel_TM' ) ) {
+			\Meal_Menu\Excel_TM::generate( 'sm', (int) current_time( 'Y' ), true );
+		}
 
-		wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $id . '&saved=1' ) );
+		wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $id . '&saved=1' . ( $is_camp ? '&camp=1' : '' ) ) );
 		exit;
 	}
 
@@ -799,11 +905,12 @@ class Core {
 		}
 		check_admin_referer( 'meal_add_template' );
 
-		$type = sanitize_key( $_POST['type'] ?? 'sm' );
-		$db   = DB::instance();
-		$id   = $db->add_template( $type );
+		$type    = sanitize_key( $_POST['type'] ?? 'sm' );
+		$is_camp = ! empty( $_POST['camp'] );
+		$db      = DB::instance();
+		$id      = $is_camp ? $db->add_camp_template( $type ) : $db->add_template( $type );
 
-		wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $id ) );
+		wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $id . ( $is_camp ? '&camp=1' : '' ) ) );
 		exit;
 	}
 
@@ -813,12 +920,17 @@ class Core {
 		}
 		check_admin_referer( 'meal_delete_template' );
 
-		$id   = (int) ( $_POST['id'] ?? 0 );
-		$type = sanitize_key( $_POST['school_type'] ?? 'sm' );
-		$db   = DB::instance();
-		$db->delete_template( $id );
+		$id      = (int) ( $_POST['id'] ?? 0 );
+		$type    = sanitize_key( $_POST['school_type'] ?? 'sm' );
+		$is_camp = ! empty( $_POST['camp'] );
+		$db      = DB::instance();
+		if ( $is_camp ) {
+			$db->delete_camp_template( $id );
+		} else {
+			$db->delete_template( $id );
+		}
 
-		wp_redirect( admin_url( 'admin.php?page=meal-templates&type=' . $type ) );
+		wp_redirect( admin_url( 'admin.php?page=meal-templates&type=' . $type . ( $is_camp ? '&camp=1' : '' ) ) );
 		exit;
 	}
 
@@ -866,12 +978,14 @@ class Core {
 		echo "  11. Cron и Email          → " . esc_url( $base . 'cron-email.html' ) . "\n";
 		echo "  12. Темы оформления       → " . esc_url( $base . 'themes.html' ) . "\n";
 		echo "  13. Публикация в /food/   → " . esc_url( $base . 'publish-food.html' ) . "\n";
-		echo "  14. Импорт/Экспорт данных → " . esc_url( $base . 'plugin-settings.html#import-export' ) . "\n";
-		echo "  15. Сброс данных          → " . esc_url( $base . 'plugin-settings.html#reset' ) . "\n";
+		echo "  14. Летний лагерь          → " . esc_url( $base . 'summer-camp.html' ) . "\n";
+		echo "  15. Импорт/Экспорт данных → " . esc_url( $base . 'plugin-settings.html#import-export' ) . "\n";
+		echo "  16. Сброс данных          → " . esc_url( $base . 'plugin-settings.html#reset' ) . "\n";
 		echo "=================================================================\n";
 		echo "  Таблицы БД: wp_meal_users, wp_meal_templates, wp_meal_items,\n";
 		echo "  wp_meal_calendar, wp_meal_kitchen_settings, wp_meal_departments,\n";
-		echo "  wp_meal_vacations, wp_meal_oc_monitoring, wp_meal_email_tokens\n";
+		echo "  wp_meal_vacations, wp_meal_oc_monitoring, wp_meal_email_tokens,\n";
+		echo "  wp_meal_camp_templates, wp_meal_camp_items, wp_meal_camp_calendar\n";
 		echo "  Классы: \\Meal_Menu\\DB, \\Meal_Menu\\Core, \\Meal_Menu\\Activator,\n";
 		echo "  \\Meal_Menu\\Roles, \\Meal_Menu\\Excel_Daily/TM/KP/OC, \\Meal_Menu\\Importer\n";
 		echo "=================================================================\n";
@@ -886,7 +1000,7 @@ class Core {
 
 		global $wpdb;
 		$p     = $wpdb->prefix . 'meal_';
-		$tables = array( 'templates', 'items', 'calendar', 'kitchen_settings', 'departments', 'vacations', 'oc_monitoring', 'users', 'email_tokens' );
+		$tables = array( 'templates', 'items', 'calendar', 'camp_templates', 'camp_items', 'camp_calendar', 'kitchen_settings', 'departments', 'vacations', 'oc_monitoring', 'users', 'email_tokens' );
 
 		$data = array();
 		foreach ( $tables as $table ) {
@@ -911,20 +1025,82 @@ class Core {
 
 	private static function ensure_tables(): void {
 		global $wpdb;
-		$table = $wpdb->prefix . 'meal_templates';
-		$exists = $wpdb->get_var( "SELECT name FROM sqlite_master WHERE type='table' AND name='$table'" );
-		if ( ! $exists ) {
+
+		$p = $wpdb->prefix . 'meal_';
+
+		$table_exists = function ( string $table ) use ( $wpdb ): bool {
+			return ! empty( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) );
+		};
+		$has_column = function ( string $table, string $col ) use ( $wpdb, $table_exists ): bool {
+			if ( ! $table_exists( $table ) ) {
+				return false;
+			}
+			return ! empty( $wpdb->get_results( "SHOW COLUMNS FROM `$table` LIKE '$col'" ) );
+		};
+
+		if ( ! $table_exists( $p . 'templates' ) ) {
 			Activator::activate();
 		}
-		$v = $wpdb->prefix . 'meal_vacations';
-		$col = $wpdb->get_results( "SELECT * FROM pragma_table_info('$v') WHERE name='actual_date'" );
-		if ( empty( $col ) ) {
-			$wpdb->query( "ALTER TABLE $v ADD COLUMN actual_date date NULL default NULL" );
+		if ( $table_exists( $p . 'vacations' ) && ! $has_column( $p . 'vacations', 'actual_date' ) ) {
+			$wpdb->query( "ALTER TABLE {$p}vacations ADD COLUMN actual_date date NULL default NULL" );
 		}
-		$c = $wpdb->prefix . 'meal_calendar';
-		$col = $wpdb->get_results( "SELECT * FROM pragma_table_info('$c') WHERE name='iterate_number'" );
-		if ( empty( $col ) ) {
-			$wpdb->query( "ALTER TABLE $c ADD COLUMN iterate_number integer NOT NULL DEFAULT 0" );
+		if ( $table_exists( $p . 'calendar' ) && ! $has_column( $p . 'calendar', 'iterate_number' ) ) {
+			$wpdb->query( "ALTER TABLE {$p}calendar ADD COLUMN iterate_number integer NOT NULL DEFAULT 0" );
+		}
+		// Camp tables — use MySQL-compatible syntax (WP SQLite plugin translates it)
+		if ( ! $table_exists( $p . 'camp_templates' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS {$p}camp_templates (
+				id int(10) unsigned NOT NULL auto_increment,
+				day_number tinyint(3) unsigned NOT NULL,
+				school_type varchar(20) NOT NULL default 'sm',
+				is_boarding tinyint(1) NOT NULL default 0,
+				label varchar(100) NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY uq_day_type (day_number, school_type)
+			)" );
+		}
+
+		if ( ! $table_exists( $p . 'camp_items' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS {$p}camp_items (
+				id int(10) unsigned NOT NULL auto_increment,
+				template_id int(10) unsigned NOT NULL,
+				meal_type varchar(20) NOT NULL default 'breakfast',
+				section varchar(50) default NULL,
+				recipe_num varchar(30) default NULL,
+				dish_name varchar(255) default NULL,
+				grams decimal(8,1) default NULL,
+				price decimal(8,2) default NULL,
+				kcal decimal(8,2) default NULL,
+				protein decimal(8,2) default NULL,
+				fat decimal(8,2) default NULL,
+				carbs decimal(8,2) default NULL,
+				sort_order smallint NOT NULL default 0,
+				PRIMARY KEY  (id),
+				KEY template_id (template_id)
+			)" );
+		}
+
+		if ( ! $table_exists( $p . 'camp_calendar' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS {$p}camp_calendar (
+				date date NOT NULL,
+				school_type varchar(20) NOT NULL default 'sm',
+				template_id int(10) unsigned default NULL,
+				school varchar(100) default NULL,
+				dept varchar(50) default NULL,
+				is_cycle_start tinyint(1) NOT NULL default 0,
+				iterate_number tinyint(1) NOT NULL default 0,
+				PRIMARY KEY  (date, school_type),
+				KEY template_id (template_id)
+			)" );
+		}
+
+		if ( $table_exists( $p . 'departments' ) && ! $has_column( $p . 'departments', 'has_summer_camp' ) ) {
+			$wpdb->query( "ALTER TABLE {$p}departments ADD COLUMN has_summer_camp tinyint(1) NOT NULL default 0" );
+			$wpdb->query( "ALTER TABLE {$p}departments ADD COLUMN camp_start_date date default NULL" );
+			$wpdb->query( "ALTER TABLE {$p}departments ADD COLUMN camp_end_date date default NULL" );
+			$wpdb->query( "ALTER TABLE {$p}departments ADD COLUMN camp_workdays varchar(20) NOT NULL default '1,2,3,4,5'" );
+			$wpdb->query( "ALTER TABLE {$p}departments ADD COLUMN camp_is_boarding tinyint(1) NOT NULL default 0" );
+			$wpdb->query( "ALTER TABLE {$p}departments ADD COLUMN camp_publish_xlsx tinyint(1) NOT NULL default 0" );
 		}
 	}
 }

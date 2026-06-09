@@ -24,15 +24,23 @@ foreach ( $enabled_depts as $dep ) {
 }
 
 $type    = isset( $_GET['type'] ) && in_array( $_GET['type'], $valid_types, true ) ? $_GET['type'] : ( $valid_types[0] ?? 'sm' );
+$is_camp = ! empty( $_GET['camp'] ) && $type === 'sm' && ! empty( $db->get_department( 'sm' )['has_summer_camp'] );
+
 $cur_dept = $dept_map[ $type ] ?? null;
 $org_name = $db->get_org_name();
 
-$merge_with = $cur_dept && ! empty( $cur_dept['merged_with'] ) && isset( $dept_map[ $cur_dept['merged_with'] ] ) ? $cur_dept['merged_with'] : null;
-$merge_dept = $merge_with ? $dept_map[ $merge_with ] : null;
-if ( $merge_with ) {
-	$merge_label = ! empty( $merge_dept['dept_name'] ) ? $merge_dept['dept_name'] : $merge_dept['label'];
-	$cur_label   = ! empty( $cur_dept['dept_name'] ) ? $cur_dept['dept_name'] : $cur_dept['label'];
-	$type_labels[ $type ] = $cur_label . ' + ' . $merge_label;
+$data_type = $type;
+$merge_with = null;
+$merge_dept = null;
+if ( ! $is_camp ) {
+	$merge_with = $cur_dept && ! empty( $cur_dept['merged_with'] ) && isset( $dept_map[ $cur_dept['merged_with'] ] ) ? $cur_dept['merged_with'] : null;
+	$merge_dept = $merge_with ? $dept_map[ $merge_with ] : null;
+	if ( $merge_with ) {
+		$merge_label = ! empty( $merge_dept['dept_name'] ) ? $merge_dept['dept_name'] : $merge_dept['label'];
+		$cur_label   = ! empty( $cur_dept['dept_name'] ) ? $cur_dept['dept_name'] : $cur_dept['label'];
+		$type_labels[ $type ] = $cur_label . ' + ' . $merge_label;
+	}
+	$data_type = $merge_with ? $merge_with : $type;
 }
 
 $dept_name = $cur_dept['dept_name'] ?? '';
@@ -43,8 +51,19 @@ $month = (int) ( $_GET['m'] ?? $today->format( 'n' ) );
 $year  = max( 2020, min( 2035, $year ) );
 $month = max( 1, min( 12, $month ) );
 
-$data_type   = $merge_with ? $merge_with : $type;
-$cal_data    = $db->get_calendar_month( $year, $month, $data_type );
+if ( $is_camp ) {
+	$camp_dept = $db->get_department( 'sm' );
+	$cal_data    = $db->get_camp_calendar_month( $year, $month, 'sm' );
+	$cycle_len   = $db->get_camp_cycle_length( 'sm' );
+	$tpls_ordered = $db->get_camp_templates_ordered( 'sm' );
+	$camp_start   = $camp_dept['camp_start_date'] ?? '';
+	$camp_end     = $camp_dept['camp_end_date'] ?? '';
+} else {
+	$cal_data    = $db->get_calendar_month( $year, $month, $data_type );
+	$cycle_len   = $db->get_cycle_length( $data_type );
+	$tpls_ordered = $db->get_templates_ordered( $data_type );
+}
+
 $first_day   = new \DateTime( sprintf( '%04d-%02d-01', $year, $month ) );
 $last_day    = (int) $first_day->format( 't' );
 $start_wday  = (int) $first_day->format( 'N' );
@@ -54,15 +73,21 @@ $prev_dt->modify( '-1 month' );
 $next_dt = clone $first_day;
 $next_dt->modify( '+1 month' );
 
-$prev_cal_data     = $db->get_calendar_month( (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $data_type );
+if ( $is_camp ) {
+	$prev_cal_data  = $db->get_camp_calendar_month( (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), 'sm' );
+	$next_cal_data  = $db->get_camp_calendar_month( (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), 'sm' );
+} else {
+	$prev_cal_data  = $db->get_calendar_month( (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $data_type );
+	$next_cal_data  = $db->get_calendar_month( (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $data_type );
+}
+
 $prev_last_day     = (int) $prev_dt->format( 't' );
 $prev_from         = sprintf( '%04d-%02d-%02d', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $prev_last_day - 6 );
 $prev_to           = sprintf( '%04d-%02d-%02d', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $prev_last_day );
-$prev_vacations    = $db->get_vacation_days_for_range( $prev_from, $prev_to );
+$prev_vacations    = $is_camp ? array() : $db->get_vacation_days_for_range( $prev_from, $prev_to );
 
-$next_cal_data     = $db->get_calendar_month( (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $data_type );
 $next_from         = sprintf( '%04d-%02d-01', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ) );
-$next_vacations    = $db->get_vacation_days_for_range( $next_from, sprintf( '%04d-%02d-07', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ) ) );
+$next_vacations    = $is_camp ? array() : $db->get_vacation_days_for_range( $next_from, sprintf( '%04d-%02d-07', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ) ) );
 
 $today_str  = $today->format( 'Y-m-d' );
 $month_ru   = array( '', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -96,52 +121,52 @@ foreach ( $enabled_depts as $dep ) {
 }
 
 $existing_files = array();
-foreach ( $all_suffixes as $sfx ) {
-	$f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', $year, $month, $sfx );
-	foreach ( glob( $f_pattern ) ?: array() as $f ) {
-		$name_no_ext = basename( $f, '.xlsx' );
-		if ( $sfx === '' ) {
-			foreach ( $all_known_suffixes as $ks ) {
-				if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
+if ( ! $is_camp ) {
+	foreach ( $all_suffixes as $sfx ) {
+		$f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', $year, $month, $sfx );
+		foreach ( glob( $f_pattern ) ?: array() as $f ) {
+			$name_no_ext = basename( $f, '.xlsx' );
+			if ( $sfx === '' ) {
+				foreach ( $all_known_suffixes as $ks ) {
+					if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
+				}
 			}
+			$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
 		}
-		$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
+	}
+
+	foreach ( $all_suffixes as $sfx ) {
+		$prev_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $sfx );
+		foreach ( glob( $prev_f_pattern ) ?: array() as $f ) {
+			$name_no_ext = basename( $f, '.xlsx' );
+			if ( $sfx === '' ) {
+				foreach ( $all_known_suffixes as $ks ) {
+					if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
+				}
+			}
+			$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
+		}
+	}
+	foreach ( $all_suffixes as $sfx ) {
+		$next_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $sfx );
+		foreach ( glob( $next_f_pattern ) ?: array() as $f ) {
+			$name_no_ext = basename( $f, '.xlsx' );
+			if ( $sfx === '' ) {
+				foreach ( $all_known_suffixes as $ks ) {
+					if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
+				}
+			}
+			$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
+		}
 	}
 }
 
-foreach ( $all_suffixes as $sfx ) {
-	$prev_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $sfx );
-	foreach ( glob( $prev_f_pattern ) ?: array() as $f ) {
-		$name_no_ext = basename( $f, '.xlsx' );
-		if ( $sfx === '' ) {
-			foreach ( $all_known_suffixes as $ks ) {
-				if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
-			}
-		}
-		$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
-	}
-}
-foreach ( $all_suffixes as $sfx ) {
-	$next_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $sfx );
-	foreach ( glob( $next_f_pattern ) ?: array() as $f ) {
-		$name_no_ext = basename( $f, '.xlsx' );
-		if ( $sfx === '' ) {
-			foreach ( $all_known_suffixes as $ks ) {
-				if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
-			}
-		}
-		$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
-	}
-}
-
-$cycle_len     = $db->get_cycle_length( $data_type );
-$tpls_ordered  = $db->get_templates_ordered( $data_type );
 $templates_map = array();
 foreach ( $tpls_ordered as $dn => $tid ) {
 	$templates_map[ $tid ] = $dn;
 }
 
-$tpls_all         = $db->get_templates( $data_type );
+$tpls_all         = $is_camp ? $db->get_camp_templates( 'sm' ) : $db->get_templates( $data_type );
 $day_num_to_label = array();
 foreach ( $tpls_all as $t ) {
 	$day_num_to_label[ (int) $t['day_number'] ] = $t['label'];
@@ -158,31 +183,33 @@ for ( $i = 0; $i < count( $day_num_keys ) - 1; $i++ ) {
 $source_depts = array();
 $month_from   = sprintf( '%04d-%02d-01', $year, $month );
 $month_to     = gmdate( 'Y-m-t', strtotime( $month_from ) );
-foreach ( $enabled_depts as $dep ) {
-	if ( $dep['code'] === $type ) continue;
-	if ( ! in_array( $dep['code'], $valid_types, true ) ) continue;
-	$dep_cycle = $db->get_cycle_length( $dep['code'] );
-	if ( $dep_cycle !== $cycle_len || $cycle_len === 0 ) continue;
-	$dep_cal = $db->get_calendar_month( $year, $month, $dep['code'] );
-	$has_data = false;
-	foreach ( $dep_cal as $day ) {
-		if ( $day['template_id'] !== null ) { $has_data = true; break; }
-	}
-	if ( $has_data ) {
-		$source_depts[] = $dep;
+if ( ! $is_camp ) {
+	foreach ( $enabled_depts as $dep ) {
+		if ( $dep['code'] === $type ) continue;
+		if ( ! in_array( $dep['code'], $valid_types, true ) ) continue;
+		$dep_cycle = $db->get_cycle_length( $dep['code'] );
+		if ( $dep_cycle !== $cycle_len || $cycle_len === 0 ) continue;
+		$dep_cal = $db->get_calendar_month( $year, $month, $dep['code'] );
+		$has_data = false;
+		foreach ( $dep_cal as $day ) {
+			if ( $day['template_id'] !== null ) { $has_data = true; break; }
+		}
+		if ( $has_data ) {
+			$source_depts[] = $dep;
+		}
 	}
 }
 $sources_json = json_encode( $source_depts, JSON_UNESCAPED_UNICODE );
 
 global $wpdb;
-$c = $db->get_table_name( 'calendar' );
-$t = $db->get_table_name( 'templates' );
+$c = $is_camp ? $db->get_table_name( 'camp_calendar' ) : $db->get_table_name( 'calendar' );
+$t = $is_camp ? $db->get_table_name( 'camp_templates' ) : $db->get_table_name( 'templates' );
 $last_before_row = $wpdb->get_row( $wpdb->prepare(
 	"SELECT t.day_number FROM $c c
 	 LEFT JOIN $t t ON t.id = c.template_id
 	 WHERE c.date < %s AND c.school_type = %s AND c.template_id IS NOT NULL
 	 ORDER BY c.date DESC LIMIT 1",
-	$first_day->format( 'Y-m-d' ), $data_type
+	$first_day->format( 'Y-m-d' ), $is_camp ? 'sm' : $data_type
 ), ARRAY_A );
 
 $default_start_day = $day_num_keys[0] ?? 1;
@@ -194,17 +221,41 @@ if ( $last_before_row && $last_before_row['day_number'] ) {
 	}
 }
 
-$cur_dept_for_wd = $merge_dept ? $merge_dept : $cur_dept;
-$cur_workdays = $cur_dept_for_wd ? explode( ',', $cur_dept_for_wd['workdays'] ) : array( '1', '2', '3', '4', '5' );
+if ( $is_camp ) {
+	$camp_dept_for_wd = $camp_dept ?? $db->get_department( 'sm' );
+	$cur_workdays = explode( ',', $camp_dept_for_wd['camp_workdays'] ?? '1,2,3,4,5' );
+} else {
+	$cur_dept_for_wd = $merge_dept ? $merge_dept : $cur_dept;
+	$cur_workdays = $cur_dept_for_wd ? explode( ',', $cur_dept_for_wd['workdays'] ) : array( '1', '2', '3', '4', '5' );
+}
 
-$cur_dept_for_vac = $merge_dept ? $merge_dept : $cur_dept;
-$vacation_days = $db->get_vacation_days_for_range( $month_from, $month_to );
-$cur_period    = $db->get_current_period( $data_type, $today_str );
+$cur_dept_for_vac = $is_camp ? null : ( $merge_dept ? $merge_dept : $cur_dept );
+
+$vacation_days    = $db->get_vacation_days_for_range( $month_from, $month_to );
+if ( $is_camp && $camp_start && $camp_end ) {
+	$filtered = array();
+	foreach ( $vacation_days as $d => $info ) {
+		if ( ! empty( $info['is_holiday'] ) && $d >= $camp_start && $d <= $camp_end ) {
+			$filtered[ $d ] = $info;
+		}
+	}
+	$vacation_days = $filtered;
+}
+
+$cur_period       = $is_camp ? array() : $db->get_current_period( $data_type, $today_str );
 
 $actual_dates = array();
 foreach ( $vacation_days as $d => $info ) {
 	if ( ! empty( $info['actual_date'] ) ) {
 		$actual_dates[ $info['actual_date'] ] = $info['label'];
+	}
+}
+
+$show_camp_tab = false;
+foreach ( $enabled_depts as $dep ) {
+	if ( ! empty( $dep['has_summer_camp'] ) && $db->is_camp_period_for_month( $dep['code'], $year, $month ) ) {
+		$show_camp_tab = true;
+		break;
 	}
 }
 ?>
@@ -220,9 +271,16 @@ if ( $gen_notice ) {
 		<div class="flex items-center justify-between mb-2">
 			<h1 class="page-title" style="border:none;margin:0"><?php _e( 'Календарь меню', 'meal-menu' ); ?></h1>
 			<div class="flex gap-2">
+				<?php if ( ! $is_camp ): ?>
 				<button type="button" id="btn-recalc" class="btn btn-outline btn-sm"><?php printf( __( 'Заполнить %s', 'meal-menu' ), $month_ru[ $month ] . ' ' . $year ); ?></button>
 				<?php if ( ! empty( $cur_dept['publish_xlsx'] ) ): ?>
 				<button type="button" id="btn-gen-files" class="btn btn-primary btn-sm"><?php _e( 'Создать файлы', 'meal-menu' ); ?></button>
+				<?php endif; ?>
+				<?php else: ?>
+				<button type="button" id="btn-recalc" class="btn btn-outline btn-sm"><?php printf( __( 'Заполнить %s', 'meal-menu' ), $month_ru[ $month ] . ' ' . $year ); ?></button>
+				<?php if ( ! empty( $camp_dept['camp_publish_xlsx'] ) ): ?>
+				<button type="button" id="btn-gen-files" class="btn btn-primary btn-sm"><?php _e( 'Создать файлы', 'meal-menu' ); ?></button>
+				<?php endif; ?>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -230,33 +288,50 @@ if ( $gen_notice ) {
 		<div class="tab-bar">
 			<?php foreach ( $type_labels as $t => $label ): ?>
 			<a href="admin.php?page=meal-calendar&type=<?php echo esc_attr( $t ); ?>&y=<?php echo $year; ?>&m=<?php echo $month; ?>"
-			   class="tab-item<?php echo $type === $t ? ' active' : ''; ?>"><?php echo esc_html( $label ); ?></a>
+			   class="tab-item<?php echo ! $is_camp && $type === $t ? ' active' : ''; ?>"><?php echo esc_html( $label ); ?></a>
 			<?php endforeach; ?>
+			<?php if ( $show_camp_tab ): ?>
+			<a href="admin.php?page=meal-calendar&type=sm&camp=1&y=<?php echo $year; ?>&m=<?php echo $month; ?>"
+			   class="tab-item<?php echo $is_camp ? ' active' : ''; ?>"><?php _e( 'Летний лагерь', 'meal-menu' ); ?></a>
+			<?php endif; ?>
 		</div>
 
 		<div class="panel">
 			<div class="cycle-info" style="font-size:.78rem;color:var(--wp-muted);padding:6px 0 0">
-				<?php if ( $cycle_len === 0 ): ?>
-					<span style="color:var(--error)"><?php _e( 'Шаблоны не созданы.', 'meal-menu' ); ?></span>
-					<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $type ); ?>"><?php _e( 'Добавить', 'meal-menu' ); ?> →</a>
-				<?php elseif ( ! empty( $gaps ) ): ?>
-					<?php printf( __( 'Цикл: %d дн. (%d–%d)', 'meal-menu' ), $cycle_len, $day_num_keys[0], end( $day_num_keys ) ); ?>
-					· <span style="color:var(--error)"><?php printf( __( 'Пропущены №%s.', 'meal-menu' ), implode( ', №', array_map( 'esc_html', $gaps ) ) ); ?></span>
-					<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $type ); ?>"><?php _e( 'Исправить', 'meal-menu' ); ?> →</a>
+				<?php if ( $is_camp ): ?>
+					<?php if ( $cycle_len === 0 ): ?>
+						<span style="color:var(--error)"><?php _e( 'Шаблоны лагеря не созданы.', 'meal-menu' ); ?></span>
+						<a href="admin.php?page=meal-templates&type=sm&camp=1"><?php _e( 'Добавить', 'meal-menu' ); ?> →</a>
+					<?php elseif ( ! empty( $gaps ) ): ?>
+						<?php printf( __( 'Цикл лагеря: %d дн. (%d–%d)', 'meal-menu' ), $cycle_len, $day_num_keys[0], end( $day_num_keys ) ); ?>
+						· <span style="color:var(--error)"><?php printf( __( 'Пропущены №%s.', 'meal-menu' ), implode( ', №', array_map( 'esc_html', $gaps ) ) ); ?></span>
+						<a href="admin.php?page=meal-templates&type=sm&camp=1"><?php _e( 'Исправить', 'meal-menu' ); ?> →</a>
+					<?php else: ?>
+						<?php printf( __( 'Цикл лагеря: %d дн. (%d–%d)', 'meal-menu' ), $cycle_len, $day_num_keys[0], end( $day_num_keys ) ); ?>
+					<?php endif; ?>
 				<?php else: ?>
-					<?php printf( __( 'Цикл: %d дн. (%d–%d)', 'meal-menu' ), $cycle_len, $day_num_keys[0], end( $day_num_keys ) ); ?>
-					· <?php printf( __( 'Начало: день %d', 'meal-menu' ), (int) $default_start_day ); ?>
-					<?php if ( ! empty( $cur_period['label'] ) ): ?>
-					· <?php echo esc_html( $cur_period['label'] ); ?>
-					  (<?php echo gmdate( 'd.m', strtotime( $cur_period['from'] ) ); ?> – <?php echo gmdate( 'd.m', strtotime( $cur_period['to'] ) ); ?>)
+					<?php if ( $cycle_len === 0 ): ?>
+						<span style="color:var(--error)"><?php _e( 'Шаблоны не созданы.', 'meal-menu' ); ?></span>
+						<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $type ); ?>"><?php _e( 'Добавить', 'meal-menu' ); ?> →</a>
+					<?php elseif ( ! empty( $gaps ) ): ?>
+						<?php printf( __( 'Цикл: %d дн. (%d–%d)', 'meal-menu' ), $cycle_len, $day_num_keys[0], end( $day_num_keys ) ); ?>
+						· <span style="color:var(--error)"><?php printf( __( 'Пропущены №%s.', 'meal-menu' ), implode( ', №', array_map( 'esc_html', $gaps ) ) ); ?></span>
+						<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $type ); ?>"><?php _e( 'Исправить', 'meal-menu' ); ?> →</a>
+					<?php else: ?>
+						<?php printf( __( 'Цикл: %d дн. (%d–%d)', 'meal-menu' ), $cycle_len, $day_num_keys[0], end( $day_num_keys ) ); ?>
+						· <?php printf( __( 'Начало: день %d', 'meal-menu' ), (int) $default_start_day ); ?>
+						<?php if ( ! empty( $cur_period['label'] ) ): ?>
+						· <?php echo esc_html( $cur_period['label'] ); ?>
+						  (<?php echo gmdate( 'd.m', strtotime( $cur_period['from'] ) ); ?> – <?php echo gmdate( 'd.m', strtotime( $cur_period['to'] ) ); ?>)
+						<?php endif; ?>
 					<?php endif; ?>
 				<?php endif; ?>
 			</div>
 
 			<div class="cal-nav">
-				<a href="admin.php?page=meal-calendar&type=<?php echo esc_attr( $type ); ?>&y=<?php echo $prev_dt->format( 'Y' ); ?>&m=<?php echo $prev_dt->format( 'n' ); ?>" class="btn btn-dark btn-sm">&larr;</a>
+				<a href="admin.php?page=meal-calendar&type=<?php echo esc_attr( $type ); ?><?php echo $is_camp ? '&camp=1' : ''; ?>&y=<?php echo $prev_dt->format( 'Y' ); ?>&m=<?php echo $prev_dt->format( 'n' ); ?>" class="btn btn-dark btn-sm">&larr;</a>
 				<h2><?php echo $month_ru[ $month ]; ?> <?php echo $year; ?></h2>
-				<a href="admin.php?page=meal-calendar&type=<?php echo esc_attr( $type ); ?>&y=<?php echo $next_dt->format( 'Y' ); ?>&m=<?php echo $next_dt->format( 'n' ); ?>" class="btn btn-dark btn-sm">&rarr;</a>
+				<a href="admin.php?page=meal-calendar&type=<?php echo esc_attr( $type ); ?><?php echo $is_camp ? '&camp=1' : ''; ?>&y=<?php echo $next_dt->format( 'Y' ); ?>&m=<?php echo $next_dt->format( 'n' ); ?>" class="btn btn-dark btn-sm">&rarr;</a>
 			</div>
 
 			<div class="cal-grid" id="cal-grid">
@@ -270,7 +345,7 @@ if ( $gen_notice ) {
 					$prev_entry      = $prev_cal_data[ $prev_date_str ] ?? null;
 					$prev_is_vac     = isset( $prev_vacations[ $prev_date_str ] );
 					$prev_is_holiday = $prev_is_vac && $prev_vacations[ $prev_date_str ]['is_holiday'];
-					$prev_has_file   = isset( $existing_files[ $prev_date_str ] );
+					$prev_has_file   = ! $is_camp && isset( $existing_files[ $prev_date_str ] );
 					$prev_entry_json = $prev_entry ? json_encode( array(
 						'template_id'    => $prev_entry['template_id'],
 						'day_number'     => $prev_entry['template_id'] ? ( $templates_map[ (int) $prev_entry['template_id'] ] ?? null ) : null,
@@ -306,6 +381,8 @@ if ( $gen_notice ) {
 					$entry    = $cal_data[ $date_str ] ?? null;
 					$is_today = ( $date_str === $today_str );
 
+					$is_outside_camp = $is_camp && $camp_start && $camp_end && ( $date_str < $camp_start || $date_str > $camp_end );
+
 					$is_vacation = isset( $vacation_days[ $date_str ] );
 					$vac_label   = $is_vacation ? $vacation_days[ $date_str ]['label'] : '';
 					$is_holiday  = $is_vacation && $vacation_days[ $date_str ]['is_holiday'];
@@ -313,6 +390,9 @@ if ( $gen_notice ) {
 
 					$is_user_workday = $entry && $entry['template_id'] === null && ! empty( $entry['iterate_number'] );
 					$cls = 'cal-cell';
+					if ( $is_outside_camp ) {
+						$cls .= ' outside-camp';
+					}
 					if ( $wday >= 6 && ! $is_user_workday ) {
 						$cls .= ' weekend';
 					}
@@ -356,10 +436,13 @@ if ( $gen_notice ) {
 					data-date="<?php echo $date_str; ?>"
 					data-entry="<?php echo esc_attr( $entry_json ); ?>"
 					<?php echo $is_vacation ? 'data-vacation="' . esc_attr( $vac_label ) . '"' : ''; ?>
-					<?php echo isset( $existing_files[ $date_str ] ) ? 'data-has-file="1"' : ''; ?>
+					<?php echo $is_outside_camp ? 'data-outside-camp="1"' : ''; ?>
+					<?php echo ! $is_camp && isset( $existing_files[ $date_str ] ) ? 'data-has-file="1"' : ''; ?>
 					<?php if ( $entry && $entry['template_id'] ): ?>data-day-num="<?php echo (int) ( $templates_map[ (int) $entry['template_id'] ] ?? '' ); ?>"<?php endif; ?>>
 					<div class="cal-day"><?php echo $d; ?></div>
-					<?php if ( $is_vacation && ! $is_holiday ): ?>
+					<?php if ( $is_outside_camp ): ?>
+						<div class="cal-outside-label"><?php _e( 'вне смены', 'meal-menu' ); ?></div>
+					<?php elseif ( $is_vacation && ! $is_holiday ): ?>
 						<div class="cal-vacation" style="font-size:.72rem;color:#7a5c9a;line-height:1.2"><?php _e( 'каникулы', 'meal-menu' ); ?></div>
 					<?php elseif ( $is_holiday ): ?>
 						<div class="cal-no-school"><?php _e( 'выходной', 'meal-menu' ); ?></div>
@@ -373,7 +456,7 @@ if ( $gen_notice ) {
 					<?php if ( $is_actual_holiday ): ?>
 						<div class="cal-actual-holiday"><?php echo esc_html( $actual_dates[ $date_str ] ); ?></div>
 					<?php endif; ?>
-					<?php if ( isset( $existing_files[ $date_str ] ) ): ?>
+					<?php if ( ! $is_camp && isset( $existing_files[ $date_str ] ) ): ?>
 						<?php foreach ( (array) $existing_files[ $date_str ] as $fname ): ?>
 						<div class="cal-file-badge"><?php echo esc_html( $fname ); ?></div>
 						<?php endforeach; ?>
@@ -389,7 +472,7 @@ if ( $gen_notice ) {
 				$next_entry      = $next_cal_data[ $next_date_str ] ?? null;
 				$next_is_vac     = isset( $next_vacations[ $next_date_str ] );
 				$next_is_holiday = $next_is_vac && $next_vacations[ $next_date_str ]['is_holiday'];
-				$next_has_file   = isset( $existing_files[ $next_date_str ] );
+				$next_has_file   = ! $is_camp && isset( $existing_files[ $next_date_str ] );
 			?>
 				<div class="cal-cell cal-ghost" data-date="<?php echo $next_date_str; ?>">
 					<div class="cal-day cal-ghost-day"><?php echo $next_d; ?></div>
@@ -423,6 +506,7 @@ if ( $gen_notice ) {
 		</div>
 	</div>
 
+	<?php if ( ! $is_camp ): ?>
 	<div class="cal-help-sidebar">
 		<div style="background:#faf6f0;border:1px solid #ede4d8;border-radius:6px;padding:14px">
 			<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-blue);font-weight:bold;margin-bottom:10px"><?php _e( 'Как заполнить месяц', 'meal-menu' ); ?></div>
@@ -480,6 +564,7 @@ if ( $gen_notice ) {
 			<?php endif; ?>
 		</div>
 	</div>
+	<?php endif; ?>
 </div>
 
 <div id="gen-overlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-size:1.1rem;color:var(--wp-text)">
@@ -493,6 +578,7 @@ if ( $gen_notice ) {
 <script>
 (function() {
 	var curType      = <?php echo json_encode( $type ); ?>;
+	var isCampTab    = <?php echo $is_camp ? 'true' : 'false'; ?>;
 	var cycleLen     = <?php echo (int) $cycle_len; ?>;
 	var dayNumKeys   = <?php echo json_encode( $day_num_keys ); ?>;
 	var dayNumToTplId = <?php echo json_encode( $tpls_ordered, JSON_UNESCAPED_UNICODE ); ?>;
@@ -503,7 +589,7 @@ if ( $gen_notice ) {
 	var deptName     = <?php echo json_encode( $dept_name ); ?>;
 	var defaultStartDay = <?php echo (int) $default_start_day; ?>;
 	var defaultWorkdays = <?php echo json_encode( array_map( 'intval', $cur_workdays ) ); ?>;
-	var publishXlsx  = <?php echo ! empty( $cur_dept_for_wd['publish_xlsx'] ) ? 'true' : 'false'; ?>;
+	var publishXlsx  = <?php echo $is_camp ? ( ! empty( $camp_dept['camp_publish_xlsx'] ) ? 'true' : 'false' ) : ( ! empty( $cur_dept_for_wd['publish_xlsx'] ) ? 'true' : 'false' ); ?>;
 	var sourceDepts  = <?php echo $sources_json; ?>;
 	var vacationDays = <?php echo json_encode( array_keys( $vacation_days ) ); ?>;
 	var holidayDates = <?php echo json_encode( array_keys( array_filter( $vacation_days, function( $v ) { return $v['is_holiday']; } ) ) ); ?>;
@@ -528,6 +614,7 @@ if ( $gen_notice ) {
 
 	function apiPost(payload, callback) {
 		payload.nonce = nonce;
+		if (isCampTab) payload.camp = 1;
 		jQuery.post(ajaxUrl + '?action=meal_save_day', JSON.stringify(payload), function(r) {
 			try { callback(typeof r === 'object' ? r : JSON.parse(r)); }
 			catch(e) { callback({ ok: false, error: 'Ошибка ответа' }); }
@@ -583,7 +670,6 @@ if ( $gen_notice ) {
 		}
 	}
 
-	// ── Попап дня ───────────────────────────────────────────
 	var popup = document.getElementById('day-popup');
 	var popupTitle = document.getElementById('popup-title');
 	var popupStatus = document.getElementById('popup-status');
@@ -610,7 +696,7 @@ if ( $gen_notice ) {
 
 	document.getElementById('cal-grid').addEventListener('click', function(e) {
 		var cell = e.target.closest('.cal-cell');
-		if (!cell || cell.classList.contains('empty') || cell.dataset.vacation) return;
+		if (!cell || cell.classList.contains('empty') || cell.dataset.vacation || cell.dataset.outsideCamp) return;
 		document.querySelectorAll('.cal-cell.selected').forEach(function(c) { c.classList.remove('selected'); });
 		cell.classList.add('selected');
 		var date = cell.dataset.date;
@@ -633,7 +719,6 @@ if ( $gen_notice ) {
 			}
 		} else if (!isEffectiveWorkday) statusHtml = '<span style="color:var(--wp-muted)">Выходной день</span>';
 		popupStatus.innerHTML = statusHtml;
-
 
 		var isHoliday = entry && entry.template_id === null && !entry.iterate_number;
 		var hasMenu = entry && entry.template_id !== null;
@@ -778,7 +863,6 @@ if ( $gen_notice ) {
 		}
 	});
 
-	// ── Заполнить месяц ────────────────────────────────────
 	var monthRu = <?php echo json_encode( $month_ru[ $month ] ); ?>;
 	document.getElementById('btn-recalc').addEventListener('click', function() {
 		apiPost({ action: 'recalc_period', type: curType, year: curYear, month: curMonth }, function(r) {
@@ -787,7 +871,6 @@ if ( $gen_notice ) {
 		});
 	});
 
-	// ── Копировать из другого отделения ──────────────────────
 	document.addEventListener('click', function(e) {
 		var btn = e.target.closest('[data-action="copy-from"]');
 		if (!btn) return;
@@ -801,7 +884,6 @@ if ( $gen_notice ) {
 		});
 	});
 
-	// ── Создать файлы ────────────────────────────────────────
 	if (document.getElementById('btn-gen-files')) {
 		document.getElementById('btn-gen-files').addEventListener('click', function() {
 			document.getElementById('gen-overlay').style.display = 'flex';
