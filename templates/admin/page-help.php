@@ -91,4 +91,36 @@
 			<li><?php _e( 'Объединение календарей: в Настройках пищеблока выберите «Объединить календарь с [отделение]». Тогда на странице календаря будет одна вкладка с общими данными, а xlsx-файлы будут генерироваться для каждого отделения со своим постфиксом.', 'meal-menu' ); ?></li>
 		</ul>
 	</div>
+
+	<h2 style="font-size:1rem;text-transform:uppercase;letter-spacing:.08em;border-left:4px solid var(--wp-blue);padding-left:12px;margin:32px 0 16px"><?php _e( 'Блок Гутенберг «Календарь питания»', 'meal-menu' ); ?></h2>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">1</div>
+		<div style="line-height:1.5"><?php _e( 'В редакторе страницы/поста нажмите <strong>«+»</strong> и найдите блок <strong>«Календарь питания»</strong>.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">2</div>
+		<div style="line-height:1.5"><?php _e( 'Выберите <strong>тип школы</strong> (отделение). После выбора появится предпросмотр календаря.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">3</div>
+		<div style="line-height:1.5"><?php _e( 'В боковой панели блока настройте <strong>палитру</strong> и <strong>макет</strong> оформления. Значение «По умолчанию» берёт глобальные настройки со страницы <strong>Питание → Оформление</strong>.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">4</div>
+		<div style="line-height:1.5"><?php _e( 'При необходимости отключите спойлер <strong>«Общественный контроль питания»</strong> — он скроется на сайте.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">5</div>
+		<div style="line-height:1.5"><?php _e( 'Опубликуйте страницу. На сайте календарь будет работать как обычно: переключение месяцев, модалка с меню дня, спойлер ОК.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="margin-top:16px;padding:12px 16px;background:var(--wp-blue-pale,#f0f6fc);border-left:3px solid var(--wp-blue);line-height:1.6">
+		<strong><?php _e( 'Примечание:', 'meal-menu' ); ?></strong>
+		<?php _e( 'Шорткод <code>[meal_calendar]</code> продолжает работать. Вы можете использовать как блок, так и шорткод — результат будет одинаковым.', 'meal-menu' ); ?>
+	</div>
 </div>

@@ -13,8 +13,9 @@
 
 <p>Каждый шаблон обёрнут в <code>.meal-wrapper.palette-*.layout-*</code> — это определяет, какие CSS-переменные активны. Классы палитры и стиля берутся из <code>get_option('meal_theme_palette')</code> и <code>get_option('meal_theme_layout')</code>.</p>
 
-<h2>[meal_calendar]</h2>
+<h2>[meal_calendar] / блок «Календарь питания»</h2>
 <p>Публичный календарь питания для родителей. Рендерится методом <code>Core::shortcode_calendar()</code> + <code>Core::render_calendar_body()</code>.</p>
+<p>С версии 1.0.0 доступен также <strong>Gutenberg-блок</strong> «Календарь питания» (<code>meal-menu/calendar</code>). Блок поддерживает выбор типа школы, палитры, макета и отображение OC-спойлера. Подробнее: <a href="gutenberg-block.html">документация блока</a>.</p>
 <ul>
 <li><strong>AJAX-навигация:</strong> переключение месяцев и вкладок отделений без перезагрузки страницы (<code>admin-ajax.php?action=meal_get_calendar</code>)</li>
 <li><strong>Модалка:</strong> клик по ячейке с меню открывает детальное меню дня через AJAX</li>

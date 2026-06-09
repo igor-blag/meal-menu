@@ -1,0 +1,37 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "meal-menu/calendar",
+	"title": "Календарь питания",
+	"category": "widgets",
+	"icon": "calendar-alt",
+	"description": "Отображает календарь питания с меню на каждый день.",
+	"keywords": [ "meal", "menu", "calendar", "питание" ],
+	"version": "1.0.0",
+	"textdomain": "meal-menu",
+	"attributes": {
+		"type": {
+			"type": "string",
+			"default": ""
+		},
+		"palette": {
+			"type": "string",
+			"default": ""
+		},
+		"layout": {
+			"type": "string",
+			"default": ""
+		},
+		"show_oc": {
+			"type": "boolean",
+			"default": true
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"editorScript": "file:./build/index.js",
+	"style": [ "meal-menu-public", "meal-menu-themes" ],
+	"render": "file:./render.php"
+}

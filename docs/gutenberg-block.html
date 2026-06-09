@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Блок Гутенберг — Календарь питания</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}</style>
+</head>
+<body>
+<h1>Блок Гутенберг — Календарь питания</h1>
+<p><strong>Файлы:</strong> <code>blocks/meal-calendar/</code><br>
+<strong>Регистрация:</strong> <code>Core::register_blocks()</code> в <code>includes/class-core.php</code></p>
+
+<h2>Назначение</h2>
+<p>Блок <strong>«Календарь питания»</strong> (<code>meal-menu/calendar</code>) заменяет шорткод <code>[meal_calendar]</code> в редакторе Гутенберг. Позволяет выбирать тип школы, палитру, макет и отображение спойлера общественного контроля напрямую из интерфейса редактора.</p>
+
+<h2>Атрибуты</h2>
+<ul>
+<li><code>type</code> (string) — тип школы (sm, main и т.д.). Пусто — первый доступный.</li>
+<li><code>palette</code> (string) — палитра оформления. Пусто — глобальная настройка.</li>
+<li><code>layout</code> (string) — макет оформления. Пусто — глобальная настройка.</li>
+<li><code>show_oc</code> (boolean) — показывать спойлер общественного контроля. По умолчанию <code>true</code>.</li>
+</ul>
+
+<h2>Как это работает</h2>
+<h3>В редакторе</h3>
+<ul>
+<li><strong>Placeholder</strong> с выбором типа школы</li>
+<li>После выбора — <strong>AJAX-превью</strong> календаря через <code>admin-ajax.php?action=meal_get_calendar</code></li>
+<li><strong>InspectorControls:</strong> тип школы, палитра (7 шт.), макет (3 шт.), переключатель OC</li>
+<li>Блок выделяется кликом, используется <code>useBlockProps</code></li>
+</ul>
+
+<h3>На фронтенде</h3>
+<ul>
+<li><strong>Dynamic block</strong> — рендерится через <code>render.php</code></li>
+<li>Используется существующий метод <code>Core::shortcode_calendar()</code></li>
+<li>CSS из <code>public.css</code> + <code>themes.css</code></li>
+<li>JavaScript (<code>public.js</code>) — AJAX-навигация по месяцам и модалка меню дня</li>
+</ul>
+
+<h2>Сборка</h2>
+<pre>npm install
+npm run build     # прод
+npm run start     # dev-режим с вотчером</pre>
+<p>Точка входа: <code>blocks/meal-calendar/src/index.js</code><br>
+Результат: <code>blocks/meal-calendar/build/index.js</code> + <code>index.asset.php</code></p>
+
+<h2>Файловая структура</h2>
+<pre>blocks/meal-calendar/
+├── block.json              # регистрация блока
+├── src/index.js            # edit-компонент (React)
+├── build/index.js          # скомпилированный JS
+├── build/index.asset.php   # зависимости (wp-blocks, wp-components и т.д.)
+└── render.php              # render_callback (PHP)</pre>
+
+<h2>Зависимости (asset.php)</h2>
+<p><code>react-jsx-runtime</code>, <code>wp-block-editor</code>, <code>wp-blocks</code>, <code>wp-components</code>, <code>wp-element</code>, <code>wp-i18n</code>, <code>wp-url</code></p>
+
+<h2>Примечания</h2>
+<ul>
+<li>Шорткод <code>[meal_calendar]</code> продолжает работать для обратной совместимости</li>
+<li>Если у блока не выбран тип школы — используется первое доступное отделение</li>
+<li>Палитра и макет «По умолчанию» берутся из глобальных настроек (Оформление)</li>
+<li>AJAX-эндпоинты <code>meal_get_calendar</code> и <code>meal_get_day_menu</code> переиспользуются</li>
+</ul>
+
+<p><a href="main.html">← На главную</a></p>
+</body>
+</html>

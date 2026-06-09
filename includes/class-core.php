@@ -10,6 +10,7 @@ class Core {
 
 		$self = new self();
 		add_action( 'init', array( $self, 'register_shortcodes' ) );
+		add_action( 'init', array( $self, 'register_blocks' ) );
 		add_action( 'admin_menu', array( $self, 'register_admin_pages' ) );
 		add_action( 'admin_enqueue_scripts', array( $self, 'enqueue_admin_assets' ) );
 		add_action( 'admin_footer', array( $self, 'output_docs_comment' ) );
@@ -42,6 +43,27 @@ class Core {
 		add_shortcode( 'meal_calendar', array( $this, 'shortcode_calendar' ) );
 		add_shortcode( 'meal_day', array( $this, 'shortcode_day' ) );
 
+	}
+
+	public function register_blocks(): void {
+		wp_register_style( 'meal-menu-public', MEAL_MENU_URL . 'assets/css/public.css', array(), MEAL_MENU_VERSION );
+		wp_register_style( 'meal-menu-themes', MEAL_MENU_URL . 'assets/css/themes.css', array( 'meal-menu-public' ), MEAL_MENU_VERSION );
+
+		$block_path = MEAL_MENU_DIR . 'blocks/meal-calendar';
+		if ( ! file_exists( $block_path . '/block.json' ) ) {
+			return;
+		}
+
+		$block = register_block_type( $block_path );
+
+		if ( $block && ! empty( $block->editor_script ) ) {
+			wp_localize_script( $block->editor_script, 'mealBlockData', array(
+				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+				'departments'  => DB::instance()->get_enabled_departments(),
+				'currentYear'  => (int) current_time( 'Y' ),
+				'currentMonth' => (int) current_time( 'n' ),
+			) );
+		}
 	}
 
 	public function register_admin_pages(): void {
@@ -229,7 +251,12 @@ class Core {
 	}
 
 	public function shortcode_calendar( array $atts = array(), string $content = '' ): string {
-		$atts = shortcode_atts( array( 'type' => '' ), $atts );
+		$atts = shortcode_atts( array(
+			'type'    => '',
+			'palette' => '',
+			'layout'  => '',
+			'show_oc' => true,
+		), $atts );
 		$db   = \Meal_Menu\DB::instance();
 
 		$enabled_depts = $db->get_enabled_departments();
@@ -242,8 +269,9 @@ class Core {
 		$year  = (int) ( $_GET['meal_y'] ?? $today_dt->format( 'Y' ) );
 		$month = (int) ( $_GET['meal_m'] ?? $today_dt->format( 'n' ) );
 
-		$palette = get_option( 'meal_theme_palette', 'retro' );
-		$layout  = get_option( 'meal_theme_layout', 'classic' );
+		$palette = $atts['palette'] ?: get_option( 'meal_theme_palette', 'retro' );
+		$layout  = $atts['layout'] ?: get_option( 'meal_theme_layout', 'classic' );
+		$show_oc = filter_var( $atts['show_oc'], FILTER_VALIDATE_BOOLEAN );
 
 		ob_start();
 		?>
@@ -251,7 +279,7 @@ class Core {
 			<div class="meal-container">
 				<div class="meal-title"><?php _e( 'Календарь питания', 'meal-menu' ); ?></div>
 				<div id="meal-calendar-body"><?php echo self::render_calendar_body( $type, $year, $month ); ?></div>
-				<?php echo self::render_oc_content(); ?>
+				<?php if ( $show_oc ) { echo self::render_oc_content(); } ?>
 			</div>
 
 			<div id="meal-modal" class="meal-modal-overlay" style="display:none">
