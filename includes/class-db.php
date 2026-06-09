@@ -67,7 +67,7 @@ class DB {
 			array(
 				'day_number'  => $next_day,
 				'school_type' => $type,
-				'label'       => "День $next_day",
+				'label'       => "Меню № $next_day",
 			),
 			array( '%d', '%s', '%s' )
 		);

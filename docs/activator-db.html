@@ -13,12 +13,13 @@
 wp_meal_email_tokens    — коды подтверждения email (setup/reset)
 wp_meal_templates       — шаблоны дней цикла (14 × school_type)
 wp_meal_items           — блюда шаблона с nutritional data
-wp_meal_calendar        — привязка шаблонов к датам
+wp_meal_calendar        — привязка шаблонов к датам (date, school_type, template_id, school, dept, is_cycle_start, iterate_number)
 wp_meal_kitchen_settings — настройки организации
-wp_meal_departments     — отделения (школы/корпуса)
-wp_meal_vacations       — каникулы по учебным годам
+wp_meal_departments     — отделения (школы/корпуса), включая merged_with (объединение календарей)
+wp_meal_vacations       — каникулы по учебным годам, включая actual_date
 wp_meal_oc_monitoring   — данные общественного контроля</pre>
 <p>Создание через <code>$wpdb-&gt;query('CREATE TABLE IF NOT EXISTS ...')</code> — совместимо с MySQL и SQLite (Playground).</p>
+<p>При каждом запросе <code>Core::ensure_tables()</code> проверяет наличие колонок <code>actual_date</code> (vacations) и <code>iterate_number</code> (calendar) и добавляет их через ALTER TABLE при необходимости.</p>
 
 <h2>Seed-данные</h2>
 <p>При первом запуске заполняются:</p>

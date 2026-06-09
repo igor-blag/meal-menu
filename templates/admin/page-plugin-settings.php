@@ -65,7 +65,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 			</div>
 			<div class="field" style="flex:1;min-width:100px">
 				<label><?php _e( 'SMTP-шифрование', 'meal-menu' ); ?></label>
-				<select id="meal_smtp_secure" style="width:100%;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+				<select id="meal_smtp_secure" style="width:100%;padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 					<option value=""<?php selected( get_option( 'meal_smtp_secure', '' ), '' ); ?>><?php _e( 'Нет', 'meal-menu' ); ?></option>
 					<option value="tls"<?php selected( get_option( 'meal_smtp_secure', '' ), 'tls' ); ?>>TLS</option>
 					<option value="ssl"<?php selected( get_option( 'meal_smtp_secure', '' ), 'ssl' ); ?>>SSL</option>

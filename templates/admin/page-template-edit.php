@@ -60,7 +60,7 @@ $section_meta = array(
 				<?php endif; ?>
 				<?php _e( 'Интернат (расширенное питание: Полдник, Ужин, Ужин 2)', 'meal-menu' ); ?>
 				<?php if ( $forced_boarding ): ?>
-				<span style="font-size:.78em;color:var(--muted);margin-left:8px">(<?php _e( 'задано в настройках отделения', 'meal-menu' ); ?>)</span>
+				<span style="font-size:.78em;color:var(--wp-muted);margin-left:8px">(<?php _e( 'задано в настройках отделения', 'meal-menu' ); ?>)</span>
 				<?php endif; ?>
 			</label>
 		</div>
@@ -118,13 +118,13 @@ $section_meta = array(
 			$stored_date = $db->get_kitchen_settings()['tm_approve_date'] ?? '';
 		?>
 		<div class="panel" style="margin-top:12px;padding:12px 16px">
-			<div style="font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">
+			<div style="font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-muted);margin-bottom:8px">
 				<?php _e( 'Типовое меню — дата утверждения', 'meal-menu' ); ?>
 			</div>
 			<div style="display:flex;align-items:center;gap:12px">
 				<input type="date" name="tm_approve_date" value="<?php echo esc_attr( $stored_date ); ?>"
-					style="padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
-				<span style="font-size:.82rem;color:var(--muted)"><?php _e( 'Будет записана в шапку tm-файла при сохранении', 'meal-menu' ); ?></span>
+					style="padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
+				<span style="font-size:.82rem;color:var(--wp-muted)"><?php _e( 'Будет записана в шапку tm-файла при сохранении', 'meal-menu' ); ?></span>
 			</div>
 		</div>
 		<?php endif; ?>

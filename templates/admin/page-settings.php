@@ -254,7 +254,7 @@ $ay_settings  = $db->get_academic_year_settings();
 			</div>
 			<div class="field" style="flex:1;min-width:100px">
 				<label><?php _e( 'SMTP-шифрование', 'meal-menu' ); ?></label>
-				<select id="meal_smtp_secure" style="width:100%;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+				<select id="meal_smtp_secure" style="width:100%;padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 					<option value=""<?php selected( get_option( 'meal_smtp_secure', '' ), '' ); ?>><?php _e( 'Нет', 'meal-menu' ); ?></option>
 					<option value="tls"<?php selected( get_option( 'meal_smtp_secure', '' ), 'tls' ); ?>>TLS</option>
 					<option value="ssl"<?php selected( get_option( 'meal_smtp_secure', '' ), 'ssl' ); ?>>SSL</option>
@@ -394,7 +394,7 @@ $ay_settings  = $db->get_academic_year_settings();
 	function renderVacations(list) {
 		vacBody.innerHTML = '';
 		if (!list || list.length === 0) {
-			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
+			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--wp-muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
 			return;
 		}
 		list.forEach(function(v) {

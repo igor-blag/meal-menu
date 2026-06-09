@@ -25,6 +25,7 @@ $item_rows = $wpdb->get_results( $wpdb->prepare(
 
 $by_meal = array();
 foreach ( $item_rows as $it ) {
+	if ( empty( $it['dish_name'] ) ) continue;
 	$by_meal[ $it['meal_type'] ][] = $it;
 }
 

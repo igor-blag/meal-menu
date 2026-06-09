@@ -8,10 +8,10 @@ function oc_url_field( string $id, string $label, string $value, ?string $accept
 	$fname         = $is_local_file ? basename( parse_url( $value, PHP_URL_PATH ) ) : '';
 	$is_img        = $is_local_file && preg_match( '/\.(jpe?g|png|webp)$/i', $fname );
 	?><div class="oc-field" style="margin-bottom:12px">
-		<label for="<?php echo esc_attr( $id ); ?>" style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px"><?php echo esc_html( $label ); ?></label>
+		<label for="<?php echo esc_attr( $id ); ?>" style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-muted);margin-bottom:4px"><?php echo esc_html( $label ); ?></label>
 		<?php if ( $accept !== null ): ?>
 		<div style="display:flex;gap:6px">
-			<input type="text" id="<?php echo esc_attr( $id ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="https://…" style="flex:1;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+			<input type="text" id="<?php echo esc_attr( $id ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="https://…" style="flex:1;padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 			<button type="button" class="btn btn-outline btn-sm btn-oc-upload" data-target="<?php echo esc_attr( $id ); ?>" data-accept="<?php echo esc_attr( $accept ); ?>">&#128206; <?php _e( 'Загрузить', 'meal-menu' ); ?></button>
 		</div>
 		<div id="badge_<?php echo esc_attr( $id ); ?>"<?php echo $fname ? '' : ' style="display:none"'; ?> style="margin-top:6px">
@@ -22,7 +22,7 @@ function oc_url_field( string $id, string $label, string $value, ?string $accept
 			<?php endif; ?>
 		</div>
 		<?php else: ?>
-		<input type="text" id="<?php echo esc_attr( $id ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="https://…" style="width:100%;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+		<input type="text" id="<?php echo esc_attr( $id ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="https://…" style="width:100%;padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 		<?php endif; ?>
 	</div><?php
 }
@@ -37,29 +37,29 @@ function oc_url_field( string $id, string $label, string $value, ?string $accept
 			<div class="panel-title"><?php _e( 'Название организации и дата', 'meal-menu' ); ?></div>
 			<div style="display:flex;gap:16px;flex-wrap:wrap">
 				<div class="field" style="flex:2;min-width:200px">
-					<label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px"><?php _e( 'Название', 'meal-menu' ); ?></label>
-					<input type="text" id="school_name" value="<?php echo esc_attr( $oc['school_name'] ); ?>" style="width:100%;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+					<label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-muted);margin-bottom:4px"><?php _e( 'Название', 'meal-menu' ); ?></label>
+					<input type="text" id="school_name" value="<?php echo esc_attr( $oc['school_name'] ); ?>" style="width:100%;padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 				</div>
 				<div class="field" style="flex:1;min-width:150px">
-					<label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px"><?php _e( 'Дата отчёта', 'meal-menu' ); ?></label>
-					<input type="date" id="report_date" value="<?php echo esc_attr( $oc['report_date'] ?? '' ); ?>" style="padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+					<label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-muted);margin-bottom:4px"><?php _e( 'Дата отчёта', 'meal-menu' ); ?></label>
+					<input type="date" id="report_date" value="<?php echo esc_attr( $oc['report_date'] ?? '' ); ?>" style="padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 				</div>
 			</div>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 1. Положение и приказ о создании комиссии', 'meal-menu' ); ?></div>
 			<?php oc_url_field( 's1_url', 'Ссылка на положение/приказ', $oc['s1_url'] ?? '', '.pdf' ); ?>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 2. Формы интерактивного взаимодействия', 'meal-menu' ); ?></div>
 			<?php oc_url_field( 's2_hotline', 'Телефон горячей линии', $oc['s2_hotline'] ?? '' ); ?>
 			<?php oc_url_field( 's2_chat_url', 'Ссылка на чат', $oc['s2_chat_url'] ?? '' ); ?>
 			<?php oc_url_field( 's2_forum_url', 'Ссылка на форум/обратную связь', $oc['s2_forum_url'] ?? '' ); ?>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 3. Лечебные/диетические меню', 'meal-menu' ); ?></div>
 			<?php for ( $i = 1; $i <= 4; $i++ ): ?>
 			<div style="display:flex;gap:12px;margin-bottom:12px">
@@ -73,29 +73,29 @@ function oc_url_field( string $id, string $label, string $value, ?string $accept
 			<?php endfor; ?>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 4. Анкетирование', 'meal-menu' ); ?></div>
 			<?php oc_url_field( 's4_survey_url', 'Ссылка на анкету', $oc['s4_survey_url'] ?? '' ); ?>
 			<?php oc_url_field( 's4_results_url', 'Ссылка на результаты', $oc['s4_results_url'] ?? '', '.pdf' ); ?>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 5. Информация о здоровом питании', 'meal-menu' ); ?></div>
 			<?php oc_url_field( 's5_page_url', 'Ссылка на страницу о здоровом питании', $oc['s5_page_url'] ?? '' ); ?>
 			<?php oc_url_field( 's5_materials_url', 'Ссылка на материалы', $oc['s5_materials_url'] ?? '', '.pdf' ); ?>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 6. Результаты контрольных мероприятий', 'meal-menu' ); ?></div>
 			<?php oc_url_field( 's6_acts_url', 'Ссылка на акты', $oc['s6_acts_url'] ?? '', '.pdf' ); ?>
 			<?php oc_url_field( 's6_photos_url', 'Ссылка на фото', $oc['s6_photos_url'] ?? '', 'image/*' ); ?>
 		</div>
 
-		<div class="panel" style="border-left:4px solid var(--orange)">
+		<div class="panel" style="border-left:4px solid var(--wp-blue)">
 			<div class="panel-title"><?php _e( 'Раздел 7. Оценка пищевых отходов', 'meal-menu' ); ?></div>
 			<div class="field" style="max-width:300px">
-				<label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px"><?php _e( 'Уровень отходов', 'meal-menu' ); ?></label>
-				<select id="s7_waste_level" style="width:100%;padding:6px 10px;font-family:Georgia,serif;font-size:.9rem;border:1px solid var(--border-light);border-radius:var(--radius);color:var(--text)">
+				<label style="display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-muted);margin-bottom:4px"><?php _e( 'Уровень отходов', 'meal-menu' ); ?></label>
+				<select id="s7_waste_level" style="width:100%;padding:6px 10px;font-size:.9rem;border:1px solid var(--wp-border);border-radius:var(--wp-radius);color:var(--wp-text)">
 					<option value="none"<?php selected( $oc['s7_waste_level'], 'none' ); ?>><?php _e( 'Не выбран', 'meal-menu' ); ?></option>
 					<option value="20"<?php selected( $oc['s7_waste_level'], '20' ); ?>>20%</option>
 					<option value="30"<?php selected( $oc['s7_waste_level'], '30' ); ?>>30%</option>

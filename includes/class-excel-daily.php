@@ -9,14 +9,21 @@ class Excel_Daily {
 		require_once MEAL_MENU_DIR . 'vendor/autoload.php';
 
 		$db   = DB::instance();
-		$cal  = $db->get_calendar_day( $date, $type );
+		$dept_info = $db->get_department( $type );
+		$data_type = $type;
+		if ( $dept_info && ! empty( $dept_info['merged_with'] ) ) {
+			$target = $db->get_department( $dept_info['merged_with'] );
+			if ( $target ) {
+				$data_type = $target['code'];
+			}
+		}
+		$cal  = $db->get_calendar_day( $date, $data_type );
 		if ( ! $cal || ! $cal['template_id'] ) {
 			return null;
 		}
 
 		$tpl      = $db->get_template( (int) $cal['template_id'] );
 		$items    = $db->get_template_items( (int) $cal['template_id'] );
-		$dept_info = $db->get_department( $type );
 		$org_name = $db->get_org_name() ?: ( $cal['school'] ?? '-' );
 		$dept     = $dept_info ? $dept_info['dept_name'] : ( $cal['dept'] ?? '' );
 		$date_obj = new \DateTime( $date );

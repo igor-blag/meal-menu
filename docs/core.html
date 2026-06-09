@@ -35,18 +35,19 @@
 
 <h2>Шорткоды</h2>
 <ul>
-<li><code>[meal_calendar type="sm"]</code> — публичный календарь питания</li>
+<li><code>[meal_calendar type="sm"]</code> — публичный календарь питания (рендерится через <code>Core::shortcode_calendar()</code> + <code>Core::render_calendar_body()</code>)</li>
 <li><code>[meal_day date="2025-06-01" type="sm"]</code> — меню на день</li>
-<li><code>[meal_menu type="sm"]</code> — типовое меню (цикл)</li>
-<li><code>[meal_oc]</code> — общественный контроль питания</li>
 </ul>
+<p>Шорткоды <code>[meal_menu]</code> и <code>[meal_oc]</code> удалены: типовое меню доступно через клик по ячейке календаря, а ОК встроен в календарь как спойлер.</p>
 
 <h2>AJAX-эндпоинты</h2>
-<pre>meal_save_day       → ajax-save-day.php     — сохранение/удаление/цикл/файлы
-meal_save_settings  → ajax-save-settings.php — настройки, отделения, каникулы
-meal_save_oc        → ajax-save-oc.php      — сохранение ОК
-meal_upload_oc      → ajax-upload-oc.php    — загрузка файлов для ОК
-meal_list_files     → ajax-list-files.php   — список сгенерированных xlsx</pre>
+<pre>meal_save_day       → ajax-save-day.php       — сохранение/удаление/цикл/файлы
+meal_save_settings  → ajax-save-settings.php   — настройки, отделения, каникулы
+meal_save_oc        → ajax-save-oc.php         — сохранение ОК
+meal_upload_oc      → ajax-upload-oc.php       — загрузка файлов для ОК
+meal_list_files     → ajax-list-files.php      — список сгенерированных xlsx
+meal_get_day_menu   → ajax-get-day-menu.php    — HTML меню дня для модалки (публичный)
+meal_get_calendar   → Core::ajax_get_calendar  — HTML тела календаря (AJAX-навигация)</pre>
 <p>Все проверяют nonce (<code>meal_menu_nonce</code>) и capability.</p>
 
 <h2>Обработчики admin-post</h2>

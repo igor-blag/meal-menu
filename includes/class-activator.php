@@ -91,6 +91,7 @@ class Activator {
 			school varchar(100) default NULL,
 			dept varchar(50) default NULL,
 			is_cycle_start tinyint(1) NOT NULL default 0,
+			iterate_number tinyint(1) NOT NULL default 0,
 			PRIMARY KEY  (date, school_type),
 			KEY template_id (template_id)
 		)";

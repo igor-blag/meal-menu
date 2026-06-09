@@ -185,7 +185,7 @@ foreach ( $departments as $d ) {
 			<select class="vac-year-select" id="vac-year"></select>
 		</div>
 
-		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px"><?php _e( 'Каникулы', 'meal-menu' ); ?></h2>
+		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--wp-muted);margin:16px 0 8px"><?php _e( 'Каникулы', 'meal-menu' ); ?></h2>
 		<table class="vac-table">
 			<thead>
 				<tr><th style="width:35%"><?php _e( 'Название', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'С', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'По', 'meal-menu' ); ?></th><th style="width:15%"></th></tr>
@@ -193,7 +193,7 @@ foreach ( $departments as $d ) {
 			<tbody id="vac-body"></tbody>
 		</table>
 
-		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px"><?php _e( 'Праздники', 'meal-menu' ); ?></h2>
+		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--wp-muted);margin:16px 0 8px"><?php _e( 'Праздники', 'meal-menu' ); ?></h2>
 		<table class="vac-table">
 			<thead>
 				<tr><th style="width:35%"><?php _e( 'Название', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'Дата', 'meal-menu' ); ?></th><th style="width:25%"></th><th style="width:15%"></th></tr>
@@ -539,12 +539,12 @@ foreach ( $departments as $d ) {
 			}
 		});
 		if (vacations.length === 0) {
-			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
+			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--wp-muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
 		} else {
 			vacations.forEach(function(v) { vacBody.appendChild(renderVacationRow(v)); });
 		}
 		if (holidays.length === 0) {
-			holidayBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Праздники не заданы</td></tr>';
+			holidayBody.innerHTML = '<tr><td colspan="4" style="color:var(--wp-muted);text-align:center;padding:16px">Праздники не заданы</td></tr>';
 		} else {
 			holidays.forEach(function(v) { holidayBody.appendChild(renderHolidayRow(v)); });
 		}

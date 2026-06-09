@@ -3,6 +3,21 @@
    apply as .palette-* .layout-*
    ============================== */
 
+@font-face {
+	font-family: 'Source Serif 4';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url(../fonts/SourceSerif4-Regular.ttf) format('truetype');
+}
+@font-face {
+	font-family: 'Source Serif 4';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url(../fonts/SourceSerif4-Bold.ttf) format('truetype');
+}
+
 /* ── defaults (reset-safe) ───── */
 .meal-wrapper { }
 
@@ -12,7 +27,7 @@
 	--meal-primary-light: #e8720f;
 	--meal-primary-pale: #f5d5b0;
 	--meal-bg: #fdf4e3;
-	--meal-bg-alt: #fdf4e3;
+	--meal-bg-alt: #f5e6c8;
 	--meal-bg-card: #ffffff;
 	--meal-bg-panel: #f5e6c8;
 	--meal-text: #2d1800;
@@ -27,13 +42,14 @@
 	--meal-header-accent: #e8720f;
 	--meal-block-title-text: #f5d5b0;
 	--meal-grid-border: #1a1100;
-	--meal-grid-gap: 1px;
 	--meal-cell-empty: #ffffff;
-	--meal-cell-weekend: #f7f0e8;
-	--meal-cell-vacation: #f3eef8;
-	--meal-cell-holiday: #f5ebe0;
-	--meal-cell-has-menu: #eef5e8;
+	--meal-cell-weekend: #f5f0ea;
+	--meal-cell-vacation: #dde8f5;
+	--meal-cell-holiday: #fce4d6;
+	--meal-cell-has-menu: #dff0d8;
 	--meal-cell-filler: #fdf4e3;
+	--meal-error-bg: #fdf0f0;
+	--meal-modal-bg: #ffffff;
 }
 
 /* ── futuristic — cyan/dark ──── */
@@ -57,13 +73,14 @@
 	--meal-header-accent: #00d4ff;
 	--meal-block-title-text: #88ddff;
 	--meal-grid-border: #333366;
-	--meal-grid-gap: 2px;
 	--meal-cell-empty: #1a1a35;
 	--meal-cell-weekend: #111128;
-	--meal-cell-vacation: #1a1a44;
-	--meal-cell-holiday: #222244;
-	--meal-cell-has-menu: #003322;
+	--meal-cell-vacation: #1a2a55;
+	--meal-cell-holiday: #3a1a2a;
+	--meal-cell-has-menu: #003d2a;
 	--meal-cell-filler: #0a0a1a;
+	--meal-error-bg: #220022;
+	--meal-modal-bg: #1a1a35;
 }
 
 /* ── minimal — monochrome ────── */
@@ -87,13 +104,14 @@
 	--meal-header-accent: #ffffff;
 	--meal-block-title-text: #dddddd;
 	--meal-grid-border: #cccccc;
-	--meal-grid-gap: 0;
 	--meal-cell-empty: #ffffff;
-	--meal-cell-weekend: #f5f5f5;
-	--meal-cell-vacation: #f0f0f8;
-	--meal-cell-holiday: #f8f0f0;
-	--meal-cell-has-menu: #f0f8f0;
+	--meal-cell-weekend: #f2f2f2;
+	--meal-cell-vacation: #e8ecf5;
+	--meal-cell-holiday: #fce8e8;
+	--meal-cell-has-menu: #dff0df;
 	--meal-cell-filler: #f8f8f8;
+	--meal-error-bg: #fdf0f0;
+	--meal-modal-bg: #ffffff;
 }
 
 /* ── nature — green/earth ────── */
@@ -117,13 +135,14 @@
 	--meal-header-accent: #8aba5a;
 	--meal-block-title-text: #c8d8b8;
 	--meal-grid-border: #6a8a4a;
-	--meal-grid-gap: 1px;
 	--meal-cell-empty: #ffffff;
 	--meal-cell-weekend: #eef4e8;
-	--meal-cell-vacation: #e8eef4;
-	--meal-cell-holiday: #f4ece8;
-	--meal-cell-has-menu: #d8ecd0;
+	--meal-cell-vacation: #e4eaf5;
+	--meal-cell-holiday: #f8e8e0;
+	--meal-cell-has-menu: #c8e8b8;
 	--meal-cell-filler: #f5f8f0;
+	--meal-error-bg: #f8f0ee;
+	--meal-modal-bg: #ffffff;
 }
 
 /* ── school — blue/academic ──── */
@@ -147,13 +166,14 @@
 	--meal-header-accent: #8ab0f8;
 	--meal-block-title-text: #c0d0e8;
 	--meal-grid-border: #2a4a7a;
-	--meal-grid-gap: 1px;
 	--meal-cell-empty: #ffffff;
 	--meal-cell-weekend: #eef0f5;
-	--meal-cell-vacation: #e8eef8;
-	--meal-cell-holiday: #f5eeea;
-	--meal-cell-has-menu: #e8f5ea;
+	--meal-cell-vacation: #dce6f5;
+	--meal-cell-holiday: #fce8e0;
+	--meal-cell-has-menu: #d8f0d8;
 	--meal-cell-filler: #f4f6fa;
+	--meal-error-bg: #fcf0f1;
+	--meal-modal-bg: #ffffff;
 }
 
 /* ── warm — burgundy/gold ────── */
@@ -177,13 +197,14 @@
 	--meal-header-accent: #d4a050;
 	--meal-block-title-text: #e8d0c0;
 	--meal-grid-border: #6a4030;
-	--meal-grid-gap: 1px;
 	--meal-cell-empty: #ffffff;
 	--meal-cell-weekend: #f0e8e0;
-	--meal-cell-vacation: #f0eaf4;
-	--meal-cell-holiday: #f4e8e0;
-	--meal-cell-has-menu: #e8f0e0;
+	--meal-cell-vacation: #e8e0f0;
+	--meal-cell-holiday: #f8d8d0;
+	--meal-cell-has-menu: #d8ecd0;
 	--meal-cell-filler: #faf3ea;
+	--meal-error-bg: #faf0ee;
+	--meal-modal-bg: #ffffff;
 }
 
 /* ── ocean — teal/sand ───────── */
@@ -207,13 +228,14 @@
 	--meal-header-accent: #5ab8a8;
 	--meal-block-title-text: #b8d8d0;
 	--meal-grid-border: #2a6a5a;
-	--meal-grid-gap: 1px;
 	--meal-cell-empty: #ffffff;
 	--meal-cell-weekend: #eaf0ec;
-	--meal-cell-vacation: #eaf0f4;
-	--meal-cell-holiday: #f4ecea;
-	--meal-cell-has-menu: #e0f0e8;
+	--meal-cell-vacation: #dde8f0;
+	--meal-cell-holiday: #f8e8e0;
+	--meal-cell-has-menu: #cce8d8;
 	--meal-cell-filler: #f0f8f5;
+	--meal-error-bg: #fcf0f1;
+	--meal-modal-bg: #ffffff;
 }
 
 /* ── layouts ─────────────────── */
@@ -247,13 +269,12 @@
 }
 .layout-air .meal-cal-grid { border: none; background: transparent; }
 .layout-air .meal-cal-head { background: transparent; color: var(--meal-muted); font-weight: bold; padding-bottom: 10px; }
-.layout-air .meal-cal-cell { border: none; background: transparent; min-height: 60px; padding: 4px; }
-.layout-air .meal-cal-cell.has-menu { background: transparent; }
+.layout-air .meal-cal-cell { border: none; min-height: 60px; padding: 4px; }
 .layout-air .meal-cal-cell.today { outline-color: var(--meal-primary); }
 .layout-air .meal-cal-day { font-size: .95rem; }
 .layout-air .meal-table { border-collapse: separate; border-spacing: 0 4px; }
-.layout-air .meal-table th { border: none; background: transparent; padding: 4px 0; }
-.layout-air .meal-table td { border: none; border-bottom: 1px solid var(--meal-border); padding: 6px 0; }
+.layout-air .meal-table th { border: none; background: transparent; padding: 4px 2px; }
+.layout-air .meal-table td { border: none; border-bottom: 1px solid var(--meal-border); padding: 6px 2px; }
 .layout-air .meal-block-title { border-bottom: 2px solid var(--meal-primary); background: transparent; color: var(--meal-heading); padding-left: 0; }
 .layout-air .meal-header { box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 .layout-air .meal-container { padding: 40px 20px; }

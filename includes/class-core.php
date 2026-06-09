@@ -25,6 +25,8 @@ class Core {
 		add_action( 'wp_ajax_meal_cleanup_files', array( $self, 'ajax_cleanup_files' ) );
 		add_action( 'wp_ajax_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
 		add_action( 'wp_ajax_nopriv_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
+		add_action( 'wp_ajax_meal_get_calendar', array( $self, 'ajax_get_calendar' ) );
+		add_action( 'wp_ajax_nopriv_meal_get_calendar', array( $self, 'ajax_get_calendar' ) );
 		add_action( 'phpmailer_init', array( $self, 'configure_smtp' ) );
 		add_action( 'admin_post_meal_save_template', array( $self, 'handle_save_template' ) );
 		add_action( 'admin_post_meal_add_template', array( $self, 'handle_add_template' ) );
@@ -39,8 +41,7 @@ class Core {
 	public function register_shortcodes(): void {
 		add_shortcode( 'meal_calendar', array( $this, 'shortcode_calendar' ) );
 		add_shortcode( 'meal_day', array( $this, 'shortcode_day' ) );
-		add_shortcode( 'meal_menu', array( $this, 'shortcode_menu' ) );
-		add_shortcode( 'meal_oc', array( $this, 'shortcode_oc' ) );
+
 	}
 
 	public function register_admin_pages(): void {
@@ -151,9 +152,7 @@ class Core {
 		}
 		global $post;
 		if ( ! $post || ( ! has_shortcode( $post->post_content, 'meal_calendar' )
-			&& ! has_shortcode( $post->post_content, 'meal_day' )
-			&& ! has_shortcode( $post->post_content, 'meal_menu' )
-			&& ! has_shortcode( $post->post_content, 'meal_oc' ) ) ) {
+			&& ! has_shortcode( $post->post_content, 'meal_day' ) ) ) {
 			return;
 		}
 		wp_enqueue_style( 'meal-menu-public', MEAL_MENU_URL . 'assets/css/public.css', array(), MEAL_MENU_VERSION );
@@ -230,10 +229,172 @@ class Core {
 	}
 
 	public function shortcode_calendar( array $atts = array(), string $content = '' ): string {
-		ob_start();
 		$atts = shortcode_atts( array( 'type' => '' ), $atts );
-		require MEAL_MENU_DIR . 'templates/public/calendar.php';
+		$db   = \Meal_Menu\DB::instance();
+
+		$enabled_depts = $db->get_enabled_departments();
+		$valid_types   = array_column( $enabled_depts, 'code' );
+
+		$req_type = $_GET['meal_type'] ?? '';
+		$type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
+
+		$today_dt = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
+		$year  = (int) ( $_GET['meal_y'] ?? $today_dt->format( 'Y' ) );
+		$month = (int) ( $_GET['meal_m'] ?? $today_dt->format( 'n' ) );
+
+		$palette = get_option( 'meal_theme_palette', 'retro' );
+		$layout  = get_option( 'meal_theme_layout', 'classic' );
+
+		ob_start();
+		?>
+		<div class="meal-wrapper palette-<?php echo esc_attr( $palette ); ?> layout-<?php echo esc_attr( $layout ); ?>" id="meal-calendar-root">
+			<div class="meal-container">
+				<div class="meal-title"><?php _e( 'Календарь питания', 'meal-menu' ); ?></div>
+				<div id="meal-calendar-body"><?php echo self::render_calendar_body( $type, $year, $month ); ?></div>
+				<?php echo self::render_oc_content(); ?>
+			</div>
+
+			<div id="meal-modal" class="meal-modal-overlay" style="display:none">
+				<div class="meal-modal-dialog">
+					<div class="meal-modal-header">
+						<span class="meal-modal-title" id="meal-modal-title"></span>
+						<button class="meal-modal-close" id="meal-modal-close">&times;</button>
+					</div>
+					<div class="meal-modal-body" id="meal-modal-body">
+						<div class="meal-modal-loader"><?php _e( 'Загрузка…', 'meal-menu' ); ?></div>
+					</div>
+				</div>
+			</div>
+
+			<footer class="meal-footer">
+				<a href="https://github.com/igor-blag/web-food" target="_blank" rel="noopener">github.com/igor-blag/web-food</a>
+			</footer>
+		</div>
+		<?php
 		return ob_get_clean();
+	}
+
+	public static function render_calendar_body( string $type, int $year, int $month ): string {
+		$db = \Meal_Menu\DB::instance();
+
+		$enabled_depts = $db->get_enabled_departments();
+		$valid_types   = array_column( $enabled_depts, 'code' );
+		$type_labels   = array_combine( array_column( $enabled_depts, 'code' ), array_column( $enabled_depts, 'label' ) );
+
+		$dept = $db->get_department( $type );
+		$real_type = ( $dept && ! empty( $dept['merged_with'] ) ) ? $dept['merged_with'] : $type;
+
+		$today_dt = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
+		$req_dt = new \DateTimeImmutable( "$year-$month-01" );
+
+		$days_in_month = (int) $req_dt->format( 't' );
+		$first_dow     = (int) $req_dt->format( 'N' );
+
+		$cal_rows = array();
+		$c = $db->get_table_name( 'calendar' );
+		$t = $db->get_table_name( 'templates' );
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT c.date, c.template_id, mt.day_number, mt.label
+			 FROM $c c
+			 LEFT JOIN $t mt ON mt.id = c.template_id
+			 WHERE c.school_type = %s AND YEAR(c.date) = %d AND MONTH(c.date) = %d",
+			$real_type, $year, $month
+		), ARRAY_A ) ?: array();
+		foreach ( $rows as $r ) {
+			$cal_rows[ $r['date'] ] = $r;
+		}
+
+		$prev_dt = $req_dt->modify( '-1 month' );
+		$next_dt = $req_dt->modify( '+1 month' );
+		$today   = $today_dt->format( 'Y-m-d' );
+
+		$month_from  = sprintf( '%04d-%02d-01', $year, $month );
+		$month_to    = sprintf( '%04d-%02d-%02d', $year, $month, $days_in_month );
+		$vacation_days = $db->get_vacation_days_for_range( $month_from, $month_to );
+
+		$month_names = array( 1=>'Январь',2=>'Февраль',3=>'Март',4=>'Апрель',5=>'Май',6=>'Июнь',7=>'Июль',8=>'Август',9=>'Сентябрь',10=>'Октябрь',11=>'Ноябрь',12=>'Декабрь' );
+
+		ob_start();
+		?>
+		<div class="meal-tabs">
+			<?php foreach ( $type_labels as $t => $label ): ?>
+			<a class="meal-tab<?php echo $type === $t ? ' meal-tab--active' : ''; ?>" data-type="<?php echo esc_attr( $t ); ?>" data-year="<?php echo $year; ?>" data-month="<?php echo $month; ?>" href="<?php echo esc_url( add_query_arg( array( 'meal_type' => $t, 'meal_y' => $year, 'meal_m' => $month ) ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</div>
+
+		<div class="meal-nav-month">
+			<a href="<?php echo esc_url( add_query_arg( array( 'meal_y' => $prev_dt->format( 'Y' ), 'meal_m' => $prev_dt->format( 'n' ) ) ) ); ?>" data-year="<?php echo $prev_dt->format( 'Y' ); ?>" data-month="<?php echo $prev_dt->format( 'n' ); ?>">← <?php echo $month_names[ (int) $prev_dt->format( 'n' ) ]; ?></a>
+			<h2><?php echo $month_names[ $month ]; ?> <?php echo $year; ?></h2>
+			<a href="<?php echo esc_url( add_query_arg( array( 'meal_y' => $next_dt->format( 'Y' ), 'meal_m' => $next_dt->format( 'n' ) ) ) ); ?>" data-year="<?php echo $next_dt->format( 'Y' ); ?>" data-month="<?php echo $next_dt->format( 'n' ); ?>"><?php echo $month_names[ (int) $next_dt->format( 'n' ) ]; ?> →</a>
+		</div>
+
+		<div class="meal-cal-scroll"><div class="meal-cal-grid">
+			<?php foreach ( array( 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс' ) as $h ): ?>
+			<div class="meal-cal-head"><?php echo $h; ?></div>
+			<?php endforeach; ?>
+
+			<?php for ( $e = 1; $e < $first_dow; $e++ ): ?>
+			<div class="meal-cal-cell empty"></div>
+			<?php endfor;
+
+			for ( $d = 1; $d <= $days_in_month; $d++ ):
+				$date_str   = sprintf( '%04d-%02d-%02d', $year, $month, $d );
+				$dow        = (int) ( new \DateTimeImmutable( $date_str ) )->format( 'N' );
+				$is_weekend = $dow >= 6;
+				$entry      = $cal_rows[ $date_str ] ?? null;
+				$has_menu   = $entry && $entry['template_id'] !== null;
+				$is_holiday = $entry && $entry['template_id'] === null;
+
+				$vac_day = $vacation_days[ $date_str ] ?? null;
+				$is_vacation = $vac_day && empty( $vac_day['is_holiday'] );
+				$is_holiday_entry = $vac_day && ! empty( $vac_day['is_holiday'] );
+
+				$classes = array( 'meal-cal-cell' );
+				if ( $is_vacation ) $classes[] = 'vacation';
+				elseif ( $has_menu ) $classes[] = 'has-menu';
+				elseif ( $is_holiday_entry ) $classes[] = 'holiday';
+				elseif ( $is_holiday ) $classes[] = 'holiday';
+				elseif ( $is_weekend ) $classes[] = 'weekend';
+				if ( $date_str === $today ) $classes[] = 'today';
+			?>
+			<div class="<?php echo implode( ' ', $classes ); ?>">
+				<div class="meal-cal-day"><?php echo $d; ?></div>
+				<?php if ( $has_menu ): ?>
+				<a class="meal-cal-link meal-menu-trigger" href="#" data-date="<?php echo esc_attr( $date_str ); ?>" data-type="<?php echo esc_attr( $real_type ); ?>"><?php echo esc_html( $entry['label'] ?? __( 'Меню', 'meal-menu' ) ); ?></a>
+				<?php elseif ( $is_holiday ): ?>
+				<div class="meal-holiday-label"><?php _e( 'Выходной', 'meal-menu' ); ?></div>
+				<?php endif; ?>
+			</div>
+			<?php endfor;
+
+			$last_dow = (int) ( new \DateTimeImmutable( "$year-$month-$days_in_month" ) )->format( 'N' );
+			for ( $e = $last_dow + 1; $e <= 7; $e++ ): ?>
+			<div class="meal-cal-cell empty"></div>
+			<?php endfor; ?>
+		</div></div>
+
+		<div class="meal-legend">
+			<div class="meal-legend-item"><div class="meal-legend-dot has-menu"></div> <?php _e( 'Меню опубликовано', 'meal-menu' ); ?></div>
+			<div class="meal-legend-item"><div class="meal-legend-dot no-menu"></div> <?php _e( 'Нет данных', 'meal-menu' ); ?></div>
+			<div class="meal-legend-item"><div class="meal-legend-dot holiday"></div> <?php _e( 'Выходной / праздник', 'meal-menu' ); ?></div>
+			<div class="meal-legend-item"><div class="meal-legend-dot vacation"></div> <?php _e( 'Каникулы', 'meal-menu' ); ?></div>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	public function ajax_get_calendar(): void {
+		$type  = sanitize_key( $_GET['meal_type'] ?? '' );
+		$year  = (int) ( $_GET['meal_y'] ?? 0 );
+		$month = (int) ( $_GET['meal_m'] ?? 0 );
+
+		if ( ! $type || ! $year || ! $month || $month < 1 || $month > 12 ) {
+			wp_send_json( array( 'ok' => false, 'html' => '' ) );
+		}
+
+		$html = self::render_calendar_body( $type, $year, $month );
+		wp_send_json( array( 'ok' => true, 'html' => $html ) );
 	}
 
 	public function shortcode_day( array $atts = array(), string $content = '' ): string {
@@ -243,16 +404,100 @@ class Core {
 		return ob_get_clean();
 	}
 
-	public function shortcode_menu( array $atts = array(), string $content = '' ): string {
-		ob_start();
-		$atts = shortcode_atts( array( 'type' => '' ), $atts );
-		require MEAL_MENU_DIR . 'templates/public/menu.php';
-		return ob_get_clean();
-	}
+	public static function render_oc_content(): string {
+		$db  = \Meal_Menu\DB::instance();
+		$oc  = $db->get_oc_monitoring();
 
-	public function shortcode_oc( array $atts = array(), string $content = '' ): string {
+		$waste_labels = array( 'none' => '', '20' => '&#60;&#160;20%', '30' => '20–30%', '40' => '30–40%', '50' => '&#62;&#160;50%' );
+
+		$has_any = false;
+		foreach ( array( 's1_url', 's2_hotline', 's2_chat_url', 's2_forum_url',
+			's3_diet1_type', 's3_diet1_url', 's3_diet2_type', 's3_diet2_url',
+			's3_diet3_type', 's3_diet3_url', 's3_diet4_type', 's3_diet4_url',
+			's4_survey_url', 's4_results_url', 's5_page_url', 's5_materials_url',
+			's6_acts_url', 's6_photos_url', 's7_waste_level' ) as $k ) {
+			if ( ! empty( $oc[ $k ] ) ) { $has_any = true; break; }
+		}
+		if ( ! $has_any ) return '';
+
 		ob_start();
-		require MEAL_MENU_DIR . 'templates/public/oc.php';
+		?>
+		<details class="meal-oc-spoiler" style="margin-top:24px">
+			<summary class="meal-oc-summary" style="font-size:.9rem;text-transform:uppercase;letter-spacing:.1em;color:var(--meal-primary);cursor:pointer;padding:8px 0;border-bottom:2px solid var(--meal-primary);margin-bottom:16px"><?php _e( 'Общественный контроль питания', 'meal-menu' ); ?></summary>
+
+			<?php if ( $oc['school_name'] ): ?>
+			<p style="margin-bottom:16px;font-size:.9rem;color:var(--meal-muted)"><?php echo esc_html( $oc['school_name'] ); ?></p>
+			<?php endif; ?>
+
+			<?php foreach ( array(
+				's1_url'      => array( 'title' => 'Раздел 1. Положение и приказ о создании комиссии', 'type' => 'url' ),
+				's2_hotline'  => array( 'title' => 'Раздел 2. Формы интерактивного взаимодействия', 'type' => 'section2' ),
+				's3_diet1_type' => array( 'title' => 'Раздел 3. Лечебные/диетические меню', 'type' => 'section3' ),
+				's4_survey_url' => array( 'title' => 'Раздел 4. Анкетирование', 'type' => 'section4' ),
+				's5_page_url'   => array( 'title' => 'Раздел 5. Информация о здоровом питании', 'type' => 'section5' ),
+				's6_acts_url'   => array( 'title' => 'Раздел 6. Результаты контрольных мероприятий', 'type' => 'section6' ),
+				's7_waste_level'=> array( 'title' => 'Раздел 7. Оценка пищевых отходов', 'type' => 'section7' ),
+			) as $key => $section ):
+				$show = false;
+				switch ( $section['type'] ) {
+					case 'url':
+						$show = ! empty( $oc[ $key ] );
+						break;
+					case 'section2':
+						$show = ! empty( $oc['s2_hotline'] ) || ! empty( $oc['s2_chat_url'] ) || ! empty( $oc['s2_forum_url'] );
+						break;
+					case 'section3':
+						for ( $i = 1; $i <= 4; $i++ ) {
+							if ( ! empty( $oc[ "s3_diet{$i}_type" ] ) || ! empty( $oc[ "s3_diet{$i}_url" ] ) ) { $show = true; break; }
+						}
+						break;
+					case 'section4':
+						$show = ! empty( $oc['s4_survey_url'] ) || ! empty( $oc['s4_results_url'] );
+						break;
+					case 'section5':
+						$show = ! empty( $oc['s5_page_url'] ) || ! empty( $oc['s5_materials_url'] );
+						break;
+					case 'section6':
+						$show = ! empty( $oc['s6_acts_url'] ) || ! empty( $oc['s6_photos_url'] );
+						break;
+					case 'section7':
+						$show = ! empty( $oc['s7_waste_level'] ) && $oc['s7_waste_level'] !== 'none';
+						break;
+				}
+				if ( ! $show ) continue;
+			?>
+			<div class="meal-block" style="border-left:4px solid var(--meal-primary);padding-left:20px">
+				<div class="meal-block-title" style="background:transparent;color:var(--meal-heading);padding-left:0"><?php echo esc_html( $section['title'] ); ?></div>
+				<?php
+				if ( $section['type'] === 'url' ): ?>
+					<a href="<?php echo esc_url( $oc[ $key ] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Перейти к документу', 'meal-menu' ); ?></a>
+				<?php elseif ( $section['type'] === 'section2' ): ?>
+					<?php if ( $oc['s2_hotline'] ): ?><p style="margin-bottom:4px"><strong><?php _e( 'Горячая линия:', 'meal-menu' ); ?></strong> <?php echo esc_html( $oc['s2_hotline'] ); ?></p><?php endif; ?>
+					<?php if ( $oc['s2_chat_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s2_chat_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Чат для обратной связи', 'meal-menu' ); ?></a></p><?php endif; ?>
+					<?php if ( $oc['s2_forum_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s2_forum_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Форум / обратная связь', 'meal-menu' ); ?></a></p><?php endif; ?>
+				<?php elseif ( $section['type'] === 'section3' ): ?>
+					<?php for ( $i = 1; $i <= 4; $i++ ):
+						$t = $oc[ "s3_diet{$i}_type" ] ?? '';
+						$u = $oc[ "s3_diet{$i}_url" ] ?? '';
+						if ( ! $t && ! $u ) continue;
+					?><p style="margin-bottom:4px"><?php echo esc_html( $t ); ?>: <?php if ( $u ): ?><a href="<?php echo esc_url( $u ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'скачать', 'meal-menu' ); ?></a><?php endif; ?></p>
+					<?php endfor; ?>
+				<?php elseif ( $section['type'] === 'section4' ): ?>
+					<?php if ( $oc['s4_survey_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s4_survey_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Пройти анкету', 'meal-menu' ); ?></a></p><?php endif; ?>
+					<?php if ( $oc['s4_results_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s4_results_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Результаты анкетирования', 'meal-menu' ); ?></a></p><?php endif; ?>
+				<?php elseif ( $section['type'] === 'section5' ): ?>
+					<?php if ( $oc['s5_page_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s5_page_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Страница о здоровом питании', 'meal-menu' ); ?></a></p><?php endif; ?>
+					<?php if ( $oc['s5_materials_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s5_materials_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Материалы', 'meal-menu' ); ?></a></p><?php endif; ?>
+				<?php elseif ( $section['type'] === 'section6' ): ?>
+					<?php if ( $oc['s6_acts_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s6_acts_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Акты контроля', 'meal-menu' ); ?></a></p><?php endif; ?>
+					<?php if ( $oc['s6_photos_url'] ): ?><p style="margin-bottom:4px"><a href="<?php echo esc_url( $oc['s6_photos_url'] ); ?>" target="_blank" rel="noopener" style="color:var(--meal-primary)"><?php _e( 'Фотоматериалы', 'meal-menu' ); ?></a></p><?php endif; ?>
+				<?php elseif ( $section['type'] === 'section7' ): ?>
+					<p><?php _e( 'Уровень пищевых отходов:', 'meal-menu' ); ?> <?php echo $waste_labels[ $oc['s7_waste_level'] ] ?? ''; ?></p>
+				<?php endif; ?>
+			</div>
+			<?php endforeach; ?>
+		</details>
+		<?php
 		return ob_get_clean();
 	}
 

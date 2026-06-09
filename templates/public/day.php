@@ -15,6 +15,9 @@ $valid_types   = array_column( $enabled_depts, 'code' );
 $req_type = $_GET['meal_type'] ?? '';
 $type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
 
+$dept = $db->get_department( $type );
+$real_type = ( $dept && ! empty( $dept['merged_with'] ) ) ? $dept['merged_with'] : $type;
+
 $dt = new \DateTimeImmutable( $date );
 
 $c = $db->get_table_name( 'calendar' );
@@ -25,7 +28,7 @@ $cal = $wpdb->get_row( $wpdb->prepare(
 	 FROM $c c
 	 JOIN $t mt ON mt.id = c.template_id
 	 WHERE c.date = %s AND c.school_type = %s AND c.template_id IS NOT NULL",
-	$date, $type
+	$date, $real_type
 ), ARRAY_A );
 
 if ( ! $cal ) {
@@ -39,6 +42,7 @@ if ( ! $cal ) {
 	), ARRAY_A ) ?: array();
 	$by_meal = array();
 	foreach ( $item_rows as $it ) {
+		if ( empty( $it['dish_name'] ) ) continue;
 		$by_meal[ $it['meal_type'] ][] = $it;
 	}
 }

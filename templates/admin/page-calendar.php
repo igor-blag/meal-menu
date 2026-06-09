@@ -3,14 +3,24 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 $db = \Meal_Menu\DB::instance();
 
 $enabled_depts = $db->get_enabled_departments();
-$valid_types   = array_column( $enabled_depts, 'code' );
-$type_labels   = array();
-foreach ( $enabled_depts as $dep ) {
-	$type_labels[ $dep['code'] ] = ! empty( $dep['dept_name'] ) ? $dep['dept_name'] : $dep['label'];
-}
 $dept_map      = array();
 foreach ( $enabled_depts as $dep ) {
 	$dept_map[ $dep['code'] ] = $dep;
+}
+$merged_targets = array();
+foreach ( $enabled_depts as $dep ) {
+	if ( ! empty( $dep['merged_with'] ) && isset( $dept_map[ $dep['merged_with'] ] ) ) {
+		$merged_targets[ $dep['merged_with'] ] = true;
+	}
+}
+$valid_types   = array();
+$type_labels   = array();
+foreach ( $enabled_depts as $dep ) {
+	if ( isset( $merged_targets[ $dep['code'] ] ) ) {
+		continue;
+	}
+	$valid_types[] = $dep['code'];
+	$type_labels[ $dep['code'] ] = ! empty( $dep['dept_name'] ) ? $dep['dept_name'] : $dep['label'];
 }
 
 $type    = isset( $_GET['type'] ) && in_array( $_GET['type'], $valid_types, true ) ? $_GET['type'] : ( $valid_types[0] ?? 'sm' );
@@ -66,14 +76,22 @@ $files_dir  = $upload_dir['basedir'] . '/meal-menu';
 $files_url  = $upload_dir['baseurl'] . '/meal-menu';
 
 $all_suffixes = array( $suffix );
-if ( $merge_suffix && $merge_suffix !== $suffix ) {
+if ( $merge_with && $merge_suffix !== $suffix ) {
 	$all_suffixes[] = $merge_suffix;
 }
-
-$other_suffixes = array();
 foreach ( $enabled_depts as $dep ) {
-	if ( $dep['file_suffix'] !== '' && ! in_array( $dep['file_suffix'], $all_suffixes, true ) ) {
-		$other_suffixes[] = $dep['file_suffix'];
+	if ( $dep['code'] !== $type && ! empty( $dep['merged_with'] ) && $dep['merged_with'] === $type ) {
+		$dep_suffix = $dep['file_suffix'];
+		if ( ! in_array( $dep_suffix, $all_suffixes, true ) ) {
+			$all_suffixes[] = $dep_suffix;
+		}
+	}
+}
+
+$all_known_suffixes = array();
+foreach ( $enabled_depts as $dep ) {
+	if ( $dep['file_suffix'] !== '' && ! in_array( $dep['file_suffix'], $all_known_suffixes, true ) ) {
+		$all_known_suffixes[] = $dep['file_suffix'];
 	}
 }
 
@@ -83,39 +101,37 @@ foreach ( $all_suffixes as $sfx ) {
 	foreach ( glob( $f_pattern ) ?: array() as $f ) {
 		$name_no_ext = basename( $f, '.xlsx' );
 		if ( $sfx === '' ) {
-			$skip = false;
-			foreach ( $other_suffixes as $os ) {
-				if ( str_ends_with( $name_no_ext, $os ) ) { $skip = true; break; }
+			foreach ( $all_known_suffixes as $ks ) {
+				if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
 			}
-			if ( $skip ) continue;
 		}
-		$existing_files[ substr( basename( $f ), 0, 10 ) . '_' . $sfx ] = basename( $f );
+		$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
 	}
 }
 
-$prev_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $suffix );
-foreach ( glob( $prev_f_pattern ) ?: array() as $f ) {
-	$name_no_ext = basename( $f, '.xlsx' );
-	if ( $suffix === '' ) {
-		$skip = false;
-		foreach ( $other_suffixes as $os ) {
-			if ( str_ends_with( $name_no_ext, $os ) ) { $skip = true; break; }
+foreach ( $all_suffixes as $sfx ) {
+	$prev_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $sfx );
+	foreach ( glob( $prev_f_pattern ) ?: array() as $f ) {
+		$name_no_ext = basename( $f, '.xlsx' );
+		if ( $sfx === '' ) {
+			foreach ( $all_known_suffixes as $ks ) {
+				if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
+			}
 		}
-		if ( $skip ) continue;
+		$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
 	}
-	$existing_files[ substr( basename( $f ), 0, 10 ) ] = basename( $f );
 }
-$next_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $suffix );
-foreach ( glob( $next_f_pattern ) ?: array() as $f ) {
-	$name_no_ext = basename( $f, '.xlsx' );
-	if ( $suffix === '' ) {
-		$skip = false;
-		foreach ( $other_suffixes as $os ) {
-			if ( str_ends_with( $name_no_ext, $os ) ) { $skip = true; break; }
+foreach ( $all_suffixes as $sfx ) {
+	$next_f_pattern = $files_dir . '/' . sprintf( '%04d-%02d-*%s.xlsx', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $sfx );
+	foreach ( glob( $next_f_pattern ) ?: array() as $f ) {
+		$name_no_ext = basename( $f, '.xlsx' );
+		if ( $sfx === '' ) {
+			foreach ( $all_known_suffixes as $ks ) {
+				if ( str_ends_with( $name_no_ext, $ks ) ) { continue 2; }
+			}
 		}
-		if ( $skip ) continue;
+		$existing_files[ substr( basename( $f ), 0, 10 ) ][] = basename( $f );
 	}
-	$existing_files[ substr( basename( $f ), 0, 10 ) ] = basename( $f );
 }
 
 $cycle_len     = $db->get_cycle_length( $data_type );
@@ -144,6 +160,7 @@ $month_from   = sprintf( '%04d-%02d-01', $year, $month );
 $month_to     = gmdate( 'Y-m-t', strtotime( $month_from ) );
 foreach ( $enabled_depts as $dep ) {
 	if ( $dep['code'] === $type ) continue;
+	if ( ! in_array( $dep['code'], $valid_types, true ) ) continue;
 	$dep_cycle = $db->get_cycle_length( $dep['code'] );
 	if ( $dep_cycle !== $cycle_len || $cycle_len === 0 ) continue;
 	$dep_cal = $db->get_calendar_month( $year, $month, $dep['code'] );
@@ -191,6 +208,13 @@ foreach ( $vacation_days as $d => $info ) {
 	}
 }
 ?>
+<?php
+$gen_notice = get_transient( 'meal_menu_gen_notice' );
+if ( $gen_notice ) {
+	delete_transient( 'meal_menu_gen_notice' );
+	echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $gen_notice ) . '</p></div>';
+}
+?>
 <div class="wrap meal-menu-wrap cal-layout">
 	<div class="cal-main">
 		<div class="flex items-center justify-between mb-2">
@@ -211,7 +235,7 @@ foreach ( $vacation_days as $d => $info ) {
 		</div>
 
 		<div class="panel">
-			<div class="cycle-info" style="font-size:.78rem;color:var(--muted);padding:6px 0 0">
+			<div class="cycle-info" style="font-size:.78rem;color:var(--wp-muted);padding:6px 0 0">
 				<?php if ( $cycle_len === 0 ): ?>
 					<span style="color:var(--error)"><?php _e( 'Шаблоны не созданы.', 'meal-menu' ); ?></span>
 					<a href="admin.php?page=meal-templates&type=<?php echo esc_attr( $type ); ?>"><?php _e( 'Добавить', 'meal-menu' ); ?> →</a>
@@ -269,7 +293,9 @@ foreach ( $vacation_days as $d => $info ) {
 							<div class="cal-ghost-label"><?php _e( 'Рабочий день', 'meal-menu' ); ?></div>
 						<?php endif; ?>
 						<?php if ( $prev_has_file ): ?>
-							<div class="cal-file-badge cal-ghost-badge"><?php echo esc_html( $existing_files[ $prev_date_str ] ); ?></div>
+							<?php foreach ( (array) $existing_files[ $prev_date_str ] as $prev_fname ): ?>
+							<div class="cal-file-badge cal-ghost-badge"><?php echo esc_html( $prev_fname ); ?></div>
+							<?php endforeach; ?>
 						<?php endif; ?>
 					</div>
 				<?php endfor; ?>
@@ -348,7 +374,9 @@ foreach ( $vacation_days as $d => $info ) {
 						<div class="cal-actual-holiday"><?php echo esc_html( $actual_dates[ $date_str ] ); ?></div>
 					<?php endif; ?>
 					<?php if ( isset( $existing_files[ $date_str ] ) ): ?>
-						<div class="cal-file-badge"><?php echo esc_html( $existing_files[ $date_str ] ); ?></div>
+						<?php foreach ( (array) $existing_files[ $date_str ] as $fname ): ?>
+						<div class="cal-file-badge"><?php echo esc_html( $fname ); ?></div>
+						<?php endforeach; ?>
 					<?php endif; ?>
 				</div>
 				<?php endfor; ?>
@@ -373,7 +401,9 @@ foreach ( $vacation_days as $d => $info ) {
 						<div class="cal-ghost-label"><?php echo esc_html( $next_entry['template_label'] ); ?></div>
 					<?php endif; ?>
 					<?php if ( $next_has_file ): ?>
-						<div class="cal-file-badge cal-ghost-badge"><?php echo esc_html( $existing_files[ $next_date_str ] ); ?></div>
+						<?php foreach ( (array) $existing_files[ $next_date_str ] as $next_fname ): ?>
+						<div class="cal-file-badge cal-ghost-badge"><?php echo esc_html( $next_fname ); ?></div>
+						<?php endforeach; ?>
 					<?php endif; ?>
 				</div>
 			<?php endfor; ?>
@@ -385,9 +415,9 @@ foreach ( $vacation_days as $d => $info ) {
 				<div class="legend-item"><div class="legend-dot" style="background:#c4a8e0"></div> <?php _e( 'Каникулы', 'meal-menu' ); ?></div>
 				<div class="legend-item"><div class="legend-dot no-menu"></div> <?php _e( 'Не задан', 'meal-menu' ); ?></div>
 			</div>
-			<div id="day-popup" style="display:none;position:fixed;z-index:500;background:#fff;border:1px solid var(--border-light);border-top:3px solid var(--orange);padding:14px 18px;min-width:200px;max-width:280px;box-shadow:0 4px 16px rgba(0,0,0,.15)">
-				<div class="day-popup-title" id="popup-title" style="font-size:.88rem;font-weight:bold;color:var(--text);margin-bottom:4px"></div>
-				<div class="day-popup-status" id="popup-status" style="font-size:.82rem;color:var(--muted);margin-bottom:12px"></div>
+			<div id="day-popup" style="display:none;position:fixed;z-index:500;background:#fff;border:1px solid var(--wp-border-subtle);border-top:3px solid var(--wp-blue);padding:14px 18px;min-width:200px;max-width:280px;box-shadow:0 4px 16px rgba(0,0,0,.15)">
+				<div class="day-popup-title" id="popup-title" style="font-size:.88rem;font-weight:bold;color:var(--wp-text);margin-bottom:4px"></div>
+				<div class="day-popup-status" id="popup-status" style="font-size:.82rem;color:var(--wp-muted);margin-bottom:12px"></div>
 				<div class="day-popup-actions" id="popup-actions" style="display:flex;flex-direction:column;gap:6px"></div>
 			</div>
 		</div>
@@ -395,52 +425,52 @@ foreach ( $vacation_days as $d => $info ) {
 
 	<div class="cal-help-sidebar">
 		<div style="background:#faf6f0;border:1px solid #ede4d8;border-radius:6px;padding:14px">
-			<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--orange);font-weight:bold;margin-bottom:10px"><?php _e( 'Как заполнить месяц', 'meal-menu' ); ?></div>
+			<div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--wp-blue);font-weight:bold;margin-bottom:10px"><?php _e( 'Как заполнить месяц', 'meal-menu' ); ?></div>
 
 			<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
-				<div style="background:var(--orange);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">1</div>
+				<div style="background:var(--wp-blue);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">1</div>
 				<div><?php _e( 'Выберите <strong>вкладку отделения</strong> сверху.', 'meal-menu' ); ?></div>
 			</div>
 
 			<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
-				<div style="background:var(--orange);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">2</div>
+				<div style="background:var(--wp-blue);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">2</div>
 				<div><?php _e( 'Перейдите на нужный месяц стрелками.', 'meal-menu' ); ?></div>
 			</div>
 
 			<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
-				<div style="background:var(--orange);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">3</div>
+				<div style="background:var(--wp-blue);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">3</div>
 				<div><?php _e( 'Отметьте <strong>выходные</strong> и <strong>рабочие дни</strong> кликом по ячейке.', 'meal-menu' ); ?></div>
 			</div>
 
 			<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
-				<div style="background:var(--orange);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">4</div>
+				<div style="background:var(--wp-blue);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">4</div>
 				<div><?php _e( 'Кликните на <strong>первый рабочий день</strong>, укажите номер меню и нажмите «Заполнить до конца месяца».', 'meal-menu' ); ?></div>
 			</div>
 
 			<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
-				<div style="background:var(--orange);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">5</div>
+				<div style="background:var(--wp-blue);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">5</div>
 				<div><?php _e( 'Нажмите <strong>«Создать файлы»</strong> для генерации .xlsx.', 'meal-menu' ); ?></div>
 			</div>
 
 			<div style="display:flex;gap:8px;align-items:flex-start">
-				<div style="background:var(--orange);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">6</div>
+				<div style="background:var(--wp-blue);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:1px">6</div>
 				<div><?php _e( 'Повторите для <strong>других отделений</strong>.', 'meal-menu' ); ?></div>
 			</div>
 
 			<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ede4d8">
 				<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px">
-					<div style="color:var(--orange);font-size:.7rem;flex-shrink:0;margin-top:1px">💡</div>
-					<div style="color:var(--muted)"><?php _e( 'Если в середине месяца график поменялся — кликните на любой день, измените номер и снова нажмите «Заполнить до конца месяца».', 'meal-menu' ); ?></div>
+					<div style="color:var(--wp-blue);font-size:.7rem;flex-shrink:0;margin-top:1px">💡</div>
+					<div style="color:var(--wp-muted)"><?php _e( 'Если в середине месяца график поменялся — кликните на любой день, измените номер и снова нажмите «Заполнить до конца месяца».', 'meal-menu' ); ?></div>
 				</div>
 				<div style="display:flex;gap:8px;align-items:flex-start">
-					<div style="color:var(--orange);font-size:.7rem;flex-shrink:0;margin-top:1px">💡</div>
-					<div style="color:var(--muted)"><?php _e( 'Кнопка «Заполнить [месяц]» заполняет только пустые дни, не меняя уже назначенные.', 'meal-menu' ); ?></div>
+					<div style="color:var(--wp-blue);font-size:.7rem;flex-shrink:0;margin-top:1px">💡</div>
+					<div style="color:var(--wp-muted)"><?php _e( 'Кнопка «Заполнить [месяц]» заполняет только пустые дни, не меняя уже назначенные.', 'meal-menu' ); ?></div>
 				</div>
 			</div>
 
 			<?php if ( ! empty( $source_depts ) ): ?>
 			<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ede4d8">
-				<div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--orange);font-weight:bold;margin-bottom:8px"><?php _e( 'Быстрое копирование', 'meal-menu' ); ?></div>
+				<div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--wp-blue);font-weight:bold;margin-bottom:8px"><?php _e( 'Быстрое копирование', 'meal-menu' ); ?></div>
 				<?php foreach ( $source_depts as $src ): ?>
 				<button type="button" class="btn btn-outline btn-sm" data-action="copy-from" data-source="<?php echo esc_attr( $src['code'] ); ?>" style="display:block;width:100%;margin-bottom:4px;font-size:.75rem;text-align:left">
 					<?php printf( __( 'Копировать из %s', 'meal-menu' ), esc_html( $src['label'] ) ); ?>
@@ -451,6 +481,14 @@ foreach ( $vacation_days as $d => $info ) {
 		</div>
 	</div>
 </div>
+
+<div id="gen-overlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-size:1.1rem;color:var(--wp-text)">
+	<div style="width:36px;height:36px;border:4px solid #e0e0e0;border-top-color:var(--wp-blue);border-radius:50%;animation:gen-spin .7s linear infinite"></div>
+	<span><?php _e( 'Генерация файлов…', 'meal-menu' ); ?></span>
+</div>
+<style>
+@keyframes gen-spin { to { transform: rotate(360deg); } }
+</style>
 
 <script>
 (function() {
@@ -589,11 +627,11 @@ foreach ( $vacation_days as $d => $info ) {
 		if (isVacDay) {
 			var isHol = holidayDates.indexOf(date) >= 0;
 			if (isHol) {
-				statusHtml = '<span style="color:var(--muted)">Выходной день</span>';
+				statusHtml = '<span style="color:var(--wp-muted)">Выходной день</span>';
 			} else {
 				statusHtml = '<span style="color:#7a5c9a">Каникулы</span>';
 			}
-		} else if (!isEffectiveWorkday) statusHtml = '<span style="color:var(--muted)">Выходной день</span>';
+		} else if (!isEffectiveWorkday) statusHtml = '<span style="color:var(--wp-muted)">Выходной день</span>';
 		popupStatus.innerHTML = statusHtml;
 
 
@@ -604,7 +642,7 @@ foreach ( $vacation_days as $d => $info ) {
 
 		if (isEffectiveWorkday && !isVacDay && cycleLen > 0) {
 			var currentDayNum = cellDayNum;
-			html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">День меню №:</div>';
+			html += '<div style="font-size:.8rem;color:var(--wp-muted);margin-bottom:4px">День меню №:</div>';
 			html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px" id="day-num-selector">';
 			dayNumKeys.forEach(function(dn) {
 				var active = currentDayNum !== null && currentDayNum === dn;
@@ -626,7 +664,7 @@ foreach ( $vacation_days as $d => $info ) {
 
 		if (isHoliday) {
 			html += '<button class="btn btn-outline btn-sm" data-action="delete" style="margin-top:6px">Убрать выходной</button>';
-			html += '<label style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted);margin-top:6px;cursor:pointer">';
+			html += '<label style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--wp-muted);margin-top:6px;cursor:pointer">';
 			html += '<input type="checkbox" id="chk-iterate"' + iterateChecked + '> Учитывать в нумерации';
 			html += '</label>';
 		}
@@ -766,8 +804,9 @@ foreach ( $vacation_days as $d => $info ) {
 	// ── Создать файлы ────────────────────────────────────────
 	if (document.getElementById('btn-gen-files')) {
 		document.getElementById('btn-gen-files').addEventListener('click', function() {
+			document.getElementById('gen-overlay').style.display = 'flex';
 			apiPost({ action: 'generate_files', type: curType, year: curYear, month: curMonth }, function(r) {
-				if (r.ok) { alert('Создано файлов: ' + r.count); location.reload(); }
+				if (r.ok) { location.reload(); }
 			});
 		});
 	}

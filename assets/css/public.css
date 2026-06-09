@@ -112,12 +112,17 @@
 }
 
 /* ── calendar grid ───────────── */
+.meal-cal-scroll {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
 .meal-cal-grid {
 	display: grid;
 	grid-template-columns: repeat(7, 1fr);
 	gap: var(--meal-grid-gap);
 	background: var(--meal-border);
 	border: 2px solid var(--meal-grid-border);
+	min-width: 560px;
 }
 .meal-cal-head {
 	background: var(--meal-header-bg);
@@ -153,6 +158,24 @@
 }
 .meal-cal-link:hover { color: var(--meal-primary-light); text-decoration: underline; }
 .meal-holiday-label { font-size: .72rem; color: var(--meal-muted); margin-top: 4px; }
+
+@media (max-width: 600px) {
+	.meal-cal-grid { min-width: 0; }
+	.meal-cal-cell { min-height: 48px; padding: 4px 5px; }
+	.meal-cal-cell.has-menu { position: relative; cursor: pointer; }
+	.meal-cal-link {
+		position: absolute; inset: 0;
+		font-size: 0;
+		display: block;
+		margin: 0;
+	}
+	.meal-cal-link::after {
+		content: '';
+		position: absolute; inset: 0;
+	}
+	.meal-cal-day { font-size: 1rem; }
+	.meal-holiday-label { font-size: .65rem; }
+}
 
 /* ── legend ──────────────────── */
 .meal-legend {
@@ -243,9 +266,9 @@
 .meal-table th {
 	background: var(--meal-bg-panel);
 	color: var(--meal-muted);
-	padding: 5px 8px;
-	text-align: left;
-	font-size: .75rem;
+	padding: 5px 3px;
+	text-align: center;
+	font-size: .6rem;
 	text-transform: uppercase;
 	letter-spacing: .06em;
 	border: 1px solid var(--meal-border);
@@ -269,6 +292,23 @@
 /* ── date label on day page ─── */
 .meal-date { font-size: .9rem; color: var(--meal-muted); margin-bottom: 16px; }
 
+/* ── modal table scroll ────── */
+@media (max-width: 600px) {
+	.meal-modal-body {
+		padding: 12px;
+	}
+	.meal-modal-body .meal-table {
+		display: block;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		white-space: nowrap;
+	}
+	.meal-modal-body .meal-table th,
+	.meal-modal-body .meal-table td {
+		white-space: nowrap;
+	}
+}
+
 /* ── modal overlay ──────────── */
 .meal-modal-overlay {
 	position: fixed;
@@ -280,7 +320,7 @@
 	justify-content: center;
 }
 .meal-modal-dialog {
-	background: #fff;
+	background: var(--meal-modal-bg, #fff);
 	border-top: 3px solid var(--meal-primary);
 	width: 95%;
 	max-width: 800px;

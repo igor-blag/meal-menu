@@ -8,12 +8,16 @@ foreach ( $enabled_depts as $dep ) {
 	$dept_by_code[ $dep['code'] ] = $dep;
 }
 
-	function get_merge_types( $type ) {
-		global $dept_by_code;
+	function get_merge_types( $type, $dept_by_code ) {
 		$types = array( $type );
 		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
 		if ( $merge_with && isset( $dept_by_code[ $merge_with ] ) && $merge_with !== $type ) {
 			$types[] = $merge_with;
+		}
+		foreach ( $dept_by_code as $code => $dep ) {
+			if ( $code !== $type && ! empty( $dep['merged_with'] ) && $dep['merged_with'] === $type ) {
+				$types[] = $code;
+			}
 		}
 		return $types;
 	}
@@ -52,7 +56,7 @@ foreach ( $enabled_depts as $dep ) {
 			$db->save_calendar_day( $date, $tpl_id, $school, $dept, $data_type, $is_cycle_start, $iterate_number );
 
 			$xls_path = null;
-			$merge_types = get_merge_types( $type );
+			$merge_types = get_merge_types( $type, $dept_by_code );
 			foreach ( $merge_types as $mt ) {
 				if ( ! empty( $dept_by_code[ $mt ]['publish_xlsx'] ) && class_exists( '\Meal_Menu\Excel_Daily' ) ) {
 					\Meal_Menu\Excel_Daily::generate( $date, $mt );
@@ -267,11 +271,7 @@ foreach ( $enabled_depts as $dep ) {
 		$year  = isset( $data['year'] )  ? (int) $data['year']  : (int) current_time( 'Y' );
 		$month = isset( $data['month'] ) ? (int) $data['month'] : (int) current_time( 'n' );
 
-		$gen_types = array( $type );
-		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-		if ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) {
-			$gen_types[] = $merge_with;
-		}
+		$gen_types = get_merge_types( $type, $dept_by_code );
 
 		$generated = array();
 		$days_in_month = (int) ( new \DateTimeImmutable( "$year-$month-01" ) )->format( 't' );
@@ -288,10 +288,28 @@ foreach ( $enabled_depts as $dep ) {
 					}
 				}
 			}
-			if ( class_exists( '\Meal_Menu\Excel_KP' ) ) {
-				\Meal_Menu\Excel_KP::generate( $year, $gt );
+		}
+		$kp_type = $type;
+		if ( ! empty( $dept_by_code[ $kp_type ]['merged_with'] ) ) {
+			$kp_type = $dept_by_code[ $kp_type ]['merged_with'];
+		}
+		if ( class_exists( '\Meal_Menu\Excel_KP' ) ) {
+			\Meal_Menu\Excel_KP::generate( $year, $kp_type );
+		}
+		if ( class_exists( '\Meal_Menu\Excel_TM' ) ) {
+			$_up = wp_upload_dir();
+			$_meal_dir = $_up['basedir'] . '/meal-menu';
+			foreach ( $gen_types as $gt ) {
+				$tm_path = $_meal_dir . "/tm{$year}-{$gt}.xlsx";
+				if ( ! file_exists( $tm_path ) ) {
+					\Meal_Menu\Excel_TM::generate( $gt, $year );
+				}
 			}
 		}
+		set_transient( 'meal_menu_gen_notice', sprintf(
+			__( 'Создано файлов: %d', 'meal-menu' ),
+			count( $generated )
+		), 30 );
 		wp_send_json( array( 'ok' => true, 'count' => count( $generated ), 'files' => $generated ) );
 
 	} else {
