@@ -123,7 +123,7 @@
 			<li><?php _e( 'Если у отделений одинаковое количество шаблонов — используйте кнопку «Копировать из [название]» в боковой панели, чтобы перенести все дни месяца из уже заполненного отделения.', 'meal-menu' ); ?></li>
 			<li><?php _e( 'Объединение календарей: в Настройках пищеблока выберите «Объединить календарь с [отделение]». Тогда на странице календаря будет одна вкладка с общими данными, а xlsx-файлы будут генерироваться для каждого отделения со своим постфиксом.', 'meal-menu' ); ?></li>
 			<li><?php _e( 'На странице Шаблоны — колонки приёмов пищи формируются динамически: показываются только те, в которых есть хотя бы одно блюдо. Полдник, Ужин и т.д. появятся автоматически.', 'meal-menu' ); ?></li>
-			<li><?php _e( 'Дропзона на странице Шаблоны определяет тип файла автоматически: ежедневное меню → новый шаблон, TM-файл → замена всего цикла.', 'meal-menu' ); ?></li>
+			<li><?php _e( 'Дропзона на странице Шаблоны определяет тип файла автоматически: ежедневное меню → новый шаблон, TM-файл → замена всего цикла. Если бросить JPEG/PNG/WebP — фото отправится в AI-распознавание через подключённый AI-коннектор (Settings → Connectors).', 'meal-menu' ); ?></li>
 			<li><?php _e( 'Множественное удаление: на странице Шаблоны отметьте чекбоксами нужные дни и нажмите «Удалить выбранные».', 'meal-menu' ); ?></li>
 			<li><?php _e( 'В публичном календаре строки раздела меню (гор.блюдо, хлеб и т.п.) скрыты — только блюда и КБЖУ для простоты просмотра.', 'meal-menu' ); ?></li>
 		</ul>
@@ -159,5 +159,34 @@
 	<div style="margin-top:16px;padding:12px 16px;background:var(--wp-blue-pale,#f0f6fc);border-left:3px solid var(--wp-blue);line-height:1.6">
 		<strong><?php _e( 'Примечание:', 'meal-menu' ); ?></strong>
 		<?php _e( 'Шорткод <code>[meal_calendar]</code> продолжает работать. Вы можете использовать как блок, так и шорткод — результат будет одинаковым.', 'meal-menu' ); ?>
+	</div>
+
+	<h2 style="font-size:1rem;text-transform:uppercase;letter-spacing:.08em;border-left:4px solid var(--wp-blue);padding-left:12px;margin:32px 0 16px"><?php _e( 'Импорт шаблона с фото (AI-распознавание)', 'meal-menu' ); ?></h2>
+
+	<p style="line-height:1.6"><?php _e( 'Плагин использует AI-коннекторы WordPress 7.0+ (OpenRouter, Google AI, OpenAI, Anthropic) для распознавания меню с фотографии. Для работы требуется:', 'meal-menu' ); ?></p>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">1</div>
+		<div style="line-height:1.5"><?php _e( 'Установить и настроить AI-коннектор в <strong>Settings → Connectors</strong> (OpenRouter, Google, OpenAI или Anthropic).', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">2</div>
+		<div style="line-height:1.5"><?php _e( 'Установить AI-плагин из <strong>Плагины → Добавить новый</strong> (поиск «AI» от WordPress.org).', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">3</div>
+		<div style="line-height:1.5"><?php _e( 'Одобрить доступ плагина к коннектору в <strong>Tools → Connector Approvals</strong>.', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">4</div>
+		<div style="line-height:1.5"><?php _e( 'Перетащите JPEG/PNG/WebP-фото меню в дропзону на странице <strong>Питание → Шаблоны</strong>. Фото отправится в AI, результат появится в модальном окне — отредактируйте и нажмите «Сохранить шаблон».', 'meal-menu' ); ?></div>
+	</div>
+
+	<div style="margin-top:16px;padding:12px 16px;background:#fcf0f1;border-left:3px solid var(--wp-error);line-height:1.6">
+		<strong><?php _e( 'Важно:', 'meal-menu' ); ?></strong>
+		<?php _e( 'Без настроенного коннектора AI-распознавание недоступно — на странице будет показан алерт с ссылкой на настройки. Все запросы логируются в <strong>Tools → AI Request Logs</strong>.', 'meal-menu' ); ?>
 	</div>
 </div>

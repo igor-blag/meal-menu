@@ -14,7 +14,7 @@
 <li><code>admin_menu</code> — 7 страниц админ-панели</li>
 <li><code>admin_enqueue_scripts</code> — CSS/JS для админки</li>
 <li><code>wp_enqueue_scripts</code> — CSS для публичных страниц</li>
-<li><code>wp_ajax_meal_*</code> — 5 AJAX-обработчиков</li>
+<li><code>wp_ajax_meal_*</code> — 10 AJAX-обработчиков</li>
 <li><code>admin_post_meal_*</code> — 3 POST-обработчика</li>
 <li><code>phpmailer_init</code> — конфигурация SMTP</li>
 <li><code>meal_daily_check</code> — WP-Cron</li>
@@ -47,7 +47,11 @@ meal_save_oc        → ajax-save-oc.php         — сохранение ОК
 meal_upload_oc      → ajax-upload-oc.php       — загрузка файлов для ОК
 meal_list_files     → ajax-list-files.php      — список сгенерированных xlsx
 meal_get_day_menu   → ajax-get-day-menu.php    — HTML меню дня для модалки (публичный)
-meal_get_calendar   → Core::ajax_get_calendar  — HTML тела календаря (AJAX-навигация)</pre>
+meal_get_calendar   → Core::ajax_get_calendar  — HTML тела календаря (AJAX-навигация)
+— AI Photo Import:
+meal_photo_upload       → Core::ajax_photo_upload       — загрузка фото во временную директорию
+meal_photo_analyze      → Core::ajax_photo_analyze      — отправка фото в AI, получение JSON с блюдами
+meal_photo_save_template → Core::ajax_photo_save_template — создание шаблона из распознанных данных</pre>
 <p>Все проверяют nonce (<code>meal_menu_nonce</code>) и capability.</p>
 
 <h2>Обработчики admin-post</h2>

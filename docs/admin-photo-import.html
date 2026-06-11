@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Импорт шаблона с фото</title>
+<style>body{font-family:'Source Serif 4',Georgia,serif;max-width:800px;margin:40px auto;padding:0 20px;color:#2d1800;background:#fdf4e3;line-height:1.6}pre{background:#fff;border:1px solid #c8a070;padding:12px;overflow-x:auto}code{background:#f5e6c8;padding:1px 4px;border-radius:2px}h2{color:#c8580a;border-bottom:1px solid #c8a070;padding-bottom:4px}h3{color:#c8580a}</style>
+</head>
+<body>
+<h1>15. Импорт шаблона с фото (AI-распознавание)</h1>
+
+<p><strong>Файлы:</strong> <code>includes/class-importer-photo.php</code></p>
+<p><strong>AJAX:</strong> <code>wp_ajax_meal_photo_upload</code>, <code>wp_ajax_meal_photo_analyze</code>, <code>wp_ajax_meal_photo_save_template</code></p>
+
+<p>Начиная с WordPress 7.0 появилась нативная поддержка AI-коннекторов (OpenRouter, Google AI, OpenAI, Anthropic). Плагин использует эту инфраструктуру для распознавания меню с фотографии.</p>
+
+<h2>Как это работает</h2>
+<ol>
+<li>Пользователь перетаскивает JPEG/PNG/WebP-фото меню в дропзону на странице <strong>Питание → Шаблоны</strong></li>
+<li>Фото загружается во временную директорию <code>wp-content/uploads/meal-menu/ai-import/</code></li>
+<li>Изображение отправляется в AI-провайдер через <code>wp_ai_client_prompt()</code> с визион-моделью</li>
+<li>AI возвращает структурированный JSON с перечнем блюд, разбивкой по приёмам пищи, весом и КБЖУ</li>
+<li>Открывается модальное окно с редактируемой таблицей результатов</li>
+<li>Пользователь может отредактировать данные, выбрать отделение и номер дня, нажать «Сохранить шаблон»</li>
+<li>Шаблон создаётся в БД, страница обновляется — новый день отображается в таблице</li>
+</ol>
+
+<h2>Поддерживаемые AI-провайдеры</h2>
+<p>Плагин не привязан к конкретному провайдеру — WordPress AI Client SDK автоматически находит доступный коннектор. Приоритет моделей:</p>
+<ul>
+<li><code>google/gemini-2.5-flash</code> — оптимально по скорости/цене (через OpenRouter или Google AI)</li>
+<li><code>gemini-2.5-flash</code> — через нативный Google-коннектор</li>
+<li><code>gpt-4o-mini</code> — fallback через OpenAI</li>
+<li><code>claude-3-haiku</code> — fallback через Anthropic</li>
+</ul>
+
+<h2>Требования</h2>
+<ol>
+<li>WordPress 7.0+</li>
+<li>Установленный и настроенный AI-коннектор (<strong>Settings → Connectors</strong>)</li>
+<li>Установленный AI-плагин от WordPress.org (обеспечивает UI для разрешений)</li>
+<li>В <strong>Tools → Connector Approvals</strong> должно быть одобрено использование коннектора плагином «Мониторинг питания»</li>
+</ol>
+
+<h2>Маппинг полей</h2>
+<p>Разные AI-модели могут возвращать поля в разных нотациях. Плагин автоматически нормализует:</p>
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;border-color:#c8a070;font-size:.9rem">
+<tr style="background:#f5e6c8"><th>Поле в БД</th><th>Принимаемые названия от AI</th></tr>
+<tr><td><code>dish_name</code></td><td><code>dish_name</code>, название блюда</td></tr>
+<tr><td><code>meal_type</code></td><td><code>meal_type</code> (breakfast, breakfast2, lunch, afternoon_snack, dinner, dinner2)</td></tr>
+<tr><td><code>section</code></td><td><code>section</code> (категория блюда)</td></tr>
+<tr><td><code>recipe_num</code></td><td><code>recipe_num</code>, <code>ttk</code>, <code>recipe</code></td></tr>
+<tr><td><code>grams</code></td><td><code>grams</code>, <code>weight</code>, <code>gram</code>, <code>massa</code>, <code>portion</code></td></tr>
+<tr><td><code>kcal</code></td><td><code>kcal</code>, <code>kKall</code>, <code>kkal</code>, <code>calories</code>, <code>energy</code></td></tr>
+<tr><td><code>protein</code></td><td><code>protein</code>, <code>b</code> (белки), <code>belki</code>, <code>proteins</code></td></tr>
+<tr><td><code>fat</code></td><td><code>fat</code>, <code>j</code> (жиры), <code>zhiry</code>, <code>fats</code></td></tr>
+<tr><td><code>carbs</code></td><td><code>carbs</code>, <code>u</code> (углеводы), <code>uglevody</code>, <code>carbohydrates</code></td></tr>
+</table>
+
+<h2>Дропзона</h2>
+<p>Единая дропзона на странице шаблонов принимает как <code>.xlsx</code>, так и изображения. Тип файла определяется автоматически:</p>
+<ul>
+<li><strong>.xlsx</strong> — существующий импорт (ежедневное меню → новый шаблон, TM-файл → замена цикла)</li>
+<li><strong>JPEG/PNG/WebP</strong> — AI-распознавание (создаёт один шаблон)</li>
+</ul>
+<p>Тип отделения определяется по активной вкладке.</p>
+
+<h2>Обработка ошибок</h2>
+<ul>
+<li>Если AI не настроен — пользователь видит алерт на странице и ошибку при попытке загрузить фото</li>
+<li>При таймауте запроса (120 сек) — показывается сообщение с предложением повторить</li>
+<li>Если AI вернул невалидные данные — выполняется повторный запрос с более строгим промптом</li>
+<li>Ошибки сохраняются в AI Request Logs (<strong>Tools → AI Request Logs</strong>)</li>
+</ul>
+
+<h2>Временные файлы</h2>
+<p>Загруженные фото хранятся в <code>wp-content/uploads/meal-menu/ai-import/</code> и автоматически удаляются через 1 час.</p>
+
+<h2>Безопасность</h2>
+<ul>
+<li>Доступ только у пользователей с capability <code>manage_meal_menu</code></li>
+<li>Проверка nonce на всех AJAX-запросах</li>
+<li>Валидация MIME-типа загружаемого файла</li>
+<li>Санітизация всех данных, полученных от AI</li>
+</ul>
+</body>
+</html>

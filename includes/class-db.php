@@ -77,6 +77,35 @@ class DB {
 		return $this->wpdb->insert_id;
 	}
 
+	public function add_template_with_day( string $type, int $day_number ): int {
+		$t = $this->t( 'templates' );
+
+		$exists = (int) $this->wpdb->get_var( $this->wpdb->prepare(
+			"SELECT COUNT(*) FROM $t WHERE school_type = %s AND day_number = %d",
+			$type,
+			$day_number
+		) );
+
+		if ( $exists ) {
+			$this->wpdb->query( $this->wpdb->prepare(
+				"UPDATE $t SET day_number = day_number + 1 WHERE school_type = %s AND day_number >= %d ORDER BY day_number DESC",
+				$type,
+				$day_number
+			) );
+		}
+
+		$this->wpdb->insert(
+			$t,
+			array(
+				'day_number'  => $day_number,
+				'school_type' => $type,
+				'label'       => "Меню № $day_number",
+			),
+			array( '%d', '%s', '%s' )
+		);
+		return $this->wpdb->insert_id;
+	}
+
 	public function delete_template( int $id ): void {
 		$t   = $this->t( 'templates' );
 		$sql = $this->wpdb->prepare( "DELETE FROM $t WHERE id = %d", $id );

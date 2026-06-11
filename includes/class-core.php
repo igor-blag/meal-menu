@@ -26,6 +26,9 @@ class Core {
 		add_action( 'wp_ajax_meal_bulk_delete_templates', array( $self, 'ajax_bulk_delete_templates' ) );
 		add_action( 'wp_ajax_meal_delete_file', array( $self, 'ajax_delete_file' ) );
 		add_action( 'wp_ajax_meal_cleanup_files', array( $self, 'ajax_cleanup_files' ) );
+		add_action( 'wp_ajax_meal_photo_upload', array( $self, 'ajax_photo_upload' ) );
+		add_action( 'wp_ajax_meal_photo_analyze', array( $self, 'ajax_photo_analyze' ) );
+		add_action( 'wp_ajax_meal_photo_save_template', array( $self, 'ajax_photo_save_template' ) );
 		add_action( 'wp_ajax_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
 		add_action( 'wp_ajax_nopriv_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
 		add_action( 'wp_ajax_meal_get_calendar', array( $self, 'ajax_get_calendar' ) );
@@ -984,6 +987,143 @@ class Core {
 		}
 
 		wp_send_json( array( 'ok' => false, 'error' => __( 'Неизвестное действие', 'meal-menu' ) ) );
+	}
+
+	// ── AI Photo Import ──────────────────────────────────────
+
+	public function is_ai_available(): bool {
+		return \Meal_Menu\Importer_Photo::is_ai_available();
+	}
+
+	public function ajax_photo_upload(): void {
+		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+
+		if ( ! isset( $_FILES['photo'] ) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка загрузки файла', 'meal-menu' ) ) );
+		}
+
+		$allowed = array( 'image/jpeg', 'image/png', 'image/webp' );
+		$mime    = mime_content_type( $_FILES['photo']['tmp_name'] );
+		if ( ! in_array( $mime, $allowed, true ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверный формат файла. Поддерживаются JPEG, PNG, WebP.', 'meal-menu' ) ) );
+		}
+
+		if ( $_FILES['photo']['size'] > 15 * 1024 * 1024 ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Файл слишком большой (макс. 15 MB)', 'meal-menu' ) ) );
+		}
+
+		\Meal_Menu\Importer_Photo::cleanup();
+
+		$dest = \Meal_Menu\Importer_Photo::save_upload( $_FILES['photo']['tmp_name'] );
+		if ( is_wp_error( $dest ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => $dest->get_error_message() ) );
+		}
+
+		wp_send_json( array( 'ok' => true, 'path' => $dest ) );
+	}
+
+	public function ajax_photo_analyze(): void {
+		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+
+		$path = sanitize_text_field( $_POST['path'] ?? '' );
+		if ( ! $path || ! file_exists( $path ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Файл не найден', 'meal-menu' ) ) );
+		}
+
+		if ( ! $this->is_ai_available() ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'AI не настроен. Настройте коннектор в Settings → Connectors.', 'meal-menu' ) ) );
+		}
+
+		$result = \Meal_Menu\Importer_Photo::analyze( $path );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => $result->get_error_message() ) );
+		}
+
+		wp_send_json( $result );
+	}
+
+	public function ajax_photo_save_template(): void {
+		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+
+		$type       = sanitize_key( $_POST['type'] ?? 'sm' );
+		$is_boarding = ! empty( $_POST['is_boarding'] );
+		$day_number  = isset( $_POST['day_number'] ) && $_POST['day_number'] !== '' ? (int) $_POST['day_number'] : null;
+
+		// Try JSON first, fallback to form array
+		$raw_items = array();
+		$items_json = isset( $_POST['items_json'] ) ? trim( $_POST['items_json'] ) : '';
+		if ( $items_json ) {
+			$decoded = json_decode( wp_unslash( $items_json ), true );
+			if ( is_array( $decoded ) ) {
+				$raw_items = $decoded;
+			}
+		}
+		if ( empty( $raw_items ) && isset( $_POST['items'] ) && is_array( $_POST['items'] ) ) {
+			$raw_items = $_POST['items'];
+		}
+
+		if ( empty( $raw_items ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Нет блюд для сохранения', 'meal-menu' ) ) );
+		}
+
+		$valid_meal_types = array( 'breakfast', 'breakfast2', 'lunch', 'afternoon_snack', 'dinner', 'dinner2' );
+		$items = array();
+		foreach ( $raw_items as $raw ) {
+			$meal_type = sanitize_text_field( $raw['meal_type'] ?? '' );
+			if ( ! in_array( $meal_type, $valid_meal_types, true ) ) {
+				continue;
+			}
+			$dish_name = trim( sanitize_text_field( $raw['dish_name'] ?? '' ) );
+			if ( $dish_name === '' ) {
+				continue;
+			}
+
+			$items[] = array(
+				'meal_type'  => $meal_type,
+				'section'    => sanitize_text_field( $raw['section'] ?? '' ),
+				'dish_name'  => $dish_name,
+				'recipe_num' => sanitize_text_field( $raw['recipe_num'] ?? '' ),
+				'grams'      => isset( $raw['grams'] ) && $raw['grams'] !== '' && is_numeric( $raw['grams'] ) ? (float) $raw['grams'] : null,
+				'kcal'       => isset( $raw['kcal'] ) && $raw['kcal'] !== '' && is_numeric( $raw['kcal'] ) ? (float) $raw['kcal'] : null,
+				'protein'    => isset( $raw['protein'] ) && $raw['protein'] !== '' && is_numeric( $raw['protein'] ) ? (float) $raw['protein'] : null,
+				'fat'        => isset( $raw['fat'] ) && $raw['fat'] !== '' && is_numeric( $raw['fat'] ) ? (float) $raw['fat'] : null,
+				'carbs'      => isset( $raw['carbs'] ) && $raw['carbs'] !== '' && is_numeric( $raw['carbs'] ) ? (float) $raw['carbs'] : null,
+			);
+		}
+
+		if ( empty( $items ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Нет валидных блюд для сохранения', 'meal-menu' ) ) );
+		}
+
+		$db = DB::instance();
+
+		if ( $day_number ) {
+			$tpl_id = $db->add_template_with_day( $type, $day_number );
+		} else {
+			$tpl_id = $db->add_template( $type );
+		}
+
+		if ( ! $tpl_id ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка создания шаблона', 'meal-menu' ) ) );
+		}
+
+		if ( $is_boarding ) {
+			$db->set_template_boarding( $tpl_id, 1 );
+		}
+
+		$db->save_template_items( $tpl_id, $items );
+
+		wp_send_json( array( 'ok' => true, 'id' => $tpl_id ) );
 	}
 
 	public function handle_save_template(): void {
