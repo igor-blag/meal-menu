@@ -800,11 +800,11 @@ class Core {
 			require_once MEAL_MENU_DIR . 'vendor/autoload.php';
 			$tmp = $_FILES['xlsx']['tmp_name'];
 
-			// Auto-detect TM file: cell A1 contains "Школа"
+			// Auto-detect TM file: cell A3 contains "Возрастная категория" (TM marker)
 			$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load( $tmp );
-			$a1 = trim( (string) $spreadsheet->getActiveSheet()->getCell( 'A1' )->getValue() );
+			$a3 = trim( (string) $spreadsheet->getActiveSheet()->getCell( 'A3' )->getValue() );
 
-			if ( $a1 === 'Школа' ) {
+			if ( $a3 === 'Возрастная категория' ) {
 				// ── TM import (full cycle) ──
 				$days = \Meal_Menu\Importer_TM::parse( $tmp );
 				if ( empty( $days ) ) {
