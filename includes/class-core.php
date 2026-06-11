@@ -22,6 +22,8 @@ class Core {
 		add_action( 'wp_ajax_meal_list_files', array( $self, 'ajax_list_files' ) );
 		add_action( 'wp_ajax_meal_save_theme', array( $self, 'ajax_save_theme' ) );
 		add_action( 'wp_ajax_meal_import_dropzone', array( $self, 'ajax_import_dropzone' ) );
+		add_action( 'wp_ajax_meal_import_tm', array( $self, 'ajax_import_tm' ) );
+		add_action( 'wp_ajax_meal_bulk_delete_templates', array( $self, 'ajax_bulk_delete_templates' ) );
 		add_action( 'wp_ajax_meal_delete_file', array( $self, 'ajax_delete_file' ) );
 		add_action( 'wp_ajax_meal_cleanup_files', array( $self, 'ajax_cleanup_files' ) );
 		add_action( 'wp_ajax_meal_get_day_menu', array( $self, 'ajax_get_day_menu' ) );
@@ -407,6 +409,9 @@ class Core {
 		$month_from  = sprintf( '%04d-%02d-01', $year, $month );
 		$month_to    = sprintf( '%04d-%02d-%02d', $year, $month, $days_in_month );
 		$vacation_days = $db->get_vacation_days_for_range( $month_from, $month_to );
+		if ( $dept && ! empty( $dept['ignore_vacations'] ) ) {
+			$vacation_days = array();
+		}
 
 		$month_names = array( 1=>'Январь',2=>'Февраль',3=>'Март',4=>'Апрель',5=>'Май',6=>'Июнь',7=>'Июль',8=>'Август',9=>'Сентябрь',10=>'Октябрь',11=>'Ноябрь',12=>'Декабрь' );
 
@@ -799,6 +804,14 @@ class Core {
 
 			$db     = DB::instance();
 			$tpl_id = $is_camp ? $db->add_camp_template( $type ) : $db->add_template( $type );
+
+			$dept = $db->get_department( $type );
+			if ( $is_camp && $dept && ! empty( $dept['camp_is_boarding'] ) ) {
+				$db->set_camp_template_boarding( $tpl_id, 1 );
+			} elseif ( ! $is_camp && $dept && ! empty( $dept['is_boarding'] ) ) {
+				$db->set_template_boarding( $tpl_id, 1 );
+			}
+
 			if ( $is_camp ) {
 				$db->save_camp_template_items( $tpl_id, $items );
 			} else {
@@ -809,6 +822,119 @@ class Core {
 		} catch ( \Exception $e ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка обработки файла', 'meal-menu' ) ) );
 		}
+	}
+
+	public function ajax_import_tm(): void {
+		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+
+		$type    = sanitize_key( $_POST['type'] ?? 'sm' );
+		$is_camp = ! empty( $_POST['camp'] );
+
+		if ( ! isset( $_FILES['tm_xlsx'] ) || $_FILES['tm_xlsx']['error'] !== UPLOAD_ERR_OK ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка загрузки файла', 'meal-menu' ) ) );
+		}
+
+		$allowed = array(
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'application/zip',
+			'application/octet-stream',
+		);
+		if ( ! in_array( mime_content_type( $_FILES['tm_xlsx']['tmp_name'] ), $allowed, true ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверный формат файла', 'meal-menu' ) ) );
+		}
+
+		try {
+			$days = \Meal_Menu\Importer_TM::parse( $_FILES['tm_xlsx']['tmp_name'] );
+			if ( empty( $days ) ) {
+				wp_send_json( array( 'ok' => false, 'error' => __( 'В файле нет данных', 'meal-menu' ) ) );
+			}
+
+			$db   = DB::instance();
+			$dept = $db->get_department( $type );
+
+			// Remove existing templates for clean import
+			$existing = $is_camp ? $db->get_camp_templates( $type ) : $db->get_templates( $type );
+			foreach ( $existing as $tpl ) {
+				if ( $is_camp ) {
+					$db->delete_camp_template( (int) $tpl['id'] );
+				} else {
+					$db->delete_template( (int) $tpl['id'] );
+				}
+			}
+
+			$imported = 0;
+			ksort( $days );
+			foreach ( $days as $items ) {
+				$tpl_id = $is_camp ? $db->add_camp_template( $type ) : $db->add_template( $type );
+
+				if ( $is_camp && $dept && ! empty( $dept['camp_is_boarding'] ) ) {
+					$db->set_camp_template_boarding( $tpl_id, 1 );
+				} elseif ( ! $is_camp && $dept && ! empty( $dept['is_boarding'] ) ) {
+					$db->set_template_boarding( $tpl_id, 1 );
+				}
+
+				if ( $is_camp ) {
+					$db->save_camp_template_items( $tpl_id, $items );
+				} else {
+					$db->save_template_items( $tpl_id, $items );
+				}
+				$imported++;
+			}
+
+			wp_send_json( array( 'ok' => true, 'imported' => $imported ) );
+		} catch ( \Exception $e ) {
+			wp_send_json( array( 'ok' => false, 'error' => $e->getMessage() ) );
+		}
+	}
+
+	public function ajax_bulk_delete_templates(): void {
+		$data = json_decode( file_get_contents( 'php://input' ), true ) ?? array();
+		if ( ! wp_verify_nonce( $data['nonce'] ?? '', 'meal_menu_nonce' ) ) {
+			wp_die( -1 );
+		}
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_die( -1 );
+		}
+
+		$db      = DB::instance();
+		$is_camp = ! empty( $data['camp'] );
+		$action  = $data['action'] ?? '';
+
+		if ( $action === 'delete' ) {
+			$id = (int) ( $data['id'] ?? 0 );
+			if ( $id ) {
+				if ( $is_camp ) {
+					$db->delete_camp_template( $id );
+				} else {
+					$db->delete_template( $id );
+				}
+			}
+			wp_send_json( array( 'ok' => true ) );
+		}
+
+		if ( $action === 'bulk_delete' ) {
+			$ids = $data['ids'] ?? array();
+			if ( ! is_array( $ids ) ) {
+				wp_send_json( array( 'ok' => false, 'error' => __( 'Неверный запрос', 'meal-menu' ) ) );
+			}
+			$deleted = 0;
+			foreach ( $ids as $id ) {
+				$id = (int) $id;
+				if ( $id < 1 ) continue;
+				if ( $is_camp ) {
+					$db->delete_camp_template( $id );
+				} else {
+					$db->delete_template( $id );
+				}
+				$deleted++;
+			}
+			wp_send_json( array( 'ok' => true, 'deleted' => $deleted ) );
+		}
+
+		wp_send_json( array( 'ok' => false, 'error' => __( 'Неизвестное действие', 'meal-menu' ) ) );
 	}
 
 	public function handle_save_template(): void {

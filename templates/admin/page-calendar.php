@@ -232,6 +232,9 @@ if ( $is_camp ) {
 $cur_dept_for_vac = $is_camp ? null : ( $merge_dept ? $merge_dept : $cur_dept );
 
 $vacation_days    = $db->get_vacation_days_for_range( $month_from, $month_to );
+if ( $cur_dept_for_vac && ! empty( $cur_dept_for_vac['ignore_vacations'] ) ) {
+	$vacation_days = array();
+}
 if ( $is_camp && $camp_start && $camp_end ) {
 	$filtered = array();
 	foreach ( $vacation_days as $d => $info ) {
@@ -747,6 +750,11 @@ if ( $gen_notice ) {
 			}
 		}
 
+		if (isEffectiveWorkday && !isVacDay && cycleLen > 0) {
+			var startDay = currentDayNum || dayNumKeys[0];
+			html += '<button class="btn btn-outline btn-sm" data-action="apply-single" data-start-day="' + startDay + '" style="margin-top:6px">Применить</button>';
+		}
+
 		if (isHoliday) {
 			html += '<button class="btn btn-outline btn-sm" data-action="delete" style="margin-top:6px">Убрать выходной</button>';
 			html += '<label style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--wp-muted);margin-top:6px;cursor:pointer">';
@@ -818,6 +826,10 @@ if ( $gen_notice ) {
 			if (fillBtnEl) {
 				fillBtnEl.dataset.startDay = day;
 			}
+			var applyBtn = document.querySelector('[data-action="apply-single"]');
+			if (applyBtn) {
+				applyBtn.dataset.startDay = day;
+			}
 		} else if (action === 'toggle-holiday') {
 			apiPost({ action: 'save', date: popupTitle.textContent, type: curType, is_school: false }, function(r) {
 				if (r.ok) {
@@ -832,6 +844,17 @@ if ( $gen_notice ) {
 					var entry = { template_id: null, day_number: null, label: null, is_cycle_start: 0, iterate_number: 1 };
 					updateCell(cell, entry);
 					cell.click();
+				}
+			});
+		} else if (action === 'apply-single') {
+			var day = parseInt(btn.dataset.startDay);
+			apiPost({ action: 'save', date: popupTitle.textContent, type: curType, is_school: true, day_num: day, is_cycle_start: 1 }, function(r) {
+				if (r.ok) {
+					var label = dayNumToLabel[day] || 'День ' + day;
+					var entry = { template_id: r.template_id, day_number: day, label: label, is_cycle_start: 1, iterate_number: 0 };
+					updateCell(cell, entry);
+					cell.dataset.dayNum = day;
+					popup.style.display = 'none';
 				}
 			});
 		} else if (action === 'delete') {

@@ -72,6 +72,18 @@ $has_tm     = file_exists( $tm_file );
 		</div>
 	</div>
 
+	<div id="tm-import" class="panel" style="margin-bottom:16px">
+		<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+			<span style="font-weight:500;font-size:.88rem"><?php _e( 'Импорт из типового меню (TM-файл)', 'meal-menu' ); ?></span>
+			<span class="text-muted" style="font-size:.78rem"><?php _e( 'Заменяет все шаблоны текущего цикла данными из TM-файла', 'meal-menu' ); ?></span>
+		</div>
+		<div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+			<input type="file" id="tm-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+			<button type="button" class="btn btn-primary btn-sm" id="btn-import-tm"><?php _e( 'Импортировать', 'meal-menu' ); ?></button>
+			<span id="tm-status" class="text-muted" style="font-size:.78rem"></span>
+		</div>
+	</div>
+
 	<?php if ( ! empty( $gaps ) ): ?>
 	<div class="alert alert-error" style="margin-bottom:16px">
 		<?php _e( 'В цикле пропущены шаблоны:', 'meal-menu' ); ?> <strong>№<?php echo implode( ', №', array_map( 'esc_html', $gaps ) ); ?></strong>.
@@ -79,29 +91,60 @@ $has_tm     = file_exists( $tm_file );
 	</div>
 	<?php endif; ?>
 
+	<?php
+	$meal_labels = array(
+		'breakfast'       => __( 'Завтрак', 'meal-menu' ),
+		'breakfast2'      => __( 'Завтрак 2', 'meal-menu' ),
+		'lunch'           => __( 'Обед', 'meal-menu' ),
+		'afternoon_snack' => __( 'Полдник', 'meal-menu' ),
+		'dinner'          => __( 'Ужин', 'meal-menu' ),
+		'dinner2'         => __( 'Ужин 2', 'meal-menu' ),
+	);
+
+	$active_meals = array();
+	foreach ( $templates as $t ) {
+		$items = $is_camp ? $db->get_camp_template_items( (int) $t['id'] ) : $db->get_template_items( (int) $t['id'] );
+		foreach ( $meal_labels as $key => $label ) {
+			if ( ! empty( $items[ $key ] ) ) {
+				$active_meals[ $key ] = $label;
+			}
+		}
+	}
+	// If no items yet, show at least breakfast and lunch so table isn't blank
+	if ( empty( $active_meals ) ) {
+		$active_meals = array(
+			'breakfast' => $meal_labels['breakfast'],
+			'lunch'     => $meal_labels['lunch'],
+		);
+	}
+	?>
+
 	<?php if ( $cycle_len === 0 ): ?>
 	<div class="alert alert-error"><?php _e( 'Шаблоны не добавлены. Нажмите «+ Добавить день» чтобы начать.', 'meal-menu' ); ?></div>
 	<?php else: ?>
 	<div class="panel">
+		<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;min-height:28px">
+			<button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected" disabled><?php _e( 'Удалить выбранные', 'meal-menu' ); ?></button>
+			<span id="bulk-status" class="text-muted" style="font-size:.78rem"></span>
+		</div>
 		<table class="menu-table">
 			<thead>
 				<tr>
+					<th style="width:32px"><input type="checkbox" id="select-all"></th>
 					<th style="width:50px">№</th>
 					<th><?php _e( 'Название', 'meal-menu' ); ?></th>
-					<th style="width:110px"><?php _e( 'Завтрак', 'meal-menu' ); ?></th>
-					<th style="width:110px"><?php _e( 'Завтрак 2', 'meal-menu' ); ?></th>
-					<th style="width:110px"><?php _e( 'Обед', 'meal-menu' ); ?></th>
-					<th style="width:120px"></th>
+					<?php foreach ( $active_meals as $key => $label ): ?>
+					<th style="width:110px"><?php echo esc_html( $label ); ?></th>
+					<?php endforeach; ?>
+					<th style="width:160px"></th>
 				</tr>
 			</thead>
 			<tbody>
 				<?php foreach ( $templates as $t ):
 					$items = $is_camp ? $db->get_camp_template_items( (int) $t['id'] ) : $db->get_template_items( (int) $t['id'] );
-					$c1 = count( $items['breakfast'] );
-					$c2 = count( $items['breakfast2'] );
-					$c3 = count( $items['lunch'] );
 				?>
 				<tr>
+					<td class="center"><input type="checkbox" class="tpl-select" value="<?php echo (int) $t['id']; ?>"></td>
 					<td class="center"><?php echo (int) $t['day_number']; ?></td>
 					<td>
 						<?php echo esc_html( $t['label'] ); ?>
@@ -109,21 +152,14 @@ $has_tm     = file_exists( $tm_file );
 							<span style="font-size:.72em;background:#e8f0fe;color:#1a56db;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle">ИНТЕРНАТ</span>
 						<?php endif; ?>
 					</td>
-					<td class="center"><?php echo $c1 ? '<span style="color:var(--success)">✓ ' . $c1 . '</span>' : '<span class="text-muted">—</span>'; ?></td>
-					<td class="center"><?php echo $c2 ? '<span style="color:var(--success)">✓ ' . $c2 . '</span>' : '<span class="text-muted">—</span>'; ?></td>
-					<td class="center"><?php echo $c3 ? '<span style="color:var(--success)">✓ ' . $c3 . '</span>' : '<span class="text-muted">—</span>'; ?></td>
+					<?php foreach ( $active_meals as $key => $label ):
+						$cnt = count( $items[ $key ] ?? array() );
+					?>
+					<td class="center"><?php echo $cnt ? '<span style="color:var(--success)">✓ ' . $cnt . '</span>' : '<span class="text-muted">—</span>'; ?></td>
+					<?php endforeach; ?>
 					<td class="center" style="white-space:nowrap">
 						<a href="admin.php?page=meal-templates&id=<?php echo (int) $t['id']; ?><?php echo $is_camp ? '&camp=1' : ''; ?>" class="btn btn-outline btn-sm"><?php _e( 'Изменить', 'meal-menu' ); ?></a>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="del-tpl-form" style="display:inline;margin-left:4px" data-label="<?php echo esc_attr( $t['label'] ); ?>">
-							<?php wp_nonce_field( 'meal_delete_template' ); ?>
-							<input type="hidden" name="action" value="meal_delete_template">
-							<input type="hidden" name="id" value="<?php echo (int) $t['id']; ?>">
-							<input type="hidden" name="school_type" value="<?php echo esc_attr( $type ); ?>">
-							<?php if ( $is_camp ): ?>
-							<input type="hidden" name="camp" value="1">
-							<?php endif; ?>
-							<button type="submit" class="btn btn-danger btn-sm" title="<?php esc_attr_e( 'Удалить шаблон', 'meal-menu' ); ?>">✕</button>
-						</form>
+						<button type="button" class="btn btn-danger btn-sm del-single" data-id="<?php echo (int) $t['id']; ?>" title="<?php esc_attr_e( 'Удалить шаблон', 'meal-menu' ); ?>">✕</button>
 					</td>
 				</tr>
 				<?php endforeach; ?>
@@ -135,35 +171,64 @@ $has_tm     = file_exists( $tm_file );
 
 <script>
 (function() {
-	document.querySelectorAll('.del-tpl-form').forEach(function(form) {
-		var btn = form.querySelector('button');
-		var timer = null;
-		var armed = false;
-		form.addEventListener('submit', function(e) {
-			if (!armed) {
-				e.preventDefault();
-				armed = true;
-				btn.textContent = 'Удалить?';
-				btn.style.minWidth = '72px';
-				clearTimeout(timer);
-				timer = setTimeout(function() {
-					armed = false;
-					btn.textContent = '✕';
-					btn.style.minWidth = '';
-				}, 3000);
-			}
+	var type = '<?php echo esc_js( $type ); ?>';
+	var isCamp = <?php echo $is_camp ? 'true' : 'false'; ?>;
+	var ajaxUrl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
+	var nonce = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
+
+	function apiPost(payload, callback) {
+		payload.nonce = nonce;
+		if (isCamp) payload.camp = 1;
+		jQuery.post(ajaxUrl + '?action=meal_bulk_delete_templates', JSON.stringify(payload), function(r) {
+			try { callback(typeof r === 'object' ? r : JSON.parse(r)); }
+			catch(e) { callback({ ok: false, error: 'Ошибка ответа' }); }
+		}).fail(function() { callback({ ok: false, error: 'Сетевая ошибка' }); });
+	}
+
+	// ── Select all (only if table exists) ──
+	var tbl = document.querySelector('.menu-table');
+	if (tbl) {
+		document.getElementById('select-all').addEventListener('change', function() {
+			document.querySelectorAll('.tpl-select').forEach(function(cb) { cb.checked = this.checked; }, this);
+			toggleBulkBtn();
 		});
-	});
+		tbl.addEventListener('change', function(e) {
+			if (e.target.classList.contains('tpl-select')) toggleBulkBtn();
+		});
+		function toggleBulkBtn() {
+			var checked = document.querySelectorAll('.tpl-select:checked').length;
+			document.getElementById('btn-delete-selected').disabled = checked === 0;
+		}
+
+		// ── Single delete ──
+		tbl.addEventListener('click', function(e) {
+			var btn = e.target.closest('.del-single');
+			if (!btn) return;
+			if (!confirm('Удалить этот шаблон?')) return;
+			apiPost({ action: 'delete', id: parseInt(btn.dataset.id) }, function(r) {
+				if (r.ok) location.reload();
+				else document.getElementById('bulk-status').innerHTML = '<span style="color:var(--error)">' + escapeHtml(r.error || 'Ошибка') + '</span>';
+			});
+		});
+
+		// ── Bulk delete ──
+		document.getElementById('btn-delete-selected').addEventListener('click', function() {
+			var ids = [];
+			document.querySelectorAll('.tpl-select:checked').forEach(function(cb) { ids.push(parseInt(cb.value)); });
+			if (ids.length === 0) return;
+			if (!confirm('Удалить ' + ids.length + ' шаблон(ов)?')) return;
+			apiPost({ action: 'bulk_delete', ids: ids }, function(r) {
+				if (r.ok) location.reload();
+				else document.getElementById('bulk-status').innerHTML = '<span style="color:var(--error)">' + escapeHtml(r.error || 'Ошибка') + '</span>';
+			});
+		});
+	}
 
 	var dz = document.getElementById('dropzone');
 	var dzFile = document.getElementById('dropzone-file');
 	var dzProgress = document.getElementById('dropzone-progress');
 	var dzProgressBar = document.getElementById('dropzone-progress-bar');
 	var dzStatus = document.getElementById('dropzone-status');
-	var type = '<?php echo esc_js( $type ); ?>';
-	var isCamp = <?php echo $is_camp ? 'true' : 'false'; ?>;
-	var ajaxUrl = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
-	var nonce = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
 
 	['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(ev) {
 		dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); });
@@ -252,5 +317,48 @@ $has_tm     = file_exists( $tm_file );
 		d.textContent = s;
 		return d.innerHTML;
 	}
+
+	// ── TM import ──
+	var tmFile = document.getElementById('tm-file');
+	var btnTm = document.getElementById('btn-import-tm');
+	var tmStatus = document.getElementById('tm-status');
+	btnTm.addEventListener('click', function() {
+		var file = tmFile.files[0];
+		if (!file) { tmStatus.innerHTML = '<span style="color:var(--error)">Выберите TM-файл</span>'; return; }
+		if (!file.name.match(/\.xlsx$/i)) { tmStatus.innerHTML = '<span style="color:var(--error)">Нужен файл .xlsx</span>'; return; }
+		tmStatus.innerHTML = 'Загрузка…';
+		btnTm.disabled = true;
+		var fd = new FormData();
+		fd.append('action', 'meal_import_tm');
+		fd.append('nonce', nonce);
+		fd.append('type', type);
+		if (isCamp) fd.append('camp', '1');
+		fd.append('tm_xlsx', file);
+		var xhr = new XMLHttpRequest();
+		xhr.onload = function() {
+			btnTm.disabled = false;
+			if (xhr.status !== 200) {
+				tmStatus.innerHTML = '<span style="color:var(--error)">Ошибка сервера</span>';
+				return;
+			}
+			try {
+				var r = JSON.parse(xhr.responseText);
+				if (r.ok) {
+					tmStatus.innerHTML = '<span style="color:var(--success)">Импортировано ' + r.imported + ' шаблон(ов)</span>';
+					setTimeout(function() { location.reload(); }, 1200);
+				} else {
+					tmStatus.innerHTML = '<span style="color:var(--error)">' + escapeHtml(r.error || 'Ошибка') + '</span>';
+				}
+			} catch(e) {
+				tmStatus.innerHTML = '<span style="color:var(--error)">Ошибка ответа</span>';
+			}
+		};
+		xhr.onerror = function() {
+			btnTm.disabled = false;
+			tmStatus.innerHTML = '<span style="color:var(--error)">Сетевая ошибка</span>';
+		};
+		xhr.open('POST', ajaxUrl, true);
+		xhr.send(fd);
+	});
 })();
 </script>

@@ -108,14 +108,7 @@ $layout  = get_option( 'meal_theme_layout', 'classic' );
 					</tr>
 				</thead>
 				<tbody>
-				<?php
-				$prev_section = null;
-				foreach ( $by_meal[ $mtype ] as $it ):
-					if ( $it['section'] && $it['section'] !== $prev_section ):
-						$prev_section = $it['section'];
-				?>
-					<tr class="section-row"><td colspan="7"><?php echo esc_html( $it['section'] ); ?></td></tr>
-				<?php endif; ?>
+				<?php foreach ( $by_meal[ $mtype ] as $it ): ?>
 					<tr>
 						<td><?php echo esc_html( $it['dish_name'] ?? '' ); ?></td>
 						<td class="num"><?php echo $it['grams'] !== null ? number_format( $it['grams'], 1, ',', '' ) : ''; ?></td>
