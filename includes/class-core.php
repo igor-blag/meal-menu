@@ -797,7 +797,56 @@ class Core {
 		}
 
 		try {
-			$items = \Meal_Menu\Importer::parse( $_FILES['xlsx']['tmp_name'] );
+			require_once MEAL_MENU_DIR . 'vendor/autoload.php';
+			$tmp = $_FILES['xlsx']['tmp_name'];
+
+			// Auto-detect TM file: cell A1 contains "Школа"
+			$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load( $tmp );
+			$a1 = trim( (string) $spreadsheet->getActiveSheet()->getCell( 'A1' )->getValue() );
+
+			if ( $a1 === 'Школа' ) {
+				// ── TM import (full cycle) ──
+				$days = \Meal_Menu\Importer_TM::parse( $tmp );
+				if ( empty( $days ) ) {
+					wp_send_json( array( 'ok' => false, 'error' => __( 'В TM-файле нет данных', 'meal-menu' ) ) );
+				}
+
+				$db   = DB::instance();
+				$dept = $db->get_department( $type );
+
+				$existing = $is_camp ? $db->get_camp_templates( $type ) : $db->get_templates( $type );
+				foreach ( $existing as $tpl ) {
+					if ( $is_camp ) {
+						$db->delete_camp_template( (int) $tpl['id'] );
+					} else {
+						$db->delete_template( (int) $tpl['id'] );
+					}
+				}
+
+				$imported = 0;
+				ksort( $days );
+				foreach ( $days as $items ) {
+					$tpl_id = $is_camp ? $db->add_camp_template( $type ) : $db->add_template( $type );
+
+					if ( $is_camp && $dept && ! empty( $dept['camp_is_boarding'] ) ) {
+						$db->set_camp_template_boarding( $tpl_id, 1 );
+					} elseif ( ! $is_camp && $dept && ! empty( $dept['is_boarding'] ) ) {
+						$db->set_template_boarding( $tpl_id, 1 );
+					}
+
+					if ( $is_camp ) {
+						$db->save_camp_template_items( $tpl_id, $items );
+					} else {
+						$db->save_template_items( $tpl_id, $items );
+					}
+					$imported++;
+				}
+
+				wp_send_json( array( 'ok' => true, 'imported' => $imported ) );
+			}
+
+			// ── Regular import (single template) ──
+			$items = \Meal_Menu\Importer::parse( $tmp );
 			if ( empty( $items ) ) {
 				wp_send_json( array( 'ok' => false, 'error' => __( 'В файле нет блюд', 'meal-menu' ) ) );
 			}

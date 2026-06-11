@@ -62,25 +62,13 @@ $has_tm     = file_exists( $tm_file );
 	<div id="dropzone" class="dropzone">
 		<div class="dropzone-inner">
 			<span class="dropzone-icon">&#x21E9;</span>
-			<span class="dropzone-text"><?php _e( 'Перетащите XLSX-файлы меню сюда', 'meal-menu' ); ?></span>
-			<span class="dropzone-hint"><?php _e( 'или нажмите для выбора (можно выбрать несколько файлов)', 'meal-menu' ); ?></span>
+			<span class="dropzone-text"><?php _e( 'Перетащите XLSX-файлы сюда', 'meal-menu' ); ?></span>
+			<span class="dropzone-hint"><?php _e( 'Ежедневное меню (.xlsx) → новый шаблон · TM-файл (.xlsx) → замена всего цикла', 'meal-menu' ); ?></span>
 			<input type="file" id="dropzone-file" multiple accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
 		</div>
 		<div id="dropzone-progress" class="dropzone-progress" style="display:none">
 			<div class="dropzone-progress-bar" id="dropzone-progress-bar"></div>
 			<div id="dropzone-status"></div>
-		</div>
-	</div>
-
-	<div id="tm-import" class="panel" style="margin-bottom:16px">
-		<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-			<span style="font-weight:500;font-size:.88rem"><?php _e( 'Импорт из типового меню (TM-файл)', 'meal-menu' ); ?></span>
-			<span class="text-muted" style="font-size:.78rem"><?php _e( 'Заменяет все шаблоны текущего цикла данными из TM-файла', 'meal-menu' ); ?></span>
-		</div>
-		<div style="display:flex;align-items:center;gap:12px;margin-top:8px">
-			<input type="file" id="tm-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-			<button type="button" class="btn btn-primary btn-sm" id="btn-import-tm"><?php _e( 'Импортировать', 'meal-menu' ); ?></button>
-			<span id="tm-status" class="text-muted" style="font-size:.78rem"></span>
 		</div>
 	</div>
 
@@ -317,48 +305,5 @@ $has_tm     = file_exists( $tm_file );
 		d.textContent = s;
 		return d.innerHTML;
 	}
-
-	// ── TM import ──
-	var tmFile = document.getElementById('tm-file');
-	var btnTm = document.getElementById('btn-import-tm');
-	var tmStatus = document.getElementById('tm-status');
-	btnTm.addEventListener('click', function() {
-		var file = tmFile.files[0];
-		if (!file) { tmStatus.innerHTML = '<span style="color:var(--error)">Выберите TM-файл</span>'; return; }
-		if (!file.name.match(/\.xlsx$/i)) { tmStatus.innerHTML = '<span style="color:var(--error)">Нужен файл .xlsx</span>'; return; }
-		tmStatus.innerHTML = 'Загрузка…';
-		btnTm.disabled = true;
-		var fd = new FormData();
-		fd.append('action', 'meal_import_tm');
-		fd.append('nonce', nonce);
-		fd.append('type', type);
-		if (isCamp) fd.append('camp', '1');
-		fd.append('tm_xlsx', file);
-		var xhr = new XMLHttpRequest();
-		xhr.onload = function() {
-			btnTm.disabled = false;
-			if (xhr.status !== 200) {
-				tmStatus.innerHTML = '<span style="color:var(--error)">Ошибка сервера</span>';
-				return;
-			}
-			try {
-				var r = JSON.parse(xhr.responseText);
-				if (r.ok) {
-					tmStatus.innerHTML = '<span style="color:var(--success)">Импортировано ' + r.imported + ' шаблон(ов)</span>';
-					setTimeout(function() { location.reload(); }, 1200);
-				} else {
-					tmStatus.innerHTML = '<span style="color:var(--error)">' + escapeHtml(r.error || 'Ошибка') + '</span>';
-				}
-			} catch(e) {
-				tmStatus.innerHTML = '<span style="color:var(--error)">Ошибка ответа</span>';
-			}
-		};
-		xhr.onerror = function() {
-			btnTm.disabled = false;
-			tmStatus.innerHTML = '<span style="color:var(--error)">Сетевая ошибка</span>';
-		};
-		xhr.open('POST', ajaxUrl, true);
-		xhr.send(fd);
-	});
 })();
 </script>
