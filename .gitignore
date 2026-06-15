@@ -2,3 +2,5 @@
 # не везде доступен (не хватает ext-zip, ext-gd, ext-fileinfo)
 
 node_modules/
+opencode.json
+AGENTS.md

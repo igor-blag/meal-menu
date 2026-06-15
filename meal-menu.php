@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Мониторинг питания
+ * Plugin Name:       Календарь питания
  * Plugin URI:        https://github.com/igor-blag/web-food
  * Description:       Управление школьным меню: шаблоны циклов, календарь питания, генерация Excel для ФЦМПО, общественный контроль питания.
  * Version:           1.0.0
