@@ -73,8 +73,7 @@ try {
 		$label         = sanitize_text_field( $data['label'] ?? '' );
 		$date_from     = sanitize_text_field( $data['date_from'] ?? '' );
 		$date_to       = sanitize_text_field( $data['date_to'] ?? '' );
-		$actual_date   = ! empty( $data['actual_date'] ) ? sanitize_text_field( $data['actual_date'] ) : null;
-		$id = $db->add_vacation( $academic_year, $label, $date_from, $date_to, $actual_date );
+		$id = $db->add_vacation( $academic_year, $label, $date_from, $date_to );
 		wp_send_json( array( 'ok' => true, 'id' => $id ) );
 
 	} elseif ( $action === 'update_vacation' ) {
@@ -82,8 +81,7 @@ try {
 		$label     = sanitize_text_field( $data['label'] ?? '' );
 		$date_from = sanitize_text_field( $data['date_from'] ?? '' );
 		$date_to   = sanitize_text_field( $data['date_to'] ?? '' );
-		$actual_date   = isset( $data['actual_date'] ) ? sanitize_text_field( $data['actual_date'] ) : null;
-		$db->update_vacation( $id, $label, $date_from, $date_to, $actual_date );
+		$db->update_vacation( $id, $label, $date_from, $date_to );
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'delete_vacation' ) {
@@ -96,6 +94,51 @@ try {
 		$vacations     = $db->get_vacations( $academic_year );
 		wp_send_json( array( 'ok' => true, 'vacations' => $vacations ) );
 
+	} elseif ( $action === 'get_holidays' ) {
+		$holidays = $db->get_holidays();
+		wp_send_json( array( 'ok' => true, 'holidays' => $holidays ) );
+
+	} elseif ( $action === 'add_holiday' ) {
+		$label       = sanitize_text_field( $data['label'] ?? '' );
+		$month_day   = sanitize_text_field( $data['month_day'] ?? '' );
+		$month_day_to = ! empty( $data['month_day_to'] ) ? sanitize_text_field( $data['month_day_to'] ) : null;
+		$id = $db->add_holiday( $label, $month_day, $month_day_to );
+		wp_send_json( array( 'ok' => true, 'id' => $id ) );
+
+	} elseif ( $action === 'delete_holiday' ) {
+		$id = isset( $data['id'] ) ? (int) $data['id'] : 0;
+		$db->delete_holiday( $id );
+		wp_send_json( array( 'ok' => true ) );
+
+	} elseif ( $action === 'fill_default_holidays' ) {
+		global $wpdb;
+		$t = $db->get_table_name( 'holidays' );
+		// Remove old separate new year entries, replace with range
+		$wpdb->query( $wpdb->prepare(
+			"DELETE FROM $t WHERE month_day IN ('01-01','01-02','01-03','01-04','01-05','01-06','01-07','01-08')"
+		) );
+		$defaults = array(
+			array( 'Новогодние каникулы',  '01-01', '01-08' ),
+			array( 'День защитника Отечества',  '02-23' ),
+			array( 'Международный женский день', '03-08' ),
+			array( 'Праздник Весны и Труда',    '05-01' ),
+			array( 'День Победы',               '05-09' ),
+			array( 'День России',               '06-12' ),
+			array( 'День народного единства',   '11-04' ),
+		);
+		$existing = $db->get_holidays();
+		$existing_dates = array();
+		foreach ( $existing as $ex ) {
+			$existing_dates[ $ex['month_day'] ] = true;
+		}
+		foreach ( $defaults as $h ) {
+			if ( ! isset( $existing_dates[ $h[1] ] ) ) {
+				$db->add_holiday( $h[0], $h[1], $h[2] ?? null );
+			}
+		}
+		$holidays = $db->get_holidays();
+		wp_send_json( array( 'ok' => true, 'holidays' => $holidays, 'message' => __( 'Государственные праздники добавлены', 'meal-menu' ) ) );
+
 	} elseif ( $action === 'fill_default_vacations' ) {
 		$academic_year = sanitize_text_field( $data['academic_year'] ?? '' );
 		if ( empty( $academic_year ) ) {
@@ -103,8 +146,12 @@ try {
 		}
 		$parts = explode( '-', $academic_year );
 		$y     = (int) $parts[0];
+		$ny    = $y + 1;
 
-		$ny = $y + 1;
+		$ay_settings = $db->get_academic_year_settings();
+		$summer_start = date_create( "$ny-{$ay_settings['academic_year_end']}" )->modify( '+1 day' )->format( 'Y-m-d' );
+		$summer_end   = date_create( "$ny-{$ay_settings['academic_year_start']}" )->modify( '-1 day' )->format( 'Y-m-d' );
+
 		$defaults = array(
 			array( 'Осенние каникулы',
 				date_create( "last monday of October $y" )->format( 'Y-m-d' ),
@@ -118,34 +165,11 @@ try {
 				date_create( "last monday of March $ny" )->format( 'Y-m-d' ),
 				date_create( "last monday of March $ny +6 days" )->format( 'Y-m-d' ),
 			),
-			array( 'Летние каникулы', "$ny-06-01", "$ny-08-31" ),
+			array( 'Летние каникулы', $summer_start, $summer_end ),
 		);
 
 		foreach ( $defaults as $def ) {
 			$db->add_vacation( $academic_year, $def[0], $def[1], $def[2] );
-		}
-
-		// Праздники с переносом с выходных на понедельник
-		$holidays = array(
-			array( 'День народного единства',   "$y-11-04" ),
-			array( 'День защитника Отечества',  "$ny-02-23" ),
-			array( 'Международный женский день', "$ny-03-08" ),
-			array( 'Праздник Весны и Труда',    "$ny-05-01" ),
-			array( 'День Победы',               "$ny-05-09" ),
-			array( 'День России',               "$ny-06-12" ),
-		);
-		foreach ( $holidays as $h ) {
-			$actual = $h[1];
-			$dt  = date_create( $actual );
-			$dow = (int) $dt->format( 'w' );
-			if ( $dow === 6 ) {       // суббота → понедельник +2
-				$dt->modify( '+2 days' );
-			} elseif ( $dow === 0 ) { // воскресенье → понедельник +1
-				$dt->modify( '+1 days' );
-			}
-			$date = $dt->format( 'Y-m-d' );
-			$actual_date = $date === $actual ? null : $actual;
-			$db->add_vacation( $academic_year, $h[0], $date, $date, $actual_date );
 		}
 
 		$vacations = $db->get_vacations( $academic_year );
@@ -162,7 +186,7 @@ try {
 
 		global $wpdb;
 		$p     = $wpdb->prefix . 'meal_';
-		$parents = array( 'templates', 'users', 'departments', 'kitchen_settings', 'vacations', 'oc_monitoring' );
+		$parents = array( 'templates', 'users', 'departments', 'kitchen_settings', 'holidays', 'vacations', 'oc_monitoring' );
 		$children = array( 'items', 'calendar', 'email_tokens' );
 		$all = array_merge( $children, $parents );
 

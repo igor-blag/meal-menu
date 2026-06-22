@@ -42,6 +42,24 @@ foreach ( $departments as $d ) {
 		</div>
 	</div>
 
+	<!-- Праздники -->
+	<div class="panel">
+		<div class="panel-title"><?php _e( 'Праздники', 'meal-menu' ); ?></div>
+		<p class="text-muted mb-2"><?php _e( 'Праздники задаются без года и применяются ежегодно. Если дата выпадает на субботу или воскресенье, выходной переносится на понедельник.', 'meal-menu' ); ?></p>
+
+		<table class="vac-table" style="max-width:550px">
+			<thead>
+				<tr><th style="width:40%"><?php _e( 'Название', 'meal-menu' ); ?></th><th style="width:40%" colspan="2"><?php _e( 'Дата (ДД.ММ)', 'meal-menu' ); ?></th><th style="width:20%"></th></tr>
+			</thead>
+			<tbody id="holiday-body-admin"></tbody>
+		</table>
+
+		<div class="vac-actions" style="margin-top:8px">
+			<button type="button" class="btn btn-outline btn-sm" id="btn-add-holiday-admin">+ <?php _e( 'Добавить праздник', 'meal-menu' ); ?></button>
+			<button type="button" class="btn btn-outline btn-sm" id="btn-fill-holidays"><?php _e( 'Добавить государственные праздники РФ', 'meal-menu' ); ?></button>
+		</div>
+	</div>
+
 	<!-- Отделения -->
 	<div class="panel">
 		<div class="panel-title"><?php _e( 'Отделения', 'meal-menu' ); ?></div>
@@ -268,18 +286,9 @@ foreach ( $departments as $d ) {
 			<tbody id="vac-body"></tbody>
 		</table>
 
-		<h2 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--wp-muted);margin:16px 0 8px"><?php _e( 'Праздники', 'meal-menu' ); ?></h2>
-		<table class="vac-table">
-			<thead>
-				<tr><th style="width:35%"><?php _e( 'Название', 'meal-menu' ); ?></th><th style="width:25%"><?php _e( 'Дата', 'meal-menu' ); ?></th><th style="width:25%"></th><th style="width:15%"></th></tr>
-			</thead>
-			<tbody id="holiday-body"></tbody>
-		</table>
-
 		<div class="vac-actions">
 			<button type="button" class="btn btn-outline btn-sm" id="btn-add-vac">+ <?php _e( 'Добавить каникулы', 'meal-menu' ); ?></button>
-			<button type="button" class="btn btn-outline btn-sm" id="btn-add-holiday">+ <?php _e( 'Добавить праздник', 'meal-menu' ); ?></button>
-			<button type="button" class="btn btn-outline btn-sm" id="btn-fill-default"><?php _e( 'Типовые каникулы и праздники РФ', 'meal-menu' ); ?></button>
+			<button type="button" class="btn btn-outline btn-sm" id="btn-fill-default-vac"><?php _e( 'Типовые каникулы', 'meal-menu' ); ?></button>
 		</div>
 	</div>
 
@@ -682,7 +691,7 @@ foreach ( $departments as $d ) {
 
 	var vacYear = document.getElementById('vac-year');
 	var vacBody = document.getElementById('vac-body');
-	var holidayBody = document.getElementById('holiday-body');
+	var holidayBody = document.getElementById('holiday-body-admin');
 
 	function mmddToDdmm(v) {
 		if (!v || v.indexOf('-') < 0) return v;
@@ -697,6 +706,8 @@ foreach ( $departments as $d ) {
 
 	document.getElementById('ay-start').value = mmddToDdmm(<?php echo json_encode( $ay_settings['academic_year_start'] ); ?>);
 	document.getElementById('ay-end').value = mmddToDdmm(<?php echo json_encode( $ay_settings['academic_year_end'] ); ?>);
+
+	// ─── Каникулы ───────────────────────────────────────────
 
 	(function() {
 		var now = new Date();
@@ -722,85 +733,75 @@ foreach ( $departments as $d ) {
 		});
 	}
 
+	function ymdToDmy(v) {
+		if (!v || v.indexOf('-') < 0) return v;
+		var p = v.split('-');
+		return p[2] + '.' + p[1] + '.' + p[0];
+	}
+	function dmyToYmd(v) {
+		if (!v || v.indexOf('.') < 0) return v;
+		var p = v.split('.');
+		return p[2] + '-' + p[1] + '-' + p[0];
+	}
+
 	function renderVacationRow(v) {
 		var tr = document.createElement('tr');
 		tr.dataset.id = v.id;
 		tr.innerHTML =
 			'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '"></td>' +
-			'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
-			'<td><input type="date" class="vac-to" value="' + v.date_to + '"></td>' +
-			'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +
-			'<button class="btn btn-outline btn-sm vac-save-btn" style="margin-left:4px;padding:2px 8px;font-size:.78rem">OK</button></td>';
+			'<td><input type="text" class="vac-from" value="' + ymdToDmy(v.date_from) + '" placeholder="ДД.ММ.ГГГГ" style="width:100px"></td>' +
+			'<td><input type="text" class="vac-to" value="' + ymdToDmy(v.date_to) + '" placeholder="ДД.ММ.ГГГГ" style="width:100px"></td>' +
+			'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button></td>';
 		return tr;
 	}
 
-	function renderHolidayRow(v) {
-		var tr = document.createElement('tr');
-		tr.dataset.id = v.id;
-		tr.style.background = '#fff8e1';
-		tr.innerHTML =
-			'<td><input type="text" class="vac-label" value="' + escHtml(v.label) + '"></td>' +
-			'<td><input type="date" class="vac-from" value="' + v.date_from + '"></td>' +
-			'<td></td>' +
-			'<td style="text-align:right"><button class="btn-del-vac" title="Удалить">&times;</button>' +
-			'<button class="btn btn-outline btn-sm vac-save-btn" style="margin-left:4px;padding:2px 8px;font-size:.78rem">OK</button></td>';
-		return tr;
+	function saveVacationRow(tr) {
+		var id = parseInt(tr.dataset.id);
+		apiPost({
+			action: 'update_vacation',
+			id: id,
+			label: tr.querySelector('.vac-label').value,
+			date_from: dmyToYmd(tr.querySelector('.vac-from').value),
+			date_to: dmyToYmd(tr.querySelector('.vac-to').value)
+		}, function(r) {
+			if (!r.ok) showMsg(r.error || 'Ошибка', true);
+		});
 	}
 
 	function renderVacations(list) {
 		vacBody.innerHTML = '';
-		holidayBody.innerHTML = '';
-		var vacations = [];
-		var holidays = [];
-		(list || []).forEach(function(v) {
-			if (v.date_from === v.date_to) {
-				holidays.push(v);
-			} else {
-				vacations.push(v);
-			}
-		});
-		if (vacations.length === 0) {
+		if (!list || list.length === 0) {
 			vacBody.innerHTML = '<tr><td colspan="4" style="color:var(--wp-muted);text-align:center;padding:16px">Каникулы не заданы</td></tr>';
 		} else {
-			vacations.forEach(function(v) { vacBody.appendChild(renderVacationRow(v)); });
-		}
-		if (holidays.length === 0) {
-			holidayBody.innerHTML = '<tr><td colspan="4" style="color:var(--wp-muted);text-align:center;padding:16px">Праздники не заданы</td></tr>';
-		} else {
-			holidays.forEach(function(v) { holidayBody.appendChild(renderHolidayRow(v)); });
+			list.forEach(function(v) { vacBody.appendChild(renderVacationRow(v)); });
 		}
 	}
 
-	function registerVacClick(tbody) {
-		tbody.addEventListener('click', function(e) {
-			var btn = e.target;
-			var tr = btn.closest('tr');
-			if (!tr) return;
-			var id = parseInt(tr.dataset.id);
-			if (btn.classList.contains('btn-del-vac')) {
-				showConfirm('Удалить запись?', function() {
-					apiPost({action: 'delete_vacation', id: id}, function(r) {
-						if (r.ok) loadVacations();
-						else showMsg(r.error || 'Ошибка', true);
-					});
-				});
-			}
-			if (btn.classList.contains('vac-save-btn')) {
-				apiPost({
-					action: 'update_vacation',
-					id: id,
-					label: tr.querySelector('.vac-label').value,
-					date_from: tr.querySelector('.vac-from').value,
-					date_to: tr.querySelector('.vac-to').value
-				}, function(r) {
-					if (r.ok) showMsg('Сохранено', false);
-					else showMsg(r.error || 'Ошибка', true);
-				});
-			}
+	vacBody.addEventListener('click', function(e) {
+		var btn = e.target;
+		var tr = btn.closest('tr');
+		if (!tr || !btn.classList.contains('btn-del-vac')) return;
+		var id = parseInt(tr.dataset.id);
+		if (btn.dataset.confirm !== '1') {
+			btn.dataset.confirm = '1';
+			btn.textContent = 'Удалить';
+			btn.style.color = '#c00';
+			setTimeout(function() { delete btn.dataset.confirm; btn.textContent = '\u00d7'; btn.style.color = ''; }, 3000);
+			return;
+		}
+		apiPost({action: 'delete_vacation', id: id}, function(r) {
+			if (r.ok) loadVacations();
+			else showMsg(r.error || 'Ошибка', true);
 		});
-	}
-	registerVacClick(vacBody);
-	registerVacClick(holidayBody);
+	});
+
+	vacBody.addEventListener('blur', function(e) {
+		var inp = e.target;
+		if (!inp.classList.contains('vac-label') && !inp.classList.contains('vac-from') && !inp.classList.contains('vac-to')) return;
+		var tr = inp.closest('tr');
+		if (!tr) return;
+		saveVacationRow(tr);
+	}, true);
 
 	document.getElementById('btn-add-vac').addEventListener('click', function() {
 		var label = prompt('Название каникул:', 'Каникулы');
@@ -818,30 +819,102 @@ foreach ( $departments as $d ) {
 		});
 	});
 
-	document.getElementById('btn-add-holiday').addEventListener('click', function() {
-		var label = prompt('Название праздника:', 'Праздник');
-		if (!label) return;
-		var parts = vacYear.value.split('-');
-		apiPost({
-			action: 'add_vacation',
-			academic_year: vacYear.value,
-			label: label,
-			date_from: parts[0] + '-01-01',
-			date_to: parts[0] + '-01-01'
-		}, function(r) {
-			if (r.ok) loadVacations();
-			else showMsg(r.error || 'Ошибка', true);
-		});
-	});
-
-	document.getElementById('btn-fill-default').addEventListener('click', function() {
-		showConfirm('Добавить типовые каникулы и праздники для ' + vacYear.value + '? (Существующие не удаляются)', function() {
+	document.getElementById('btn-fill-default-vac').addEventListener('click', function() {
+		showConfirm('Добавить типовые каникулы для ' + vacYear.value + '? (Существующие не удаляются)', function() {
 			apiPost({action: 'fill_default_vacations', academic_year: vacYear.value}, function(r) {
-				if (r.ok) { renderVacations(r.vacations); showMsg('Типовые каникулы и праздники добавлены', false); }
+				if (r.ok) { renderVacations(r.vacations); showMsg('Типовые каникулы добавлены', false); }
 				else { showMsg(r.error || 'Ошибка', true); }
 			});
 		});
 	});
+
+	// ─── Праздники ──────────────────────────────────────────
+
+	function loadHolidays() {
+		apiPost({action: 'get_holidays'}, function(r) {
+			if (!r.ok) return;
+			renderHolidays(r.holidays);
+		});
+	}
+
+	function renderHolidayRow(h) {
+		var tr = document.createElement('tr');
+		tr.dataset.id = h.id;
+		tr.style.background = '#fff8e1';
+		if (h.month_day_to) {
+			tr.innerHTML =
+				'<td><input type="text" class="hol-label" value="' + escHtml(h.label) + '"></td>' +
+				'<td><input type="text" class="hol-from" value="' + mmddToDdmm(h.month_day) + '" placeholder="ДД.ММ" style="width:70px"></td>' +
+				'<td><input type="text" class="hol-to" value="' + mmddToDdmm(h.month_day_to) + '" placeholder="ДД.ММ" style="width:70px"></td>' +
+				'<td style="text-align:right"><button class="btn-del-holiday" title="Удалить">&times;</button></td>';
+		} else {
+			tr.innerHTML =
+				'<td><input type="text" class="hol-label" value="' + escHtml(h.label) + '"></td>' +
+				'<td colspan="2"><input type="text" class="hol-from" value="' + mmddToDdmm(h.month_day) + '" placeholder="ДД.ММ" style="width:90px"></td>' +
+				'<td style="text-align:right"><button class="btn-del-holiday" title="Удалить">&times;</button></td>';
+		}
+		return tr;
+	}
+
+	function renderHolidays(list) {
+		holidayBody.innerHTML = '';
+		if (!list || list.length === 0) {
+			holidayBody.innerHTML = '<tr><td colspan="4" style="color:var(--wp-muted);text-align:center;padding:16px">Праздники не заданы</td></tr>';
+		} else {
+			list.forEach(function(h) { holidayBody.appendChild(renderHolidayRow(h)); });
+		}
+	}
+
+	holidayBody.addEventListener('click', function(e) {
+		var btn = e.target;
+		if (!btn.classList.contains('btn-del-holiday')) return;
+		var tr = btn.closest('tr');
+		if (!tr) return;
+		var id = parseInt(tr.dataset.id);
+		if (btn.dataset.confirm !== '1') {
+			btn.dataset.confirm = '1';
+			btn.textContent = 'Удалить';
+			btn.style.color = '#c00';
+			setTimeout(function() { delete btn.dataset.confirm; btn.textContent = '\u00d7'; btn.style.color = ''; }, 3000);
+			return;
+		}
+		apiPost({action: 'delete_holiday', id: id}, function(r) {
+			if (r.ok) loadHolidays();
+			else showMsg(r.error || 'Ошибка', true);
+		});
+	});
+
+	document.getElementById('btn-add-holiday-admin').addEventListener('click', function() {
+		var label = prompt('Название праздника:', 'Праздник');
+		if (!label) return;
+		var fromStr = prompt('Дата начала (ДД.ММ):', '01.01');
+		if (!fromStr) return;
+		var toStr = prompt('Дата окончания (ДД.ММ, оставьте пустым для одного дня):', '');
+		var monthDay = ddmmToMmdd(fromStr);
+		if (!monthDay || monthDay.indexOf('-') < 0) { showMsg('Неверный формат даты', true); return; }
+		var monthDayTo = toStr ? ddmmToMmdd(toStr) : null;
+		if (monthDayTo && (monthDayTo.indexOf('-') < 0)) { showMsg('Неверный формат даты окончания', true); return; }
+		apiPost({
+			action: 'add_holiday',
+			label: label,
+			month_day: monthDay,
+			month_day_to: monthDayTo
+		}, function(r) {
+			if (r.ok) loadHolidays();
+			else showMsg(r.error || 'Ошибка', true);
+		});
+	});
+
+	document.getElementById('btn-fill-holidays').addEventListener('click', function() {
+		showConfirm('Добавить государственные праздники РФ?', function() {
+			apiPost({action: 'fill_default_holidays'}, function(r) {
+				if (r.ok) { renderHolidays(r.holidays); showMsg('Государственные праздники добавлены', false); }
+				else { showMsg(r.error || 'Ошибка', true); }
+			});
+		});
+	});
+
+	loadHolidays();
 
 	function escHtml(s) { return $('<div>').text(s).html(); }
 })(jQuery);

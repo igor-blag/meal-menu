@@ -170,13 +170,21 @@ class Activator {
 			UNIQUE KEY code (code)
 		)";
 
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}holidays (
+			id int(10) unsigned NOT NULL auto_increment,
+			label varchar(100) NOT NULL,
+			month_day varchar(5) NOT NULL,
+			month_day_to varchar(5) default NULL,
+			created_at timestamp NOT NULL default CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id)
+		)";
+
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}vacations (
 			id int(10) unsigned NOT NULL auto_increment,
 			academic_year varchar(9) NOT NULL,
 			label varchar(100) NOT NULL,
 			date_from date NOT NULL,
 			date_to date NOT NULL,
-			actual_date date NULL default NULL,
 			created_at timestamp NOT NULL default CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			KEY idx_year (academic_year),

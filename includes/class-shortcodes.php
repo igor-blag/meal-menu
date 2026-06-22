@@ -175,6 +175,7 @@ class Shortcodes {
 		if ( $dept && ! empty( $dept['ignore_vacations'] ) ) {
 			$vacation_days = array();
 		}
+		$holidays = $db->get_effective_holidays( $month_from, $month_to );
 
 		$month_names = array( 1=>'Январь',2=>'Февраль',3=>'Март',4=>'Апрель',5=>'Май',6=>'Июнь',7=>'Июль',8=>'Август',9=>'Сентябрь',10=>'Октябрь',11=>'Ноябрь',12=>'Декабрь' );
 
@@ -227,8 +228,8 @@ class Shortcodes {
 				$is_holiday = $entry && $entry['template_id'] === null;
 
 				$vac_day = $vacation_days[ $date_str ] ?? null;
-				$is_vacation = $vac_day && empty( $vac_day['is_holiday'] );
-				$is_holiday_entry = $vac_day && ! empty( $vac_day['is_holiday'] );
+				$is_vacation = (bool) $vac_day;
+				$is_holiday_entry = isset( $holidays[ $date_str ] );
 
 				$classes = array( 'meal-cal-cell' );
 				if ( $is_vacation ) $classes[] = 'vacation';

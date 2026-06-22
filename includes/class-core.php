@@ -167,8 +167,18 @@ class Core {
 		if ( ! $table_exists( $p . 'templates' ) ) {
 			Activator::activate();
 		}
-		if ( $table_exists( $p . 'vacations' ) && ! $has_column( $p . 'vacations', 'actual_date' ) ) {
-			$wpdb->query( "ALTER TABLE {$p}vacations ADD COLUMN actual_date date NULL default NULL" );
+		if ( ! $table_exists( $p . 'holidays' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS {$p}holidays (
+				id int(10) unsigned NOT NULL auto_increment,
+				label varchar(100) NOT NULL,
+				month_day varchar(5) NOT NULL,
+				month_day_to varchar(5) default NULL,
+				created_at timestamp NOT NULL default CURRENT_TIMESTAMP,
+				PRIMARY KEY  (id)
+			)" );
+		}
+		if ( $table_exists( $p . 'holidays' ) && ! $has_column( $p . 'holidays', 'month_day_to' ) ) {
+			$wpdb->query( "ALTER TABLE {$p}holidays ADD COLUMN month_day_to varchar(5) default NULL" );
 		}
 		if ( $table_exists( $p . 'calendar' ) && ! $has_column( $p . 'calendar', 'iterate_number' ) ) {
 			$wpdb->query( "ALTER TABLE {$p}calendar ADD COLUMN iterate_number integer NOT NULL DEFAULT 0" );

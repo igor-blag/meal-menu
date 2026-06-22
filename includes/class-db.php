@@ -35,6 +35,7 @@ class DB {
 			"{$p}email_tokens",
 			"{$p}users",
 			"{$p}oc_monitoring",
+			"{$p}holidays",
 			"{$p}vacations",
 			"{$p}departments",
 			"{$p}kitchen_settings",
@@ -633,40 +634,65 @@ class DB {
 		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
 	}
 
-	public function add_vacation( string $academic_year, string $label, string $date_from, string $date_to, ?string $actual_date = null ): int {
+	public function add_vacation( string $academic_year, string $label, string $date_from, string $date_to ): int {
 		$t = $this->t( 'vacations' );
-		$data = array(
-			'academic_year' => $academic_year,
-			'label'         => $label,
-			'date_from'     => $date_from,
-			'date_to'       => $date_to,
+		$this->wpdb->insert(
+			$t,
+			array(
+				'academic_year' => $academic_year,
+				'label'         => $label,
+				'date_from'     => $date_from,
+				'date_to'       => $date_to,
+			),
+			array( '%s', '%s', '%s', '%s' )
 		);
-		$fmts = array( '%s', '%s', '%s', '%s' );
-		if ( $actual_date !== null ) {
-			$data['actual_date'] = $actual_date;
+		return $this->wpdb->insert_id;
+	}
+
+	public function update_vacation( int $id, string $label, string $date_from, string $date_to ): void {
+		$t = $this->t( 'vacations' );
+		$this->wpdb->update(
+			$t,
+			array(
+				'label'     => $label,
+				'date_from' => $date_from,
+				'date_to'   => $date_to,
+			),
+			array( 'id' => $id ),
+			array( '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+	}
+
+	public function delete_vacation( int $id ): void {
+		$t   = $this->t( 'vacations' );
+		$sql = $this->wpdb->prepare( "DELETE FROM $t WHERE id = %d", $id );
+		$this->wpdb->query( $sql );
+	}
+
+	public function get_holidays(): array {
+		$t   = $this->t( 'holidays' );
+		$sql = "SELECT * FROM $t ORDER BY month_day";
+		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+	}
+
+	public function add_holiday( string $label, string $month_day, ?string $month_day_to = null ): int {
+		$t = $this->t( 'holidays' );
+		$data = array(
+			'label'     => $label,
+			'month_day' => $month_day,
+		);
+		$fmts = array( '%s', '%s' );
+		if ( $month_day_to !== null ) {
+			$data['month_day_to'] = $month_day_to;
 			$fmts[] = '%s';
 		}
 		$this->wpdb->insert( $t, $data, $fmts );
 		return $this->wpdb->insert_id;
 	}
 
-	public function update_vacation( int $id, string $label, string $date_from, string $date_to, ?string $actual_date = null ): void {
-		$t = $this->t( 'vacations' );
-		$data = array(
-			'label'     => $label,
-			'date_from' => $date_from,
-			'date_to'   => $date_to,
-		);
-		$fmts = array( '%s', '%s', '%s' );
-		if ( $actual_date !== null ) {
-			$data['actual_date'] = $actual_date;
-			$fmts[] = '%s';
-		}
-		$this->wpdb->update( $t, $data, array( 'id' => $id ), $fmts, array( '%d' ) );
-	}
-
-	public function delete_vacation( int $id ): void {
-		$t   = $this->t( 'vacations' );
+	public function delete_holiday( int $id ): void {
+		$t   = $this->t( 'holidays' );
 		$sql = $this->wpdb->prepare( "DELETE FROM $t WHERE id = %d", $id );
 		$this->wpdb->query( $sql );
 	}
@@ -789,20 +815,50 @@ class DB {
 
 		$days = array();
 		foreach ( $vacations as $vac ) {
-			$is_holiday = $vac['date_from'] === $vac['date_to'];
-			$actual_date = ! empty( $vac['actual_date'] ) ? $vac['actual_date'] : ( $is_holiday ? $vac['date_from'] : null );
 			$cur = new \DateTime( max( $vac['date_from'], $from ) );
 			$end = new \DateTime( min( $vac['date_to'], $to ) );
 			while ( $cur <= $end ) {
-				$days[ $cur->format( 'Y-m-d' ) ] = array(
-					'label'       => $vac['label'],
-					'is_holiday'  => $is_holiday,
-					'actual_date' => $actual_date,
-				);
+				$days[ $cur->format( 'Y-m-d' ) ] = array( 'label' => $vac['label'] );
 				$cur->modify( '+1 day' );
 			}
 		}
 		return $days;
+	}
+
+	public function get_effective_holidays( string $range_from, string $range_to ): array {
+		$all   = $this->get_holidays();
+		$year  = (int) substr( $range_from, 0, 4 );
+		$result = array();
+		foreach ( $all as $h ) {
+			if ( ! empty( $h['month_day_to'] ) ) {
+				$cur = new \DateTime( sprintf( '%04d-%s', $year, $h['month_day'] ) );
+				$end = new \DateTime( sprintf( '%04d-%s', $year, $h['month_day_to'] ) );
+				while ( $cur <= $end ) {
+					$d = $cur->format( 'Y-m-d' );
+					if ( $d >= $range_from && $d <= $range_to ) {
+						$result[ $d ] = array( 'label' => $h['label'], 'original' => $d );
+					}
+					$cur->modify( '+1 day' );
+				}
+			} else {
+				$dt       = new \DateTime( sprintf( '%04d-%s', $year, $h['month_day'] ) );
+				$original = $dt->format( 'Y-m-d' );
+				$dow      = (int) $dt->format( 'w' );
+				if ( $dow === 6 ) {
+					$dt->modify( '+2 days' );
+				} elseif ( $dow === 0 ) {
+					$dt->modify( '+1 days' );
+				}
+				$effective = $dt->format( 'Y-m-d' );
+				if ( $effective >= $range_from && $effective <= $range_to ) {
+					$result[ $effective ] = array(
+						'label'    => $h['label'],
+						'original' => $original,
+					);
+				}
+			}
+		}
+		return $result;
 	}
 
 	public function get_oc_monitoring(): array {

@@ -85,9 +85,12 @@ $prev_last_day     = (int) $prev_dt->format( 't' );
 $prev_from         = sprintf( '%04d-%02d-%02d', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $prev_last_day - 6 );
 $prev_to           = sprintf( '%04d-%02d-%02d', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $prev_last_day );
 $prev_vacations    = $is_camp ? array() : $db->get_vacation_days_for_range( $prev_from, $prev_to );
+$prev_holidays     = $is_camp ? array() : $db->get_effective_holidays( $prev_from, $prev_to );
 
 $next_from         = sprintf( '%04d-%02d-01', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ) );
-$next_vacations    = $is_camp ? array() : $db->get_vacation_days_for_range( $next_from, sprintf( '%04d-%02d-07', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ) ) );
+$next_to           = sprintf( '%04d-%02d-07', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ) );
+$next_vacations    = $is_camp ? array() : $db->get_vacation_days_for_range( $next_from, $next_to );
+$next_holidays     = $is_camp ? array() : $db->get_effective_holidays( $next_from, $next_to );
 
 $today_str  = $today->format( 'Y-m-d' );
 $month_ru   = array( '', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -235,22 +238,23 @@ $vacation_days    = $db->get_vacation_days_for_range( $month_from, $month_to );
 if ( $cur_dept_for_vac && ! empty( $cur_dept_for_vac['ignore_vacations'] ) ) {
 	$vacation_days = array();
 }
+$holidays = $db->get_effective_holidays( $month_from, $month_to );
 if ( $is_camp && $camp_start && $camp_end ) {
 	$filtered = array();
-	foreach ( $vacation_days as $d => $info ) {
-		if ( ! empty( $info['is_holiday'] ) && $d >= $camp_start && $d <= $camp_end ) {
+	foreach ( $holidays as $d => $info ) {
+		if ( $d >= $camp_start && $d <= $camp_end ) {
 			$filtered[ $d ] = $info;
 		}
 	}
-	$vacation_days = $filtered;
+	$holidays = $filtered;
 }
 
 $cur_period       = $is_camp ? array() : $db->get_current_period( $data_type, $today_str );
 
 $actual_dates = array();
-foreach ( $vacation_days as $d => $info ) {
-	if ( ! empty( $info['actual_date'] ) ) {
-		$actual_dates[ $info['actual_date'] ] = $info['label'];
+foreach ( $holidays as $d => $info ) {
+	if ( $info['original'] !== $d ) {
+		$actual_dates[ $info['original'] ] = $info['label'];
 	}
 }
 
@@ -347,7 +351,7 @@ if ( $gen_notice ) {
 					$prev_date_str   = sprintf( '%04d-%02d-%02d', (int) $prev_dt->format( 'Y' ), (int) $prev_dt->format( 'n' ), $prev_d );
 					$prev_entry      = $prev_cal_data[ $prev_date_str ] ?? null;
 					$prev_is_vac     = isset( $prev_vacations[ $prev_date_str ] );
-					$prev_is_holiday = $prev_is_vac && $prev_vacations[ $prev_date_str ]['is_holiday'];
+					$prev_is_holiday = isset( $prev_holidays[ $prev_date_str ] );
 					$prev_has_file   = ! $is_camp && isset( $existing_files[ $prev_date_str ] );
 					$prev_entry_json = $prev_entry ? json_encode( array(
 						'template_id'    => $prev_entry['template_id'],
@@ -388,8 +392,8 @@ if ( $gen_notice ) {
 
 					$is_vacation = isset( $vacation_days[ $date_str ] );
 					$vac_label   = $is_vacation ? $vacation_days[ $date_str ]['label'] : '';
-					$is_holiday  = $is_vacation && $vacation_days[ $date_str ]['is_holiday'];
-					$actual_date = $is_vacation && ! empty( $vacation_days[ $date_str ]['actual_date'] ) ? $vacation_days[ $date_str ]['actual_date'] : null;
+					$is_holiday  = isset( $holidays[ $date_str ] );
+					$actual_date = null;
 
 					$is_user_workday = $entry && $entry['template_id'] === null && ! empty( $entry['iterate_number'] );
 					$cls = 'cal-cell';
@@ -474,7 +478,7 @@ if ( $gen_notice ) {
 				$next_date_str   = sprintf( '%04d-%02d-%02d', (int) $next_dt->format( 'Y' ), (int) $next_dt->format( 'n' ), $next_d );
 				$next_entry      = $next_cal_data[ $next_date_str ] ?? null;
 				$next_is_vac     = isset( $next_vacations[ $next_date_str ] );
-				$next_is_holiday = $next_is_vac && $next_vacations[ $next_date_str ]['is_holiday'];
+				$next_is_holiday = isset( $next_holidays[ $next_date_str ] );
 				$next_has_file   = ! $is_camp && isset( $existing_files[ $next_date_str ] );
 			?>
 				<div class="cal-cell cal-ghost" data-date="<?php echo $next_date_str; ?>">
@@ -595,7 +599,7 @@ if ( $gen_notice ) {
 	var publishXlsx  = <?php echo $is_camp ? ( ! empty( $camp_dept['camp_publish_xlsx'] ) ? 'true' : 'false' ) : ( ! empty( $cur_dept_for_wd['publish_xlsx'] ) ? 'true' : 'false' ); ?>;
 	var sourceDepts  = <?php echo $sources_json; ?>;
 	var vacationDays = <?php echo json_encode( array_keys( $vacation_days ) ); ?>;
-	var holidayDates = <?php echo json_encode( array_keys( array_filter( $vacation_days, function( $v ) { return $v['is_holiday']; } ) ) ); ?>;
+	var holidayDates = <?php echo json_encode( array_keys( $holidays ) ); ?>;
 	var ajaxUrl      = '<?php echo admin_url( 'admin-ajax.php' ); ?>';
 	var nonce        = '<?php echo wp_create_nonce( 'meal_menu_nonce' ); ?>';
 

@@ -22,7 +22,7 @@
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">2</div>
 		<div>
 			<strong><?php _e( 'Настройки пищеблока', 'meal-menu' ); ?></strong>
-			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Настройте отделения, рабочие дни, учебный год и каникулы (для школы). Для детсада эти разделы скрыты.', 'meal-menu' ); ?></p>
+			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Настройте отделения, рабочие дни, <strong>праздники</strong> (ежегодные, без года), учебный год и каникулы (для школы). Для детсада разделы каникул и утверждающего лица скрыты.', 'meal-menu' ); ?></p>
 			<p style="margin:4px 0 0;line-height:1.5;font-size:.85rem;color:var(--wp-muted)"><?php _e( 'Если у нескольких отделений одинаковая длина цикла — выберите «Объединить календарь с [отделение]».', 'meal-menu' ); ?></p>
 		</div>
 	</div>

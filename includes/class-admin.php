@@ -295,7 +295,7 @@ class Admin {
 
 		global $wpdb;
 		$p     = $wpdb->prefix . 'meal_';
-		$tables = array( 'templates', 'items', 'calendar', 'camp_templates', 'camp_items', 'camp_calendar', 'kitchen_settings', 'departments', 'vacations', 'oc_monitoring', 'users', 'email_tokens' );
+		$tables = array( 'templates', 'items', 'calendar', 'camp_templates', 'camp_items', 'camp_calendar', 'kitchen_settings', 'departments', 'holidays', 'vacations', 'oc_monitoring', 'users', 'email_tokens' );
 
 		$data = array();
 		foreach ( $tables as $table ) {
