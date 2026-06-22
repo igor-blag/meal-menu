@@ -1,10 +1,11 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; $db = \Meal_Menu\DB::instance(); $org_name = $db->get_org_name(); ?>
+<?php if ( ! defined( 'ABSPATH' ) ) exit; $db = \Meal_Menu\DB::instance(); $org_name = $db->get_org_name(); $inst_type = $db->get_institution_type(); ?>
 <div class="wrap meal-menu-wrap">
 	<h1 class="page-title"><?php _e( 'Справка', 'meal-menu' ); ?></h1>
 
 	<div style="margin-bottom:36px;background:var(--wp-blue-pale,#f0f6fc);border-left:4px solid var(--wp-blue);padding:16px 20px;line-height:1.6">
-		<p style="margin:0"><?php _e( 'Плагин «Меню питания» разработан специально для мониторинга питания <strong>ФЦМПО</strong> (Федеральный центр мониторинга питания обучающихся).', 'meal-menu' ); ?></p>
-		<p style="margin:8px 0 0"><?php _e( 'Основная польза — автоматизированная публикация всех необходимых для мониторинга файлов <strong>.xlsx</strong> (ежедневное меню, типовое меню, годовой план-график). Дополнительно плагин красиво выводит содержимое меню для посетителей сайта.', 'meal-menu' ); ?></p>
+		<p style="margin:0"><?php _e( 'Плагин «Меню питания» поддерживает работу как со <strong>школами</strong>, так и с <strong>детскими садами</strong>.', 'meal-menu' ); ?></p>
+		<p style="margin:8px 0 0"><?php _e( 'Для школ: автоматизированная публикация файлов <strong>.xlsx</strong> для мониторинга ФЦМПО (ежедневное меню, типовое меню, годовой план-график), каникулы, общественный контроль питания.', 'meal-menu' ); ?></p>
+		<p style="margin:8px 0 0"><?php _e( 'Для детских садов: только отображение меню на сайте, без Excel-файлов, каникул и ОК. Два типовых отделения — ясли и основная группа.', 'meal-menu' ); ?></p>
 	</div>
 
 	<h2 style="font-size:1rem;text-transform:uppercase;letter-spacing:.08em;border-left:4px solid var(--wp-blue);padding-left:12px;margin-bottom:16px"><?php _e( 'Если плагин только что установлен', 'meal-menu' ); ?></h2>
@@ -12,25 +13,25 @@
 	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">1</div>
 		<div>
-			<strong><?php _e( 'Настройки пищеблока', 'meal-menu' ); ?></strong>
-			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Заполните информацию о пищеблоке и данные о графике работы: выходные дни, каникулы, учебный год. Для каждого отделения можно задать длину цикла и включить/отключить публикацию xlsx-файлов.', 'meal-menu' ); ?></p>
-			<p style="margin:4px 0 0;line-height:1.5;font-size:.85rem;color:var(--wp-muted)"><?php _e( 'Если у нескольких отделений одинаковая длина цикла и одинаковое меню — выберите в настройках «Объединить календарь с [отделение]». Тогда на странице календаря будет одна вкладка с общими данными, а xlsx-файлы будут генерироваться для каждого отделения со своим постфиксом.', 'meal-menu' ); ?></p>
+			<strong><?php _e( 'Выберите тип учреждения', 'meal-menu' ); ?></strong>
+			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Перейдите в <strong>Питание → Настройки пищеблока</strong> и выберите «Школа» или «Детский сад». Типовые отделения создадутся автоматически.', 'meal-menu' ); ?></p>
 		</div>
 	</div>
 
 	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">2</div>
 		<div>
-			<strong><?php _e( 'Настройки плагина', 'meal-menu' ); ?></strong>
-			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Укажите папку, в которую будут публиковаться файлы .xlsx для мониторинга.', 'meal-menu' ); ?></p>
+			<strong><?php _e( 'Настройки пищеблока', 'meal-menu' ); ?></strong>
+			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Настройте отделения, рабочие дни, учебный год и каникулы (для школы). Для детсада эти разделы скрыты.', 'meal-menu' ); ?></p>
+			<p style="margin:4px 0 0;line-height:1.5;font-size:.85rem;color:var(--wp-muted)"><?php _e( 'Если у нескольких отделений одинаковая длина цикла — выберите «Объединить календарь с [отделение]».', 'meal-menu' ); ?></p>
 		</div>
 	</div>
 
 	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">3</div>
 		<div>
-			<strong><?php _e( 'Общественный контроль', 'meal-menu' ); ?></strong>
-			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Заполните разделы общественного контроля питания (ФИС ФРДО): приказ о комиссии, формы обратной связи, анкетирование, акты проверок и т.д.', 'meal-menu' ); ?></p>
+			<strong><?php _e( 'Настройки плагина / ОК Питания', 'meal-menu' ); ?></strong>
+			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Укажите папку публикации .xlsx, настройте SMTP. Для школ доступна страница «ОК Питания» — заполните разделы общественного контроля (ФИС ФРДО).', 'meal-menu' ); ?></p>
 		</div>
 	</div>
 
@@ -38,7 +39,7 @@
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">4</div>
 		<div>
 			<strong><?php _e( 'Шаблоны циклов', 'meal-menu' ); ?></strong>
-			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Создайте наборы блюд по дням цикла. Это можно сделать вручную через редактор, импортировать из файла .xlsx (по одному дню) или из файла типового меню TM-файла (весь цикл целиком). Шаблоны заполняются один раз и меняются редко (например, при смене утверждённого меню).', 'meal-menu' ); ?></p>
+			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Создайте наборы блюд по дням цикла вручную, импортом из .xlsx или из TM-файла (весь цикл).', 'meal-menu' ); ?></p>
 		</div>
 	</div>
 
@@ -46,7 +47,7 @@
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">5</div>
 		<div>
 			<strong><?php _e( 'Календарь — заполнять каждый месяц', 'meal-menu' ); ?></strong>
-			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Ежемесячно назначайте дни цикла на конкретные даты. Именно из календаря генерируются файлы для мониторинга.', 'meal-menu' ); ?></p>
+			<p style="margin:2px 0 0;line-height:1.5"><?php _e( 'Ежемесячно назначайте дни цикла на конкретные даты. Из календаря генерируются файлы (для школы) или отображается меню на сайте.', 'meal-menu' ); ?></p>
 		</div>
 	</div>
 
@@ -148,7 +149,7 @@
 
 	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">4</div>
-		<div style="line-height:1.5"><?php _e( 'При необходимости отключите спойлер <strong>«Общественный контроль питания»</strong> — он скроется на сайте.', 'meal-menu' ); ?></div>
+		<div style="line-height:1.5"><?php _e( 'При необходимости отключите спойлер <strong>«Общественный контроль питания»</strong> — он скроется на сайте. Для детского сада спойлер и тогл скрыты.', 'meal-menu' ); ?></div>
 	</div>
 
 	<div style="display:flex;gap:12px;align-items:flex-start">

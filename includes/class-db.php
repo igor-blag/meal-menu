@@ -384,6 +384,7 @@ class DB {
 		return $row ?: array(
 			'id' => 1,
 			'org_name' => '',
+			'institution_type' => 'school',
 			'academic_year_start' => '09-01',
 			'academic_year_end' => '05-26',
 			'reset_cycle_after_vacation' => 0,
@@ -434,9 +435,18 @@ class DB {
 		return $settings['org_name'] ?? '';
 	}
 
+	public function get_institution_type(): string {
+		$settings = $this->get_kitchen_settings();
+		return $settings['institution_type'] ?? 'school';
+	}
+
+	public function is_kindergarten(): bool {
+		return $this->get_institution_type() === 'kindergarten';
+	}
+
 	public function save_kitchen_settings_bulk( array $data ): void {
 		$t        = $this->t( 'kitchen_settings' );
-		$allowed  = array( 'org_name', 'academic_year_start', 'academic_year_end', 'reset_cycle_after_vacation', 'tm_approver_position', 'tm_approver_name', 'tm_approve_date' );
+		$allowed  = array( 'org_name', 'institution_type', 'academic_year_start', 'academic_year_end', 'reset_cycle_after_vacation', 'tm_approver_position', 'tm_approver_name', 'tm_approve_date' );
 		$update   = array();
 		$formats  = array();
 		foreach ( $allowed as $key ) {
@@ -1203,21 +1213,80 @@ class DB {
 		return $result;
 	}
 
+	public function seed_default_departments( string $institution_type ): void {
+		global $wpdb;
+		$t = $this->t( 'departments' );
+		$wpdb->query( "DELETE FROM $t" );
+
+		if ( $institution_type === 'kindergarten' ) {
+			$wpdb->insert( $t, array(
+				'code' => 'nursery', 'label' => 'Ясельная группа', 'label_short' => 'Ясли',
+				'is_enabled' => 1, 'is_builtin' => 1, 'is_boarding' => 1,
+				'publish_xlsx' => 0, 'file_suffix' => '-nursery', 'sort_order' => 10,
+				'ignore_vacations' => 1,
+				'note' => 'Дети до 3 лет. Интернатный режим включён всегда',
+			) );
+			$wpdb->insert( $t, array(
+				'code' => 'main', 'label' => 'Основная группа', 'label_short' => 'Осн.',
+				'is_enabled' => 1, 'is_builtin' => 1, 'is_boarding' => 1,
+				'publish_xlsx' => 0, 'file_suffix' => '', 'sort_order' => 20,
+				'ignore_vacations' => 1,
+				'note' => 'Дети старше 3 лет. Интернатный режим включён всегда',
+			) );
+		} else {
+			$wpdb->insert( $t, array(
+				'code' => 'preschool', 'label' => 'Дошкольное отделение', 'label_short' => 'Дошк.',
+				'is_enabled' => 0, 'is_builtin' => 1, 'is_boarding' => 1,
+				'publish_xlsx' => 0, 'file_suffix' => '-preschool', 'sort_order' => 10,
+				'note' => 'Интернатный режим включён всегда', 'ignore_vacations' => 1,
+			) );
+			$wpdb->insert( $t, array(
+				'code' => 'sm', 'label' => 'Начальная школа', 'label_short' => 'Нач.',
+				'is_enabled' => 1, 'is_builtin' => 1, 'is_boarding' => 0,
+				'publish_xlsx' => 1, 'file_suffix' => '-sm', 'sort_order' => 20,
+			) );
+			$wpdb->insert( $t, array(
+				'code' => 'main', 'label' => 'Основная школа', 'label_short' => 'Стар-ки',
+				'is_enabled' => 1, 'is_builtin' => 1, 'is_boarding' => 0,
+				'publish_xlsx' => 1, 'file_suffix' => '', 'sort_order' => 30,
+			) );
+			$wpdb->insert( $t, array(
+				'code' => 'ss', 'label' => 'Средняя школа', 'label_short' => 'Ср.',
+				'is_enabled' => 0, 'is_builtin' => 1, 'is_boarding' => 0,
+				'publish_xlsx' => 1, 'file_suffix' => '-ss', 'sort_order' => 40,
+				'note' => 'Включайте только если меню отличается от основной школы',
+			) );
+		}
+	}
+
 	public function count_filled_workdays_ahead( string $from_date ): int {
-		$dt    = new \DateTimeImmutable( $from_date );
-		$dt    = $dt->modify( '+1 day' );
-		$count = 0;
-		$limit = 60;
-		$c     = $this->t( 'calendar' );
+		$dt      = new \DateTimeImmutable( $from_date );
+		$dt      = $dt->modify( '+1 day' );
+		$count   = 0;
+		$limit   = 60;
+		$c       = $this->t( 'calendar' );
+		$cc      = $this->t( 'camp_calendar' );
+		$enabled = $this->get_enabled_departments();
+		$types   = array_column( $enabled, 'code' );
 
 		for ( $i = 0; $i < $limit; $i++ ) {
-			$dow     = (int) $dt->format( 'N' );
+			$dow      = (int) $dt->format( 'N' );
 			$date_str = $dt->format( 'Y-m-d' );
 
-			if ( $dow <= 5 && ! $this->is_vacation_day( $date_str ) ) {
-				$sql  = $this->wpdb->prepare( "SELECT template_id FROM $c WHERE date = %s AND school_type = 'sm' LIMIT 1", $date_str );
-				$tpl  = $this->wpdb->get_var( $sql );
-				if ( ! $tpl ) {
+			if ( $dow <= 5 && ( $this->is_kindergarten() || ! $this->is_vacation_day( $date_str ) ) ) {
+				$all_filled = true;
+				foreach ( $types as $t ) {
+					$dept    = $this->get_department( $t );
+					$is_camp = $dept && ! empty( $dept['has_summer_camp'] ) && $this->is_camp_period( $t, $date_str );
+					$table   = $is_camp ? $cc : $c;
+					$sql     = $this->wpdb->prepare( "SELECT template_id FROM $table WHERE date = %s AND school_type = %s LIMIT 1", $date_str, $t );
+					$tpl     = $this->wpdb->get_var( $sql );
+					if ( ! $tpl ) {
+						$all_filled = false;
+						break;
+					}
+				}
+				if ( ! $all_filled ) {
 					break;
 				}
 				$count++;

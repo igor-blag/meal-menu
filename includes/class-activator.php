@@ -139,6 +139,7 @@ class Activator {
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$p}kitchen_settings (
 			id int(10) unsigned NOT NULL auto_increment,
 			org_name varchar(255) NOT NULL default '',
+			institution_type varchar(20) NOT NULL default 'school',
 			academic_year_start varchar(5) NOT NULL default '09-01',
 			academic_year_end varchar(5) NOT NULL default '05-26',
 			reset_cycle_after_vacation tinyint(1) NOT NULL default 0,
@@ -236,30 +237,9 @@ class Activator {
 		}
 
 		$d = $wpdb->prefix . 'meal_departments';
-		if ( ! $wpdb->get_var( "SELECT COUNT(*) FROM `$d`" ) ) {
-			$wpdb->insert( $d, array(
-				'code' => 'preschool', 'label' => 'Дошкольное отделение', 'label_short' => 'Дошк.',
-				'is_enabled' => 0, 'is_builtin' => 1, 'is_boarding' => 1,
-				'publish_xlsx' => 0, 'file_suffix' => '-preschool', 'sort_order' => 10,
-				'note' => 'Интернатный режим включён всегда', 'ignore_vacations' => 1,
-			) );
-			$wpdb->insert( $d, array(
-				'code' => 'sm', 'label' => 'Начальная школа', 'label_short' => 'Нач.',
-				'is_enabled' => 1, 'is_builtin' => 1, 'is_boarding' => 0,
-				'publish_xlsx' => 1, 'file_suffix' => '-sm', 'sort_order' => 20,
-			) );
-			$wpdb->insert( $d, array(
-				'code' => 'main', 'label' => 'Основная школа', 'label_short' => 'Стар-ки',
-				'is_enabled' => 1, 'is_builtin' => 1, 'is_boarding' => 0,
-				'publish_xlsx' => 1, 'file_suffix' => '', 'sort_order' => 30,
-			) );
-			$wpdb->insert( $d, array(
-				'code' => 'ss', 'label' => 'Средняя школа', 'label_short' => 'Ср.',
-				'is_enabled' => 0, 'is_builtin' => 1, 'is_boarding' => 0,
-				'publish_xlsx' => 1, 'file_suffix' => '-ss', 'sort_order' => 40,
-				'note' => 'Включайте только если меню отличается от основной школы',
-			) );
-		}
+		// Departments are not seeded on activation.
+		// User selects institution type in Settings → Настройки пищеблока,
+		// which triggers seed_default_departments().
 
 		$o = $wpdb->prefix . 'meal_oc_monitoring';
 		if ( ! $wpdb->get_var( "SELECT COUNT(*) FROM `$o`" ) ) {

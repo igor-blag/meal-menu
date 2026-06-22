@@ -5,58 +5,70 @@
 </head>
 <body>
 <h1>2. Ядро плагина</h1>
-<p><strong>Файл:</strong> <code>includes/class-core.php</code>, <code>includes/class-roles.php</code></p>
+<p><strong>Файлы:</strong> <code>includes/class-core.php</code>, <code>includes/class-shortcodes.php</code>, <code>includes/class-admin.php</code>, <code>includes/class-ajax.php</code>, <code>includes/class-roles.php</code></p>
+
+<h2>Архитектура (v2.0)</h2>
+<p>Класс <code>Core</code> отвечает только за инициализацию, блоки, крон, SMTP и миграции БД. Функциональность разделена на три отдельных класса, каждый сам регистрирует свои хуки в конструкторе:</p>
+<ul>
+<li><strong>Shortcodes</strong> — <code>[meal_calendar]</code>, <code>[meal_day]</code>, рендер календаря и OC-спойлера</li>
+<li><strong>Admin</strong> — регистрация страниц админки, enqueue ассетов, admin_post-обработчики</li>
+<li><strong>Ajax</strong> — все <code>wp_ajax_*</code> и <code>wp_ajax_nopriv_*</code> обработчики</li>
+</ul>
 
 <h2>Core::init()</h2>
-<p>Запускается на <code>plugins_loaded</code>. Регистрирует все хуки:</p>
+<p>Запускается на <code>plugins_loaded</code>. Создаёт экземпляры <code>Shortcodes</code>, <code>Admin</code>, <code>Ajax</code> и регистрирует оставшиеся хуки:</p>
 <ul>
-<li><code>init</code> — шорткоды</li>
-<li><code>admin_menu</code> — 7 страниц админ-панели</li>
-<li><code>admin_enqueue_scripts</code> — CSS/JS для админки</li>
-<li><code>wp_enqueue_scripts</code> — CSS для публичных страниц</li>
-<li><code>wp_ajax_meal_*</code> — 10 AJAX-обработчиков</li>
-<li><code>admin_post_meal_*</code> — 3 POST-обработчика</li>
+<li><code>init</code> — регистрация Gutenberg-блока</li>
+<li><code>wp_enqueue_scripts</code> — CSS/JS для публичных страниц</li>
 <li><code>phpmailer_init</code> — конфигурация SMTP</li>
 <li><code>meal_daily_check</code> — WP-Cron</li>
 </ul>
 
 <h2>Админ-страницы</h2>
-<pre>Календарь     → meal-calendar    → page-calendar.php
-Шаблоны       → meal-templates   → page-templates.php / page-template-edit.php
-Импорт        → meal-import      → page-import.php
-ОК Питания    → meal-oc          → page-oc.php
-Настройки     → meal-settings    → page-settings.php
-Помощь        → meal-help        → page-help.php
-Файлы         → meal-files       → page-files.php</pre>
-<p>Доступ к страницам — через capability <code>manage_meal_menu</code>.</p>
+<pre>Календарь      → meal-calendar    → page-calendar.php
+Шаблоны        → meal-templates   → page-templates.php / page-template-edit.php
+ОК Питания     → meal-oc          → page-oc.php (только для школ)
+Настройки п/б  → meal-settings    → page-kitchen-settings.php
+Настройки пл.  → meal-plugin-settings  → page-plugin-settings.php
+Оформление     → meal-theme       → page-theme.php
+Помощь         → meal-help        → page-help.php
+Файлы          → meal-files       → page-files.php</pre>
+<p>Страница «ОК Питания» скрыта для детских садов. Доступ к страницам — через capability <code>manage_meal_menu</code>.</p>
 
 <h2>Роли</h2>
 <p><code>Meal_Menu\Roles</code> создаёт роль <code>meal_manager</code> с capability <code>manage_meal_menu</code>. Администратору (<code>administrator</code>) capability добавляется автоматически.</p>
 
 <h2>Шорткоды</h2>
 <ul>
-<li><code>[meal_calendar type="sm"]</code> — публичный календарь питания (рендерится через <code>Core::shortcode_calendar()</code> + <code>Core::render_calendar_body()</code>)</li>
+<li><code>[meal_calendar type="sm"]</code> — публичный календарь питания (класс <code>Shortcodes</code>)</li>
 <li><code>[meal_day date="2025-06-01" type="sm"]</code> — меню на день</li>
 </ul>
-<p>Шорткоды <code>[meal_menu]</code> и <code>[meal_oc]</code> удалены: типовое меню доступно через клик по ячейке календаря, а ОК встроен в календарь как спойлер.</p>
+<p>Шорткоды <code>[meal_menu]</code> и <code>[meal_oc]</code> удалены: типовое меню доступно через клик по ячейке календаря, а ОК встроен в календарь как спойлер (скрыт для детсадов).</p>
 
-<h2>AJAX-эндпоинты</h2>
+<h2>AJAX-эндпоинты (класс Ajax)</h2>
 <pre>meal_save_day       → ajax-save-day.php       — сохранение/удаление/цикл/файлы
 meal_save_settings  → ajax-save-settings.php   — настройки, отделения, каникулы
 meal_save_oc        → ajax-save-oc.php         — сохранение ОК
 meal_upload_oc      → ajax-upload-oc.php       — загрузка файлов для ОК
 meal_list_files     → ajax-list-files.php      — список сгенерированных xlsx
-meal_get_day_menu   → ajax-get-day-menu.php    — HTML меню дня для модалки (публичный)
-meal_get_calendar   → Core::ajax_get_calendar  — HTML тела календаря (AJAX-навигация)
+meal_delete_file    — удаление файла
+meal_cleanup_files  — очистка старых файлов
+meal_save_theme     — сохранение палитры/макета
+meal_get_day_menu   — HTML меню дня для модалки (публичный)
+meal_get_calendar   — HTML тела календаря (AJAX-навигация)
+meal_import_dropzone — импорт xlsx через дропзону
+meal_import_tm       — импорт TM-файла
+meal_bulk_delete_templates — массовое удаление шаблонов
 — AI Photo Import:
-meal_photo_upload       → Core::ajax_photo_upload       — загрузка фото во временную директорию
-meal_photo_analyze      → Core::ajax_photo_analyze      — отправка фото в AI, получение JSON с блюдами
-meal_photo_save_template → Core::ajax_photo_save_template — создание шаблона из распознанных данных</pre>
+meal_photo_upload       → ajax_photo_upload       — загрузка фото
+meal_photo_analyze      → ajax_photo_analyze      — отправка в AI, JSON с блюдами
+meal_photo_save_template → ajax_photo_save_template — создание шаблона из распознанных данных</pre>
 <p>Все проверяют nonce (<code>meal_menu_nonce</code>) и capability.</p>
 
-<h2>Обработчики admin-post</h2>
+<h2>Обработчики admin-post (класс Admin)</h2>
 <pre>admin_post_meal_save_template   — сохранение шаблона (POST форма)
 admin_post_meal_add_template    — добавление дня цикла
-admin_post_meal_delete_template — удаление шаблона</pre>
+admin_post_meal_delete_template — удаление шаблона
+admin_post_meal_export_data     — экспорт данных в JSON</pre>
 </body>
 </html>

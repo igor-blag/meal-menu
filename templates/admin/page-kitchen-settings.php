@@ -5,6 +5,7 @@ $db = \Meal_Menu\DB::instance();
 $settings     = $db->get_kitchen_settings();
 $departments  = $db->get_all_departments();
 $ay_settings  = $db->get_academic_year_settings();
+$inst_type    = $db->get_institution_type();
 
 $merged_into = array();
 $merged_by   = array();
@@ -29,13 +30,29 @@ foreach ( $departments as $d ) {
 				value="<?php echo esc_attr( $settings['org_name'] ); ?>"
 				placeholder="<?php esc_attr_e( 'Например: ГБОУ Школа №1234', 'meal-menu' ); ?>">
 		</div>
+		<div class="form-group">
+			<label for="inst-type"><?php _e( 'Тип учреждения', 'meal-menu' ); ?></label>
+			<select id="inst-type" class="form-control" style="max-width:300px">
+				<option value="school" <?php selected( $inst_type, 'school' ); ?>><?php _e( 'Школа', 'meal-menu' ); ?></option>
+				<option value="kindergarten" <?php selected( $inst_type, 'kindergarten' ); ?>><?php _e( 'Детский сад', 'meal-menu' ); ?></option>
+			</select>
+			<p class="text-muted" style="margin-top:4px;font-size:.78rem">
+				<?php _e( 'В школе — публикация Excel, каникулы, утверждающее лицо. В детском саду — только отображение меню, без каникул и файлов.', 'meal-menu' ); ?>
+			</p>
+		</div>
 	</div>
 
 	<!-- Отделения -->
 	<div class="panel">
 		<div class="panel-title"><?php _e( 'Отделения', 'meal-menu' ); ?></div>
-		<p class="text-muted mb-2"><?php _e( 'Отметьте отделения вашей организации и настройте параметры каждого.', 'meal-menu' ); ?></p>
 
+		<?php if ( empty( $departments ) ): ?>
+		<div id="dept-empty" style="padding:24px 0;text-align:center;color:var(--wp-muted)">
+			<p style="font-size:.95rem;margin-bottom:8px"><?php _e( 'Сначала выберите тип учреждения выше.', 'meal-menu' ); ?></p>
+			<p style="font-size:.82rem"><?php _e( 'Отделения будут созданы автоматически.', 'meal-menu' ); ?></p>
+		</div>
+		<?php else: ?>
+		<p class="text-muted mb-2"><?php _e( 'Отметьте отделения вашей организации и настройте параметры каждого.', 'meal-menu' ); ?></p>
 		<div id="dept-list">
 		<?php foreach ( $departments as $d ):
 			$wd = explode( ',', $d['workdays'] );
@@ -44,10 +61,6 @@ foreach ( $departments as $d ) {
 				<div class="dept-header">
 					<input type="checkbox" class="dept-toggle"<?php echo $d['is_enabled'] ? ' checked' : ''; ?>>
 					<span class="dept-title"><?php echo esc_html( $d['label'] ); ?></span>
-					<?php if ( ! $d['is_builtin'] ): ?>
-						<span class="badge-custom"><?php _e( 'кастомное', 'meal-menu' ); ?></span>
-						<button type="button" class="btn-delete-dept" data-id="<?php echo (int) $d['id']; ?>" title="<?php esc_attr_e( 'Удалить отделение', 'meal-menu' ); ?>">&times; <?php _e( 'Удалить', 'meal-menu' ); ?></button>
-					<?php endif; ?>
 					<?php if ( $d['note'] ): ?>
 						<span class="dept-note"><?php echo esc_html( $d['note'] ); ?></span>
 					<?php endif; ?>
@@ -58,6 +71,15 @@ foreach ( $departments as $d ) {
 							<label><?php _e( 'Название', 'meal-menu' ); ?></label>
 							<input type="text" class="inp-dept-name" value="<?php echo esc_attr( $d['dept_name'] ); ?>" placeholder="<?php echo esc_attr( $d['code'] === 'main' ? 'Старшеклассники' : $d['label'] ); ?>" data-code="<?php echo esc_attr( $d['code'] ); ?>">
 						</div>
+						<?php if ( ! $d['is_builtin'] ): ?>
+						<div class="field" style="max-width:350px">
+							<label><?php _e( 'Описание', 'meal-menu' ); ?></label>
+							<input type="text" class="inp-dept-note" value="<?php echo esc_attr( $d['note'] ?? '' ); ?>" placeholder="<?php esc_attr_e( 'Краткое описание отделения', 'meal-menu' ); ?>">
+						</div>
+						<div class="field" style="max-width:100px;display:flex;align-items:end">
+							<button type="button" class="btn btn-outline btn-sm btn-delete-dept" data-id="<?php echo (int) $d['id']; ?>"><?php _e( 'Удалить', 'meal-menu' ); ?></button>
+						</div>
+						<?php endif; ?>
 					</div>
 
 					<div class="form-row">
@@ -79,18 +101,18 @@ foreach ( $departments as $d ) {
 
 				
 					<div class="opt-row">
-						<label class="opt-label<?php echo $d['code'] === 'preschool' ? ' disabled' : ''; ?>">
+						<label class="opt-label school-only-field<?php echo $d['code'] === 'preschool' ? ' disabled' : ''; ?>">
 							<input type="checkbox" class="chk-boarding"
 								<?php echo $d['is_boarding'] ? 'checked' : ''; ?>
 								<?php echo $d['code'] === 'preschool' ? 'disabled checked' : ''; ?>>
 							<?php _e( 'Интернат (доп. приёмы пищи)', 'meal-menu' ); ?>
 						</label>
-						<label class="opt-label">
+						<label class="opt-label school-only-field">
 							<input type="checkbox" class="chk-publish"
 								<?php echo $d['publish_xlsx'] ? 'checked' : ''; ?>>
 							<?php _e( 'Публикация файлов меню', 'meal-menu' ); ?>
 						</label>
-						<label class="opt-label">
+						<label class="opt-label school-only-field">
 							<input type="checkbox" class="chk-ignore-vac"
 								<?php echo ! empty( $d['ignore_vacations'] ) ? 'checked' : ''; ?>
 								<?php echo $d['merged_with'] ? 'disabled' : ''; ?>>
@@ -98,7 +120,7 @@ foreach ( $departments as $d ) {
 						</label>
 					</div>
 
-					<div class="form-row suffix-row"<?php echo ! $d['publish_xlsx'] ? ' style="display:none"' : ''; ?>>
+					<div class="form-row suffix-row school-only-field"<?php echo ! $d['publish_xlsx'] ? ' style="display:none"' : ''; ?>>
 						<div class="field" style="max-width:300px">
 							<label><?php _e( 'Постфикс файлов', 'meal-menu' ); ?></label>
 							<?php if ( $d['is_builtin'] ): ?>
@@ -109,7 +131,7 @@ foreach ( $departments as $d ) {
 						</div>
 					</div>
 
-					<div class="form-row merge-select-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
+					<div class="form-row merge-select-row school-only-field"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
 					<div class="field" style="max-width:300px">
 						<label><?php _e( 'Объединить календарь с', 'meal-menu' ); ?></label>
 						<select class="sel-merge">
@@ -121,7 +143,7 @@ foreach ( $departments as $d ) {
 						<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным.', 'meal-menu' ); ?></span>
 					</div>
 				</div>
-				<div class="form-row merge-static-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
+				<div class="form-row merge-static-row school-only-field"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
 					<div class="field" style="max-width:300px">
 						<label><?php _e( 'Объединение календарей', 'meal-menu' ); ?></label>
 						<span class="text-muted merge-static-text" style="font-size:.82rem;display:block;margin-top:4px"><?php printf( __( 'Источник данных для: %s', 'meal-menu' ), isset( $merged_by[ $d['code'] ] ) ? implode( ', ', $merged_by[ $d['code'] ] ) : '' ); ?></span>
@@ -187,18 +209,19 @@ foreach ( $departments as $d ) {
 		<div class="mt-2">
 			<button type="button" class="btn btn-outline btn-sm" id="btn-add-dept">+ <?php _e( 'Добавить отделение', 'meal-menu' ); ?></button>
 		</div>
+		<?php endif; ?>
 		<div class="custom-dept-form" id="add-dept-form">
-			<div class="form-row">
-				<div class="field">
-					<label><?php _e( 'Код (латиница, без пробелов)', 'meal-menu' ); ?></label>
-					<input type="text" id="new-dept-code" class="form-control" placeholder="nursery" pattern="[a-z0-9_]+">
-				</div>
-				<div class="field">
+			<div class="form-row" style="display:flex;flex-wrap:nowrap;gap:12px">
+				<div class="field" style="flex:2;min-width:0">
 					<label><?php _e( 'Название', 'meal-menu' ); ?></label>
 					<input type="text" id="new-dept-label" class="form-control" placeholder="<?php esc_attr_e( 'Ясельная группа', 'meal-menu' ); ?>">
 				</div>
-				<div class="field">
-					<label><?php _e( 'Постфикс файлов', 'meal-menu' ); ?></label>
+				<div class="field" style="flex:1;min-width:0">
+					<label><?php _e( 'Код (латиница)', 'meal-menu' ); ?></label>
+					<input type="text" id="new-dept-code" class="form-control" placeholder="nursery" pattern="[a-z0-9_]+">
+				</div>
+				<div class="field school-only-field" style="flex:1;min-width:0">
+					<label><?php _e( 'Постфикс', 'meal-menu' ); ?></label>
 					<input type="text" id="new-dept-suffix" class="form-control" placeholder="-nursery">
 				</div>
 			</div>
@@ -210,7 +233,7 @@ foreach ( $departments as $d ) {
 	</div>
 
 	<!-- Учебный год и каникулы -->
-	<div class="panel">
+	<div class="panel school-only-section">
 		<div class="panel-title"><?php _e( 'Учебный год и каникулы', 'meal-menu' ); ?></div>
 
 		<div class="ay-fields">
@@ -261,7 +284,7 @@ foreach ( $departments as $d ) {
 	</div>
 
 	<!-- Утверждающее лицо -->
-	<div class="panel">
+	<div class="panel school-only-section">
 		<div class="panel-title"><?php _e( 'Типовое примерное меню — утверждающее лицо', 'meal-menu' ); ?></div>
 		<p class="text-muted mb-2"><?php _e( 'ФИО и должность отображаются в шапке файла типового меню (tm-файл).', 'meal-menu' ); ?></p>
 		<div class="form-group">
@@ -279,8 +302,17 @@ foreach ( $departments as $d ) {
 	</div>
 
 	<div class="mt-2" style="text-align:right">
-		<button type="button" class="btn btn-primary" id="btn-save"><?php _e( 'Сохранить настройки', 'meal-menu' ); ?></button>
-		<div id="btn-msg" class="btn-msg"></div>
+		<button type="button" class="btn btn-primary" id="btn-save"><?php _e( 'Сохранить настройки', 'meal-menu' ); ?> <span id="btn-msg" class="btn-msg"></span></button>
+	</div>
+</div>
+
+<div id="meal-dialog" class="meal-modal-overlay dialog" style="display:none">
+	<div class="meal-dialog-box">
+		<p id="meal-dialog-text"></p>
+		<div class="meal-dialog-actions">
+			<button type="button" class="btn btn-outline" id="meal-dialog-cancel"><?php _e( 'Отмена', 'meal-menu' ); ?></button>
+			<button type="button" class="btn btn-primary" id="meal-dialog-ok"><?php _e( 'OK', 'meal-menu' ); ?></button>
+		</div>
 	</div>
 </div>
 
@@ -444,8 +476,8 @@ foreach ( $departments as $d ) {
 		var code = document.getElementById('new-dept-code').value.trim();
 		var label = document.getElementById('new-dept-label').value.trim();
 		var suffix = document.getElementById('new-dept-suffix').value.trim();
-		if (!code || !label) { alert('Укажите код и название'); return; }
-		if (!/^[a-z0-9_]+$/.test(code)) { alert('Код: только строчные латинские буквы, цифры, _'); return; }
+		if (!code || !label) { showMsg('Укажите код и название', true); return; }
+		if (!/^[a-z0-9_]+$/.test(code)) { showMsg('Код: только строчные латинские буквы, цифры, _', true); return; }
 		apiPost({action: 'add_department', code: code, label: label, file_suffix: suffix}, function(r) {
 			if (r.ok) location.reload();
 			else showMsg(r.error || 'Ошибка', true);
@@ -455,11 +487,103 @@ foreach ( $departments as $d ) {
 	document.getElementById('dept-list').addEventListener('click', function(e) {
 		var btn = e.target.closest('.btn-delete-dept');
 		if (!btn) return;
-		if (!confirm('Удалить это отделение?')) return;
-		apiPost({action: 'delete_department', id: parseInt(btn.dataset.id)}, function(r) {
-			if (r.ok) location.reload();
-			else showMsg(r.error || 'Ошибка', true);
+		showConfirm('Удалить это отделение?', function() {
+			apiPost({action: 'delete_department', id: parseInt(btn.dataset.id)}, function(r) {
+				if (r.ok) location.reload();
+				else showMsg(r.error || 'Ошибка', true);
+			});
 		});
+	});
+
+	var hasDepartments = <?php echo empty( $departments ) ? 'false' : 'true'; ?>;
+
+	// ─── custom confirm ─────────────────────────────────
+	var dialogOverlay = document.getElementById('meal-dialog');
+	var dialogText = document.getElementById('meal-dialog-text');
+	var dialogOk = document.getElementById('meal-dialog-ok');
+	var dialogCancel = document.getElementById('meal-dialog-cancel');
+	var dialogCallback = null;
+
+	function showConfirm(msg, cb) {
+		dialogText.textContent = msg;
+		dialogOverlay.style.display = '';
+		dialogCallback = cb;
+	}
+	dialogOk.addEventListener('click', function() {
+		dialogOverlay.style.display = 'none';
+		if (dialogCallback) dialogCallback();
+		dialogCallback = null;
+	});
+	dialogCancel.addEventListener('click', function() {
+		dialogOverlay.style.display = 'none';
+		dialogCallback = null;
+	});
+	dialogOverlay.addEventListener('click', function(e) {
+		if (e.target === dialogOverlay) {
+			dialogOverlay.style.display = 'none';
+			dialogCallback = null;
+		}
+	});
+
+	// ─── transliteration ────────────────────────────────
+	var cyrMap = {
+		'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y',
+		'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+		'х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+		'А':'a','Б':'b','В':'v','Г':'g','Д':'d','Е':'e','Ё':'yo','Ж':'zh','З':'z','И':'i','Й':'y',
+		'К':'k','Л':'l','М':'m','Н':'n','О':'o','П':'p','Р':'r','С':'s','Т':'t','У':'u','Ф':'f',
+		'Х':'h','Ц':'ts','Ч':'ch','Ш':'sh','Щ':'sch','Ъ':'','Ы':'y','Ь':'','Э':'e','Ю':'yu','Я':'ya'
+	};
+	function transliterate(text) {
+		return text.replace(/[а-яёА-ЯЁ]/g, function(ch) { return cyrMap[ch] || ch; }).replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+	}
+
+	document.getElementById('new-dept-label').addEventListener('input', function() {
+		var codeInput = document.getElementById('new-dept-code');
+		if (!codeInput.value || codeInput.dataset.auto === '1') {
+			codeInput.value = transliterate(this.value);
+			codeInput.dataset.auto = '1';
+		}
+	});
+	document.getElementById('new-dept-code').addEventListener('input', function() {
+		this.dataset.auto = '0';
+	});
+
+	// ─── double-click guard ─────────────────────────────
+	function guardFormSubmit(btn, cb) {
+		btn.addEventListener('click', function guard(e) {
+			if (btn.classList.contains('loading')) {
+				e.stopImmediatePropagation();
+				return;
+			}
+			btn.classList.add('loading');
+			var orig = btn.textContent;
+			btn.textContent = '⏳ ' + orig.trim();
+			cb(function() {
+				btn.classList.remove('loading');
+				btn.textContent = orig;
+			});
+		});
+	}
+
+	function seedAndReload(instType) {
+		apiPost({action: 'seed_default_departments', institution_type: instType}, function(r) {
+			if (r.ok) { location.reload(); }
+			else { showMsg(r.error || 'Ошибка', true); }
+		});
+	}
+
+	document.getElementById('inst-type').addEventListener('change', function() {
+		var instType = this.value;
+		if (hasDepartments) {
+			var label = instType === 'kindergarten' ? 'Детский сад' : 'Школа';
+			showConfirm('Сменить тип учреждения на «' + label + '»? Это заменит все отделения на типовые.', function() {
+				seedAndReload(instType);
+			});
+			this.value = instType === 'kindergarten' ? 'school' : 'kindergarten';
+			return;
+		}
+		seedAndReload(instType);
 	});
 
 	function defaultDeptName(card) {
@@ -476,7 +600,23 @@ foreach ( $departments as $d ) {
 		return card.querySelector('.dept-title').textContent.trim();
 	}
 
-	document.getElementById('btn-save').addEventListener('click', function() {
+	function toggleSchoolOnly() {
+		var isKindergarten = document.getElementById('inst-type').value === 'kindergarten';
+		document.querySelectorAll('.school-only-section').forEach(function(el) {
+			el.style.display = isKindergarten ? 'none' : '';
+		});
+		document.querySelectorAll('.school-only-field').forEach(function(el) {
+			el.style.display = isKindergarten ? 'none' : '';
+		});
+	}
+	toggleSchoolOnly();
+
+	if (!hasDepartments) {
+		seedAndReload(document.getElementById('inst-type').value);
+	}
+
+	guardFormSubmit(document.getElementById('btn-save'), function(unlock) {
+		var btn = document.getElementById('btn-save');
 		var deps = [];
 		document.querySelectorAll('.dept-card').forEach(function(card) {
 			var wdChecks = card.querySelectorAll('.wd-chk:checked');
@@ -506,6 +646,7 @@ foreach ( $departments as $d ) {
 				is_enabled: card.querySelector('.dept-toggle').checked ? 1 : 0,
 				dept_name: deptName,
 				workdays: workdays.join(','),
+				note: card.querySelector('.inp-dept-note') ? card.querySelector('.inp-dept-note').value : undefined,
 				is_boarding: card.querySelector('.chk-boarding').checked ? 1 : 0,
 				publish_xlsx: card.querySelector('.chk-publish').checked ? 1 : 0,
 				ignore_vacations: ignoreVacChk && ignoreVacChk.checked ? 1 : 0,
@@ -522,6 +663,7 @@ foreach ( $departments as $d ) {
 		apiPost({
 			action: 'save_settings',
 			org_name: document.getElementById('org-name').value,
+			institution_type: document.getElementById('inst-type').value,
 			tm_approver_position: document.getElementById('tm-approver-position').value,
 			tm_approver_name: document.getElementById('tm-approver-name').value,
 			academic_year_start: ddmmToMmdd(document.getElementById('ay-start').value.trim()),
@@ -529,6 +671,7 @@ foreach ( $departments as $d ) {
 			reset_cycle_after_vacation: document.getElementById('ay-reset').checked ? 1 : 0,
 			departments: deps
 		}, function(r) {
+			unlock();
 			if (r.ok) {
 				showMsg('Настройки сохранены.', false);
 			} else {
@@ -635,10 +778,11 @@ foreach ( $departments as $d ) {
 			if (!tr) return;
 			var id = parseInt(tr.dataset.id);
 			if (btn.classList.contains('btn-del-vac')) {
-				if (!confirm('Удалить запись?')) return;
-				apiPost({action: 'delete_vacation', id: id}, function(r) {
-					if (r.ok) loadVacations();
-					else showMsg(r.error || 'Ошибка', true);
+				showConfirm('Удалить запись?', function() {
+					apiPost({action: 'delete_vacation', id: id}, function(r) {
+						if (r.ok) loadVacations();
+						else showMsg(r.error || 'Ошибка', true);
+					});
 				});
 			}
 			if (btn.classList.contains('vac-save-btn')) {
@@ -691,10 +835,11 @@ foreach ( $departments as $d ) {
 	});
 
 	document.getElementById('btn-fill-default').addEventListener('click', function() {
-		if (!confirm('Добавить типовые каникулы и праздники для ' + vacYear.value + '?\n(Существующие не удаляются)')) return;
-		apiPost({action: 'fill_default_vacations', academic_year: vacYear.value}, function(r) {
-			if (r.ok) { renderVacations(r.vacations); showMsg('Типовые каникулы и праздники добавлены', false); }
-			else { showMsg(r.error || 'Ошибка', true); }
+		showConfirm('Добавить типовые каникулы и праздники для ' + vacYear.value + '? (Существующие не удаляются)', function() {
+			apiPost({action: 'fill_default_vacations', academic_year: vacYear.value}, function(r) {
+				if (r.ok) { renderVacations(r.vacations); showMsg('Типовые каникулы и праздники добавлены', false); }
+				else { showMsg(r.error || 'Ошибка', true); }
+			});
 		});
 	});
 

@@ -15,6 +15,9 @@ $layout  = $attributes['layout'] ?? '';
 $show_oc = isset( $attributes['show_oc'] ) ? (bool) $attributes['show_oc'] : true;
 
 $db = \Meal_Menu\DB::instance();
+if ( $db->is_kindergarten() ) {
+	$show_oc = false;
+}
 $enabled_depts = $db->get_enabled_departments();
 $valid_types   = array_column( $enabled_depts, 'code' );
 

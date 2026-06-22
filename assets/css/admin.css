@@ -450,6 +450,32 @@
 	font-style: italic;
 }
 
+/* ─── кастомный confirm ─────── */
+.meal-modal-overlay.dialog {
+	z-index: 999999;
+}
+.meal-dialog-box {
+	background: #fff;
+	border: 1px solid var(--wp-border);
+	border-radius: var(--wp-radius);
+	box-shadow: 0 8px 32px rgba(0,0,0,.15);
+	padding: 24px 28px 20px;
+	max-width: 420px;
+	width: 90%;
+	text-align: center;
+}
+.meal-dialog-box p {
+	margin: 0 0 20px;
+	font-size: .9rem;
+	color: var(--wp-text);
+	line-height: 1.5;
+}
+.meal-dialog-actions {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+}
+
 /* ─── лейаут календаря ────── */
 .meal-menu-wrap.cal-layout {
 	display: flex;

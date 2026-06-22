@@ -200,6 +200,15 @@ try {
 
 		wp_send_json( array( 'ok' => true ) );
 
+	} elseif ( $action === 'seed_default_departments' ) {
+		if ( ! current_user_can( 'manage_meal_menu' ) ) {
+			wp_send_json( array( 'ok' => false, 'error' => __( 'Недостаточно прав', 'meal-menu' ) ) );
+		}
+		$inst_type = $data['institution_type'] ?? $db->get_institution_type();
+		$db->save_kitchen_settings_bulk( array( 'institution_type' => $inst_type ) );
+		$db->seed_default_departments( $inst_type );
+		wp_send_json( array( 'ok' => true, 'message' => __( 'Типовые отделения установлены', 'meal-menu' ) ) );
+
 	} elseif ( $action === 'reset_data' ) {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Недостаточно прав', 'meal-menu' ) ) );

@@ -74,6 +74,8 @@ registerBlockType( 'meal-menu/calendar', {
 			} ) ),
 		];
 
+		const isKindergarten = data.isKindergarten || false;
+
 		const controls = (
 			<InspectorControls>
 				<PanelBody title={ __( 'Параметры календаря', 'meal-menu' ) }>
@@ -95,16 +97,18 @@ registerBlockType( 'meal-menu/calendar', {
 						options={ LAYOUTS }
 						onChange={ ( v ) => setAttributes( { layout: v } ) }
 					/>
-					<ToggleControl
-						label={ __( 'Общественный контроль питания', 'meal-menu' ) }
-						help={
-							show_oc
-								? __( 'Спойлер отображается на сайте.', 'meal-menu' )
-								: __( 'Спойлер скрыт на сайте.', 'meal-menu' )
-						}
-						checked={ show_oc }
-						onChange={ ( v ) => setAttributes( { show_oc: v } ) }
-					/>
+					{ ! isKindergarten && (
+						<ToggleControl
+							label={ __( 'Общественный контроль питания', 'meal-menu' ) }
+							help={
+								show_oc
+									? __( 'Спойлер отображается на сайте.', 'meal-menu' )
+									: __( 'Спойлер скрыт на сайте.', 'meal-menu' )
+							}
+							checked={ show_oc }
+							onChange={ ( v ) => setAttributes( { show_oc: v } ) }
+						/>
+					) }
 				</PanelBody>
 			</InspectorControls>
 		);

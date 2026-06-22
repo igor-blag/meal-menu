@@ -421,10 +421,10 @@ foreach ( $enabled_depts as $dep ) {
 		if ( ! $is_camp && ! empty( $dept_by_code[ $kp_type ]['merged_with'] ) ) {
 			$kp_type = $dept_by_code[ $kp_type ]['merged_with'];
 		}
-		if ( class_exists( '\Meal_Menu\Excel_KP' ) ) {
+		if ( ! $db->is_kindergarten() && class_exists( '\Meal_Menu\Excel_KP' ) ) {
 			\Meal_Menu\Excel_KP::generate( $year, $kp_type, $is_camp );
 		}
-		if ( class_exists( '\Meal_Menu\Excel_TM' ) ) {
+		if ( ! $db->is_kindergarten() && class_exists( '\Meal_Menu\Excel_TM' ) ) {
 			$_up = wp_upload_dir();
 			$_meal_dir = $_up['basedir'] . '/meal-menu';
 			foreach ( $gen_types as $gt ) {
