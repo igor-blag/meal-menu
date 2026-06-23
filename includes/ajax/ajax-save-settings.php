@@ -29,6 +29,15 @@ try {
 			}
 		}
 
+		if ( isset( $data['meal_ai_prompt'] ) ) {
+			$prompt = trim( $data['meal_ai_prompt'] );
+			if ( $prompt === '' || $prompt === \Meal_Menu\Importer_Photo::get_default_prompt() ) {
+				delete_option( 'meal_ai_prompt' );
+			} else {
+				update_option( 'meal_ai_prompt', $prompt );
+			}
+		}
+
 		$smtp_keys = array( 'meal_admin_email', 'meal_mail_from', 'meal_mail_from_name', 'meal_smtp_host', 'meal_smtp_user', 'meal_smtp_pass', 'meal_smtp_port', 'meal_smtp_secure' );
 		foreach ( $smtp_keys as $key ) {
 			if ( isset( $data[ $key ] ) ) {
@@ -46,6 +55,7 @@ try {
 			}
 		}
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'add_department' ) {
@@ -56,16 +66,19 @@ try {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Заполните код и название', 'meal-menu' ) ) );
 		}
 		$id = $db->add_department( $code, $label, $file_suffix );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'id' => $id ) );
 
 	} elseif ( $action === 'delete_department' ) {
 		$id = isset( $data['id'] ) ? (int) $data['id'] : 0;
 		$db->delete_department( $id );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'resort_departments' ) {
 		$order = is_array( $data['order'] ?? null ) ? $data['order'] : array();
 		$db->resort_departments( $order );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'add_vacation' ) {
@@ -74,6 +87,7 @@ try {
 		$date_from     = sanitize_text_field( $data['date_from'] ?? '' );
 		$date_to       = sanitize_text_field( $data['date_to'] ?? '' );
 		$id = $db->add_vacation( $academic_year, $label, $date_from, $date_to );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'id' => $id ) );
 
 	} elseif ( $action === 'update_vacation' ) {
@@ -82,11 +96,13 @@ try {
 		$date_from = sanitize_text_field( $data['date_from'] ?? '' );
 		$date_to   = sanitize_text_field( $data['date_to'] ?? '' );
 		$db->update_vacation( $id, $label, $date_from, $date_to );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'delete_vacation' ) {
 		$id = isset( $data['id'] ) ? (int) $data['id'] : 0;
 		$db->delete_vacation( $id );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'get_vacations' ) {
@@ -103,11 +119,13 @@ try {
 		$month_day   = sanitize_text_field( $data['month_day'] ?? '' );
 		$month_day_to = ! empty( $data['month_day_to'] ) ? sanitize_text_field( $data['month_day_to'] ) : null;
 		$id = $db->add_holiday( $label, $month_day, $month_day_to );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'id' => $id ) );
 
 	} elseif ( $action === 'delete_holiday' ) {
 		$id = isset( $data['id'] ) ? (int) $data['id'] : 0;
 		$db->delete_holiday( $id );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'fill_default_holidays' ) {
@@ -137,6 +155,7 @@ try {
 			}
 		}
 		$holidays = $db->get_holidays();
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'holidays' => $holidays, 'message' => __( 'Государственные праздники добавлены', 'meal-menu' ) ) );
 
 	} elseif ( $action === 'fill_default_vacations' ) {
@@ -173,6 +192,7 @@ try {
 		}
 
 		$vacations = $db->get_vacations( $academic_year );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'vacations' => $vacations, 'message' => __( 'Типовые каникулы добавлены', 'meal-menu' ) ) );
 
 	} elseif ( $action === 'import_data' ) {
@@ -222,6 +242,7 @@ try {
 			wp_send_json( array( 'ok' => false, 'error' => $e->getMessage() ) );
 		}
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'seed_default_departments' ) {
@@ -231,14 +252,23 @@ try {
 		$inst_type = $data['institution_type'] ?? $db->get_institution_type();
 		$db->save_kitchen_settings_bulk( array( 'institution_type' => $inst_type ) );
 		$db->seed_default_departments( $inst_type );
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'message' => __( 'Типовые отделения установлены', 'meal-menu' ) ) );
+
+	} elseif ( $action === 'reset_ai_prompt' ) {
+		delete_option( 'meal_ai_prompt' );
+		wp_send_json( array(
+			'ok'     => true,
+			'prompt' => \Meal_Menu\Importer_Photo::get_default_prompt(),
+		) );
 
 	} elseif ( $action === 'reset_data' ) {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json( array( 'ok' => false, 'error' => __( 'Недостаточно прав', 'meal-menu' ) ) );
+			wp_die( -1 );
 		}
 		\Meal_Menu\Activator::uninstall();
 		\Meal_Menu\Activator::activate();
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} else {

@@ -49,6 +49,7 @@ foreach ( $enabled_depts as $dep ) {
 				} else {
 					$db->save_calendar_day( $date, null, $school, $dept, $data_type, 0, $iterate_number );
 				}
+				\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 				wp_send_json( array( 'ok' => true, 'template_id' => null, 'day_number' => null, 'iterate_number' => $iterate_number ) );
 			}
 
@@ -79,6 +80,7 @@ foreach ( $enabled_depts as $dep ) {
 			}
 
 			$entry = $is_camp ? $db->get_camp_calendar_day( $date, $data_type ) : $db->get_calendar_day( $date, $data_type );
+			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array(
 				'ok'          => true,
 				'template_id' => $tpl_id,
@@ -103,6 +105,7 @@ foreach ( $enabled_depts as $dep ) {
 		} else {
 			$db->delete_calendar_day( $date, $data_type );
 		}
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true ) );
 
 	} elseif ( $action === 'apply_cycle' ) {
@@ -138,6 +141,7 @@ foreach ( $enabled_depts as $dep ) {
 			$workdays = isset( $dept_by_code[ $data_type ] ) ? $db->get_workdays( $data_type ) : array( 1, 2, 3, 4, 5 );
 			$count    = $db->assign_cycle( $date, $start_day, $data_type, $school, $dept, $end_date, $workdays, $overwrite );
 		}
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'count' => $count ) );
 
 	} elseif ( $action === 'bulk_save' ) {
@@ -148,6 +152,7 @@ foreach ( $enabled_depts as $dep ) {
 		} else {
 			$db->bulk_save_calendar( $days, $type );
 		}
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'saved' => count( $days ) ) );
 
 	} elseif ( $action === 'copy_month' ) {
@@ -209,6 +214,7 @@ foreach ( $enabled_depts as $dep ) {
 			$count++;
 		}
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'count' => $count ) );
 
 	} elseif ( $action === 'recalc_period' ) {
@@ -299,6 +305,7 @@ foreach ( $enabled_depts as $dep ) {
 				$db->bulk_save_camp_calendar( $days, $data_type );
 			}
 
+			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true, 'count' => count( $days ) ) );
 		}
 
@@ -387,6 +394,7 @@ foreach ( $enabled_depts as $dep ) {
 			$db->bulk_save_calendar( $days, $data_type );
 		}
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'count' => count( $days ) ) );
 
 	} elseif ( $action === 'generate_files' ) {

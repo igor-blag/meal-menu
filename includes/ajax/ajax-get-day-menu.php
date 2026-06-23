@@ -2,6 +2,11 @@
 defined( 'ABSPATH' ) || exit;
 
 $is_camp = ! empty( $_GET['camp'] );
+$cache_key = 'meal_day_' . $date . '_' . $type . '_' . ( $is_camp ? '1' : '0' );
+$cached = get_transient( $cache_key );
+if ( $cached !== false ) {
+	wp_send_json( array( 'ok' => true, 'html' => $cached ) );
+}
 
 if ( $is_camp ) {
 	$c  = $db->get_table_name( 'camp_calendar' );
@@ -31,10 +36,12 @@ $item_rows = $wpdb->get_results( $wpdb->prepare(
 	$cal['template_id']
 ), ARRAY_A ) ?: array();
 
+$has_any_price = false;
 $by_meal = array();
 foreach ( $item_rows as $it ) {
 	if ( empty( $it['dish_name'] ) ) continue;
 	$by_meal[ $it['meal_type'] ][] = $it;
+	if ( $it['price'] !== null ) $has_any_price = true;
 }
 
 $meal_names = array(
@@ -69,8 +76,8 @@ ob_start();
 			<thead>
 				<tr>
 					<th style="width:42%"><?php _e( 'Блюдо', 'meal-menu' ); ?></th>
-					<th style="width:8%"><?php _e( 'Выход, г', 'meal-menu' ); ?></th>
-					<th style="width:9%"><?php _e( 'Цена, ₽', 'meal-menu' ); ?></th>
+					<th style="width:8%"><?php _e( 'Вес, г', 'meal-menu' ); ?></th>
+					<?php if ( $has_any_price ): ?><th style="width:9%"><?php _e( 'Цена, ₽', 'meal-menu' ); ?></th><?php endif; ?>
 					<th style="width:9%"><?php _e( 'Ккал', 'meal-menu' ); ?></th>
 					<th style="width:8%"><?php _e( 'Белки', 'meal-menu' ); ?></th>
 					<th style="width:8%"><?php _e( 'Жиры', 'meal-menu' ); ?></th>
@@ -82,7 +89,7 @@ ob_start();
 				<tr>
 					<td><?php echo esc_html( $it['dish_name'] ?? '' ); ?></td>
 					<td class="num"><?php echo $it['grams'] !== null ? number_format( $it['grams'], 1, ',', '' ) : ''; ?></td>
-					<td class="num"><?php echo $it['price'] !== null ? number_format( $it['price'], 2, ',', '' ) : ''; ?></td>
+					<?php if ( $has_any_price ): ?><td class="num"><?php echo $it['price'] !== null ? number_format( $it['price'], 2, ',', '' ) : ''; ?></td><?php endif; ?>
 					<td class="num"><?php echo $it['kcal'] !== null ? number_format( $it['kcal'], 1, ',', '' ) : ''; ?></td>
 					<td class="num"><?php echo $it['protein'] !== null ? number_format( $it['protein'], 1, ',', '' ) : ''; ?></td>
 					<td class="num"><?php echo $it['fat'] !== null ? number_format( $it['fat'], 1, ',', '' ) : ''; ?></td>
@@ -101,3 +108,5 @@ wp_send_json( array(
 	'ok'   => true,
 	'html' => $html,
 ) );
+
+set_transient( $cache_key, $html, HOUR_IN_SECONDS * 12 );

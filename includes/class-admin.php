@@ -248,6 +248,7 @@ class Admin {
 			\Meal_Menu\Excel_TM::generate( 'sm', (int) current_time( 'Y' ), true );
 		}
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $id . '&saved=1' . ( $is_camp ? '&camp=1' : '' ) ) );
 		exit;
 	}
@@ -263,6 +264,7 @@ class Admin {
 		$db      = DB::instance();
 		$id      = $is_camp ? $db->add_camp_template( $type ) : $db->add_template( $type );
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_redirect( admin_url( 'admin.php?page=meal-templates&id=' . $id . ( $is_camp ? '&camp=1' : '' ) ) );
 		exit;
 	}
@@ -283,6 +285,7 @@ class Admin {
 			$db->delete_template( $id );
 		}
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_redirect( admin_url( 'admin.php?page=meal-templates&type=' . $type . ( $is_camp ? '&camp=1' : '' ) ) );
 		exit;
 	}
@@ -303,7 +306,7 @@ class Admin {
 		}
 
 		$options = array();
-		foreach ( array( 'meal_admin_email', 'meal_mail_from', 'meal_mail_from_name', 'meal_smtp_host', 'meal_smtp_user', 'meal_smtp_pass', 'meal_smtp_port', 'meal_smtp_secure', 'meal_food_dir', 'meal_theme_palette', 'meal_theme_layout', 'meal_delete_after_days', 'meal_institution_type' ) as $opt ) {
+		foreach ( array( 'meal_admin_email', 'meal_mail_from', 'meal_mail_from_name', 'meal_smtp_host', 'meal_smtp_user', 'meal_smtp_pass', 'meal_smtp_port', 'meal_smtp_secure', 'meal_food_dir', 'meal_theme_palette', 'meal_theme_layout', 'meal_delete_after_days', 'meal_institution_type', 'meal_ai_prompt' ) as $opt ) {
 			$val = get_option( $opt, null );
 			if ( $val !== null ) {
 				$options[ $opt ] = $val;

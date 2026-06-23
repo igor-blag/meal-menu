@@ -235,7 +235,8 @@ class Ajax {
 					$imported++;
 				}
 
-				wp_send_json( array( 'ok' => true, 'imported' => $imported ) );
+				\Meal_Menu\Shortcodes::invalidate_calendar_cache();
+			wp_send_json( array( 'ok' => true, 'imported' => $imported ) );
 			}
 
 			$items = \Meal_Menu\Importer::parse( $tmp );
@@ -259,6 +260,7 @@ class Ajax {
 				$db->save_template_items( $tpl_id, $items );
 			}
 
+			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true, 'id' => $tpl_id ) );
 		} catch ( \Exception $e ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка обработки файла', 'meal-menu' ) ) );
@@ -324,6 +326,7 @@ class Ajax {
 				$imported++;
 			}
 
+			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true, 'imported' => $imported ) );
 		} catch ( \Exception $e ) {
 			wp_send_json( array( 'ok' => false, 'error' => $e->getMessage() ) );
@@ -352,6 +355,7 @@ class Ajax {
 					$db->delete_template( $id );
 				}
 			}
+			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true ) );
 		}
 
@@ -371,6 +375,7 @@ class Ajax {
 				}
 				$deleted++;
 			}
+			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true, 'deleted' => $deleted ) );
 		}
 
@@ -508,6 +513,7 @@ class Ajax {
 
 		$db->save_template_items( $tpl_id, $items );
 
+		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'id' => $tpl_id ) );
 	}
 

@@ -71,8 +71,8 @@ class Shortcodes {
 				</div>
 			</div>
 
-			<footer class="meal-footer">
-				<a href="https://github.com/igor-blag/web-food" target="_blank" rel="noopener">github.com/igor-blag/web-food</a>
+			<footer class="meal-footer" style="text-align:right;font-size:10px">
+				<a href="https://github.com/igor-blag/web-food" target="_blank" rel="noopener">meal-menu@gh</a>
 			</footer>
 		</div>
 		<?php
@@ -86,7 +86,31 @@ class Shortcodes {
 		return ob_get_clean();
 	}
 
+	public static function invalidate_day_menu_cache(): void {
+		global $wpdb;
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_meal_day_%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_meal_day_%'" );
+	}
+
+	public static function invalidate_oc_cache(): void {
+		delete_transient( 'meal_oc_content' );
+	}
+
+	public static function invalidate_calendar_cache(): void {
+		global $wpdb;
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_meal_cal_%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_meal_cal_%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_meal_day_%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_meal_day_%'" );
+	}
+
 	public static function render_calendar_body( string $type, int $year, int $month, bool $is_camp = false ): string {
+		$cache_key = 'meal_cal_' . sanitize_key( $type ) . '_' . $year . '_' . $month . '_' . ( $is_camp ? '1' : '0' );
+		$cached = get_transient( $cache_key );
+		if ( $cached !== false ) {
+			return $cached;
+		}
+
 		$db = DB::instance();
 
 		if ( $is_camp ) {
@@ -264,10 +288,17 @@ class Shortcodes {
 			<?php endif; ?>
 		</div>
 		<?php
-		return ob_get_clean();
+		$html = ob_get_clean();
+		set_transient( $cache_key, $html, HOUR_IN_SECONDS * 12 );
+		return $html;
 	}
 
 	public static function render_oc_content(): string {
+		$cached = get_transient( 'meal_oc_content' );
+		if ( $cached !== false ) {
+			return $cached;
+		}
+
 		$db  = DB::instance();
 		$oc  = $db->get_oc_monitoring();
 
@@ -281,7 +312,10 @@ class Shortcodes {
 			's6_acts_url', 's6_photos_url', 's7_waste_level' ) as $k ) {
 			if ( ! empty( $oc[ $k ] ) ) { $has_any = true; break; }
 		}
-		if ( ! $has_any ) return '';
+		if ( ! $has_any ) {
+			set_transient( 'meal_oc_content', '', HOUR_IN_SECONDS * 12 );
+			return '';
+		}
 
 		ob_start();
 		?>
@@ -361,6 +395,8 @@ class Shortcodes {
 			<?php endforeach; ?>
 		</details>
 		<?php
-		return ob_get_clean();
+		$html = ob_get_clean();
+		set_transient( 'meal_oc_content', $html, HOUR_IN_SECONDS * 12 );
+		return $html;
 	}
 }

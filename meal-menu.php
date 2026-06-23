@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MEAL_MENU_VERSION', '2.0.0' );
+define( 'MEAL_MENU_VERSION', '2.0.1' );
 define( 'MEAL_MENU_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MEAL_MENU_URL', plugin_dir_url( __FILE__ ) );
 define( 'MEAL_MENU_BASENAME', plugin_basename( __FILE__ ) );
@@ -57,6 +57,10 @@ spl_autoload_register( function ( $class ) {
 } );
 
 require_once MEAL_MENU_DIR . 'includes/class-db.php';
+
+if ( is_admin() ) {
+	new \Meal_Menu\GitHub_Updater( __FILE__, 'igor-blag/web-food' );
+}
 
 register_activation_hook( __FILE__, array( 'Meal_Menu\\Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'Meal_Menu\\Activator', 'deactivate' ) );

@@ -118,9 +118,9 @@ $meal_labels = array(
 	<div id="dropzone" class="dropzone">
 		<div class="dropzone-inner">
 			<span class="dropzone-icon">&#x21E9;</span>
-			<span class="dropzone-text"><?php _e( 'Перетащите XLSX-файлы или фото меню сюда', 'meal-menu' ); ?></span>
-			<span class="dropzone-hint"><?php _e( '.xlsx → шаблон · Фото (JPEG/PNG) → AI-распознавание', 'meal-menu' ); ?></span>
-			<input type="file" id="dropzone-file" multiple accept=".xlsx,image/jpeg,image/png,image/webp" style="display:none">
+			<span class="dropzone-text"><?php _e( 'Перетащите XLSX-файлы, фото меню или JSON сюда', 'meal-menu' ); ?></span>
+			<span class="dropzone-hint"><?php _e( '.xlsx → шаблон · Фото (JPEG/PNG) → AI-распознавание · .json → импорт', 'meal-menu' ); ?></span>
+			<input type="file" id="dropzone-file" multiple accept=".xlsx,image/jpeg,image/png,image/webp,.json,application/json" style="display:none">
 		</div>
 		<div id="dropzone-progress" class="dropzone-progress" style="display:none">
 			<div class="dropzone-progress-bar" id="dropzone-progress-bar"></div>
@@ -320,25 +320,29 @@ $meal_labels = array(
 	function uploadBatch(files) {
 		var xlsxFiles = [];
 		var imgFiles = [];
+		var jsonFiles = [];
 		files.forEach(function(f) {
 			if (f.name.match(/\.xlsx$/i)) xlsxFiles.push(f);
 			else if (f.type.match(/^image\/(jpeg|png|webp)$/)) imgFiles.push(f);
+			else if (f.name.match(/\.json$/i)) jsonFiles.push(f);
 		});
 
-		if (xlsxFiles.length === 0 && imgFiles.length === 0) {
-			dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Поддерживаются .xlsx, JPEG, PNG, WebP', 'meal-menu' ); ?></span>';
+		if (xlsxFiles.length === 0 && imgFiles.length === 0 && jsonFiles.length === 0) {
+			dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Поддерживаются .xlsx, JPEG, PNG, WebP, .json', 'meal-menu' ); ?></span>';
 			return;
 		}
 
-		if (xlsxFiles.length > 0) {
+		if (jsonFiles.length > 0) {
+			processJsonFile(jsonFiles[0]);
+		} else if (xlsxFiles.length > 0) {
 			uploadXlsxBatch(xlsxFiles);
-	} else if (imgFiles.length > 0) {
-		if (!aiAvailable) {
-			dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'AI не настроен. Настройте коннектор в Settings → Connectors.', 'meal-menu' ); ?></span>';
-			return;
+		} else if (imgFiles.length > 0) {
+			if (!aiAvailable) {
+				dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'AI не настроен. Настройте коннектор в Settings → Connectors.', 'meal-menu' ); ?></span>';
+				return;
+			}
+			uploadPhoto(imgFiles[0]);
 		}
-		uploadPhoto(imgFiles[0]);
-	}
 	}
 
 	// ── XLSX import (legacy) ──────────────────────────────────
@@ -392,6 +396,8 @@ $meal_labels = array(
 	var currentPhotoPath = null;
 	var analysisInterval = null;
 	var analysisStartTime = null;
+	var importQueue = null;
+	var importQueueIndex = 0;
 
 	function startAnalysisBar() {
 		dzProgress.style.display = '';
@@ -456,6 +462,53 @@ $meal_labels = array(
 		xhr.onerror = function() { dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Сетевая ошибка', 'meal-menu' ); ?></span>'; };
 		xhr.open('POST', ajaxUrl, true);
 		xhr.send(fd);
+	}
+
+	// ── JSON import ────────────────────────────────────
+
+	function processJsonFile(file) {
+		dzProgress.style.display = '';
+		dzProgressBar.style.transition = 'width .3s ease';
+		dzProgressBar.style.width = '10%';
+		dzStatus.textContent = '<?php _e( 'Чтение JSON…', 'meal-menu' ); ?>';
+
+		var reader = new FileReader();
+		reader.onload = function(e) {
+			dzProgressBar.style.width = '60%';
+			var data;
+			try {
+				data = JSON.parse(e.target.result);
+			} catch(err) {
+				dzProgress.style.display = 'none';
+				dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Ошибка: неверный JSON', 'meal-menu' ); ?></span>';
+				return;
+			}
+
+			var days = [];
+			if (Array.isArray(data)) {
+				days = data;
+			} else if (data && data.items && Array.isArray(data.items)) {
+				days = [data];
+			} else {
+				dzProgress.style.display = 'none';
+				dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Ошибка: неверная структура JSON. Ожидается { items: [...] } или [{ items: [...] }, ...]', 'meal-menu' ); ?></span>';
+				return;
+			}
+
+			if (days.length === 0 || !days[0].items || !days[0].items.length) {
+				dzProgress.style.display = 'none';
+				dzStatus.innerHTML = '<span style="color:var(--error)"><?php _e( 'Ошибка: в JSON нет блюд (items)', 'meal-menu' ); ?></span>';
+				return;
+			}
+
+			dzProgressBar.style.width = '100%';
+			setTimeout(function() { dzProgress.style.display = 'none'; }, 400);
+			dzStatus.innerHTML = '<span style="color:var(--success)"><?php _e( '✓ JSON загружен:', 'meal-menu' ); ?> ' + days.length + ' <?php _e( 'день', 'meal-menu' ); ?></span>';
+			setTimeout(function() { dzStatus.innerHTML = ''; }, 3000);
+
+			showPhotoModalWithQueue(days, 0);
+		};
+		reader.readAsText(file);
 	}
 
 	function analyzePhoto(path) {
@@ -545,6 +598,19 @@ $meal_labels = array(
 		});
 
 		document.getElementById('pm-save').addEventListener('click', function() { saveFromModal(overlay); });
+	}
+
+	function showPhotoModalWithQueue(days, startIndex) {
+		importQueue = days;
+		importQueueIndex = startIndex;
+		showPhotoModal(days[startIndex]);
+		var overlay = document.querySelector('.photo-modal-overlay');
+		if (overlay) {
+			var headerSpan = overlay.querySelector('.photo-modal-header span');
+			if (headerSpan) headerSpan.textContent = '<?php _e( 'Импорт меню из JSON', 'meal-menu' ); ?>';
+		}
+		var retryBtn = document.getElementById('pm-retry');
+		if (retryBtn) retryBtn.style.display = 'none';
 	}
 
 	function renderItems(items) {
@@ -643,9 +709,19 @@ $meal_labels = array(
 			items_json: JSON.stringify(rows),
 		}, function(r) {
 			if (r.ok) {
-				status.innerHTML = '<span style="color:var(--success)"><?php _e( '✓ Шаблон сохранён, перезагрузка…', 'meal-menu' ); ?></span>';
-				btn.disabled = true;
-				setTimeout(function() { overlay.remove(); location.reload(); }, 1000);
+				if (importQueue && importQueueIndex < importQueue.length - 1) {
+					importQueueIndex++;
+					var nextDay = importQueue[importQueueIndex];
+					document.getElementById('pm-day').value = nextDay.day_number || '';
+					renderItems(nextDay.items || []);
+					status.innerHTML = '<span style="color:var(--success)"><?php _e( '✓ День сохранён. Редактируйте следующий…', 'meal-menu' ); ?></span>';
+					btn.disabled = false;
+				} else {
+					status.innerHTML = '<span style="color:var(--success)"><?php _e( '✓ Шаблон сохранён, перезагрузка…', 'meal-menu' ); ?></span>';
+					btn.disabled = true;
+					importQueue = null;
+					setTimeout(function() { overlay.remove(); location.reload(); }, 1000);
+				}
 			} else {
 				status.innerHTML = '<span style="color:var(--error)">' + escapeHtml(r.error || '<?php _e( 'Ошибка сохранения', 'meal-menu' ); ?>') + '</span>';
 				btn.disabled = false;

@@ -24,6 +24,22 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 		</div>
 	</div>
 
+	<!-- AI prompt -->
+	<div class="panel">
+		<div class="panel-title"><?php _e( 'AI-промт для распознавания фото', 'meal-menu' ); ?></div>
+		<p class="text-muted mb-2">
+			<?php _e( 'Промт отправляется AI-модели вместе с фотографией меню. Вы можете отредактировать его под свои нужды. Сброс восстанавливает значение по умолчанию.', 'meal-menu' ); ?>
+		</p>
+		<div class="form-group">
+			<textarea id="meal_ai_prompt" class="form-control" style="font-family:monospace;min-height:280px;white-space:pre-wrap;tab-size:2;line-height:1.5;font-size:.85rem"
+				><?php echo esc_textarea( \Meal_Menu\Importer_Photo::build_prompt() ); ?></textarea>
+		</div>
+		<div style="display:flex;gap:8px">
+			<button type="button" class="btn btn-outline btn-sm" id="btn-ai-prompt-reset"><?php _e( '↺ Сбросить на умолчание', 'meal-menu' ); ?></button>
+			<span id="ai-prompt-msg" class="btn-msg"></span>
+		</div>
+	</div>
+
 	<!-- Email -->
 	<div class="panel">
 		<div class="panel-title"><?php _e( 'Email-уведомления', 'meal-menu' ); ?></div>
@@ -128,6 +144,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 		}).fail(function() { cb({ok:false, error: 'Сетевая ошибка'}); });
 	}
 
+	var defaultAiPrompt = <?php echo json_encode( \Meal_Menu\Importer_Photo::get_default_prompt() ); ?>;
+
 	function showMsg(text, isError) {
 		btnMsg.innerHTML = '<span style="color:' + (isError ? 'var(--error, #a02020)' : 'var(--success, #4a7a2a)') + '">' + text + '</span>';
 		setTimeout(function() { btnMsg.innerHTML = ''; }, 4000);
@@ -144,12 +162,33 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 			meal_smtp_port: document.getElementById('meal_smtp_port').value,
 			meal_smtp_user: document.getElementById('meal_smtp_user').value,
 			meal_smtp_pass: document.getElementById('meal_smtp_pass').value,
-			meal_smtp_secure: document.getElementById('meal_smtp_secure').value
+			meal_smtp_secure: document.getElementById('meal_smtp_secure').value,
+			meal_ai_prompt: document.getElementById('meal_ai_prompt').value
 		}, function(r) {
 			if (r.ok) {
 				showMsg('Настройки сохранены', false);
 			} else {
 				showMsg(r.error || 'Ошибка сохранения', true);
+			}
+		});
+	});
+
+	// ─── AI prompt reset ──────────────────────────────────────────
+	function showAiMsg(text, isError) {
+		var el = document.getElementById('ai-prompt-msg');
+		if (!el) return;
+		el.innerHTML = '<span style="color:' + (isError ? 'var(--error, #a02020)' : 'var(--success, #4a7a2a)') + ';font-size:.82rem">' + text + '</span>';
+		setTimeout(function() { el.innerHTML = ''; }, 4000);
+	}
+
+	document.getElementById('btn-ai-prompt-reset').addEventListener('click', function() {
+		if (!confirm('<?php _e( 'Сбросить промт на значение по умолчанию?', 'meal-menu' ); ?>')) return;
+		apiPost({action: 'reset_ai_prompt'}, function(r) {
+			if (r.ok) {
+				document.getElementById('meal_ai_prompt').value = r.prompt || defaultAiPrompt;
+				showAiMsg('<?php _e( 'Промт сброшен. Нажмите «Сохранить настройки» чтобы применить.', 'meal-menu' ); ?>', false);
+			} else {
+				showAiMsg(r.error || '<?php _e( 'Ошибка', 'meal-menu' ); ?>', true);
 			}
 		});
 	});

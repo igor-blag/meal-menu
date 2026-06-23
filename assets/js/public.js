@@ -63,6 +63,8 @@
 	if (!calBody) return;
 
 	function loadCalendar(type, year, month, pushState) {
+		var h = calBody.offsetHeight;
+		if (h > 0) calBody.style.minHeight = h + 'px';
 		calBody.innerHTML = '<div style="text-align:center;padding:2rem;opacity:.5">Загрузка…</div>';
 
 		var xhr = new XMLHttpRequest();
@@ -76,6 +78,7 @@
 				var data = JSON.parse(xhr.responseText);
 				if (data.ok) {
 					calBody.innerHTML = data.html;
+					calBody.style.minHeight = '';
 					if (pushState) {
 						var url = new URL(window.location);
 						url.searchParams.set('meal_type', type);
@@ -85,13 +88,16 @@
 					}
 				} else {
 					calBody.innerHTML = '<p>Ошибка загрузки.</p>';
+					calBody.style.minHeight = '';
 				}
 			} catch(e) {
 				calBody.innerHTML = '<p>Ошибка обработки ответа.</p>';
+				calBody.style.minHeight = '';
 			}
 		};
 		xhr.onerror = function() {
 			calBody.innerHTML = '<p>Ошибка сети.</p>';
+			calBody.style.minHeight = '';
 		};
 		xhr.send();
 	}
