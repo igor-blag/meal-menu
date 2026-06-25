@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Календарь питания
- * Plugin URI:        https://github.com/igor-blag/web-food
+ * Plugin URI:        https://github.com/igor-blag/meal-menu
  * Description:       Управление школьным меню: шаблоны циклов, календарь питания, генерация Excel для ФЦМПО, общественный контроль питания.
  * Version:           2.0.2
  * Requires PHP:      8.0
@@ -59,7 +59,7 @@ spl_autoload_register( function ( $class ) {
 require_once MEAL_MENU_DIR . 'includes/class-db.php';
 
 if ( is_admin() ) {
-	new \Meal_Menu\GitHub_Updater( __FILE__, 'igor-blag/web-food' );
+	new \Meal_Menu\GitHub_Updater( __FILE__, 'igor-blag/meal-menu' );
 }
 
 register_activation_hook( __FILE__, array( 'Meal_Menu\\Activator', 'activate' ) );
