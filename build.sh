@@ -11,6 +11,7 @@ rm -rf "$TMP"
 mkdir -p "$DEST"
 
 rsync -a \
+  --exclude='*.zip' \
   --exclude='.git/' \
   --exclude='.gitignore' \
   --exclude='node_modules/' \
