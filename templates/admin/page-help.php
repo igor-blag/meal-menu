@@ -139,7 +139,7 @@
 
 	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
 		<div style="background:var(--wp-blue);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;margin-top:2px">2</div>
-		<div style="line-height:1.5"><?php _e( 'Выберите <strong>тип школы</strong> (отделение). После выбора появится предпросмотр календаря.', 'meal-menu' ); ?></div>
+		<div style="line-height:1.5"><?php _e( 'Выберите <strong>отделение</strong>. После выбора появится предпросмотр календаря.', 'meal-menu' ); ?></div>
 	</div>
 
 	<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">

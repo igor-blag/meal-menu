@@ -149,7 +149,7 @@ foreach ( $departments as $d ) {
 						</div>
 					</div>
 
-					<div class="form-row merge-select-row school-only-field"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
+					<div class="form-row merge-select-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
 					<div class="field" style="max-width:300px">
 						<label><?php _e( 'Объединить календарь с', 'meal-menu' ); ?></label>
 						<select class="sel-merge">
@@ -161,7 +161,7 @@ foreach ( $departments as $d ) {
 						<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным.', 'meal-menu' ); ?></span>
 					</div>
 				</div>
-				<div class="form-row merge-static-row school-only-field"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
+				<div class="form-row merge-static-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
 					<div class="field" style="max-width:300px">
 						<label><?php _e( 'Объединение календарей', 'meal-menu' ); ?></label>
 						<span class="text-muted merge-static-text" style="font-size:.82rem;display:block;margin-top:4px"><?php printf( __( 'Источник данных для: %s', 'meal-menu' ), isset( $merged_by[ $d['code'] ] ) ? implode( ', ', $merged_by[ $d['code'] ] ) : '' ); ?></span>
@@ -238,7 +238,7 @@ foreach ( $departments as $d ) {
 					<label><?php _e( 'Код (латиница)', 'meal-menu' ); ?></label>
 					<input type="text" id="new-dept-code" class="form-control" placeholder="nursery" pattern="[a-z0-9_]+">
 				</div>
-				<div class="field school-only-field" style="flex:1;min-width:0">
+				<div class="field" style="flex:1;min-width:0">
 					<label><?php _e( 'Постфикс', 'meal-menu' ); ?></label>
 					<input type="text" id="new-dept-suffix" class="form-control" placeholder="-nursery">
 				</div>
