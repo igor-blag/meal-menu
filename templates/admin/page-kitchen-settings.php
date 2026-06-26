@@ -149,7 +149,7 @@ foreach ( $departments as $d ) {
 						</div>
 					</div>
 
-					<div class="form-row merge-select-row school-only-field"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
+					<div class="form-row merge-select-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? ' style="display:none"' : ''; ?>>
 					<div class="field" style="max-width:300px">
 						<label><?php _e( 'Объединить календарь с', 'meal-menu' ); ?></label>
 						<select class="sel-merge">
@@ -161,7 +161,7 @@ foreach ( $departments as $d ) {
 						<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным.', 'meal-menu' ); ?></span>
 					</div>
 				</div>
-				<div class="form-row merge-static-row school-only-field"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
+				<div class="form-row merge-static-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
 					<div class="field" style="max-width:300px">
 						<label><?php _e( 'Объединение календарей', 'meal-menu' ); ?></label>
 						<span class="text-muted merge-static-text" style="font-size:.82rem;display:block;margin-top:4px"><?php printf( __( 'Источник данных для: %s', 'meal-menu' ), isset( $merged_by[ $d['code'] ] ) ? implode( ', ', $merged_by[ $d['code'] ] ) : '' ); ?></span>
@@ -238,7 +238,7 @@ foreach ( $departments as $d ) {
 					<label><?php _e( 'Код (латиница)', 'meal-menu' ); ?></label>
 					<input type="text" id="new-dept-code" class="form-control" placeholder="nursery" pattern="[a-z0-9_]+">
 				</div>
-				<div class="field school-only-field" style="flex:1;min-width:0">
+				<div class="field" style="flex:1;min-width:0">
 					<label><?php _e( 'Постфикс', 'meal-menu' ); ?></label>
 					<input type="text" id="new-dept-suffix" class="form-control" placeholder="-nursery">
 				</div>
@@ -345,141 +345,139 @@ foreach ( $departments as $d ) {
 		setTimeout(function() { btnMsg.innerHTML = ''; }, 4000);
 	}
 
-	document.getElementById('dept-list').addEventListener('change', function(e) {
-		if (e.target.classList.contains('dept-toggle')) {
-			var card = e.target.closest('.dept-card');
-			var enabled = e.target.checked;
-			card.classList.toggle('enabled', enabled);
-			var code = card.dataset.code;
-			var label = card.querySelector('.dept-title').textContent.trim();
+	var deptList = document.getElementById('dept-list');
 
-			if (!enabled) {
-				// Remove this department from all other dropdown options
-				document.querySelectorAll('.sel-merge').forEach(function(sel) {
-					var opt = sel.querySelector('option[value="' + code + '"]');
-					if (opt) {
-						if (opt.selected) {
-							sel.value = '';
-							sel._prev = '';
-							var tCard = document.querySelector('.dept-card[data-code="' + code + '"]');
-							if (tCard) {
-								tCard.querySelector('.merge-select-row').style.display = '';
-								tCard.querySelector('.merge-static-row').style.display = 'none';
+	if (deptList) {
+		deptList.addEventListener('change', function(e) {
+			if (e.target.classList.contains('dept-toggle')) {
+				var card = e.target.closest('.dept-card');
+				var enabled = e.target.checked;
+				card.classList.toggle('enabled', enabled);
+				var code = card.dataset.code;
+				var label = card.querySelector('.dept-title').textContent.trim();
+
+				if (!enabled) {
+					document.querySelectorAll('.sel-merge').forEach(function(sel) {
+						var opt = sel.querySelector('option[value="' + code + '"]');
+						if (opt) {
+							if (opt.selected) {
+								sel.value = '';
+								sel._prev = '';
+								var tCard = document.querySelector('.dept-card[data-code="' + code + '"]');
+								if (tCard) {
+									tCard.querySelector('.merge-select-row').style.display = '';
+									tCard.querySelector('.merge-static-row').style.display = 'none';
+								}
 							}
+							sel.removeChild(opt);
 						}
-						sel.removeChild(opt);
+					});
+					var ownSel = card.querySelector('.sel-merge');
+					if (ownSel && ownSel.value) {
+						var tCode = ownSel.value;
+						ownSel.value = '';
+						ownSel._prev = '';
+						var tCard = document.querySelector('.dept-card[data-code="' + tCode + '"]');
+						if (tCard) {
+							tCard.querySelector('.merge-select-row').style.display = '';
+							tCard.querySelector('.merge-static-row').style.display = 'none';
+						}
 					}
-				});
-				// Clear this department's own merge and restore its target
-				var ownSel = card.querySelector('.sel-merge');
-				if (ownSel && ownSel.value) {
-					var tCode = ownSel.value;
-					ownSel.value = '';
-					ownSel._prev = '';
-					var tCard = document.querySelector('.dept-card[data-code="' + tCode + '"]');
-					if (tCard) {
-						tCard.querySelector('.merge-select-row').style.display = '';
-						tCard.querySelector('.merge-static-row').style.display = 'none';
-					}
-				}
-				card.querySelector('.merge-select-row').style.display = '';
-				card.querySelector('.merge-static-row').style.display = 'none';
-				card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = false; });
-				var vac = card.querySelector('.chk-ignore-vac');
-				if (vac) vac.disabled = false;
-			} else {
-				document.querySelectorAll('.sel-merge').forEach(function(sel) {
-					if (sel.closest('.dept-card').dataset.code === code) return;
-					if (sel.querySelector('option[value="' + code + '"]')) return;
-					var opt = document.createElement('option');
-					opt.value = code;
-					opt.textContent = label;
-					sel.insertBefore(opt, sel.options[1] || null);
-				});
-				// Sync disabled state on the re-enabled card itself
-				var ownSel = card.querySelector('.sel-merge');
-				if (ownSel && ownSel.value) {
-					card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = true; });
+					card.querySelector('.merge-select-row').style.display = '';
+					card.querySelector('.merge-static-row').style.display = 'none';
+					card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = false; });
 					var vac = card.querySelector('.chk-ignore-vac');
-					if (vac) vac.disabled = true;
-				}
-			}
-		}
-	});
-
-	// Real-time merge toggling
-	document.querySelectorAll('.sel-merge').forEach(function(sel) {
-		sel._prev = sel.value;
-	});
-
-	document.getElementById('dept-list').addEventListener('change', function(e) {
-		if (!e.target.classList.contains('sel-merge')) return;
-		var sel = e.target;
-		var card = sel.closest('.dept-card');
-		var prevCode = sel._prev;
-		var newCode = sel.value;
-
-		// Restore previously selected target if no other select points to it
-		if (prevCode) {
-			var stillReferenced = false;
-			document.querySelectorAll('.sel-merge').forEach(function(s) {
-				if (s !== sel && s.value === prevCode) stillReferenced = true;
-			});
-			if (!stillReferenced) {
-				var prevCard = document.querySelector('.dept-card[data-code="' + prevCode + '"]');
-				if (prevCard) {
-					prevCard.querySelector('.merge-select-row').style.display = '';
-					prevCard.querySelector('.merge-static-row').style.display = 'none';
-				}
-			}
-		}
-
-		// Disable/enable calendar fields in source department
-		function setMergeDisabled(card, disabled) {
-			card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = disabled; });
-			var vac = card.querySelector('.chk-ignore-vac');
-			if (vac) vac.disabled = disabled;
-		}
-
-		if (newCode) {
-			setMergeDisabled(card, true);
-			var targetCard = document.querySelector('.dept-card[data-code="' + newCode + '"]');
-			if (targetCard) {
-				targetCard.querySelector('.merge-select-row').style.display = 'none';
-				var sources = [];
-				document.querySelectorAll('.sel-merge').forEach(function(s) {
-					if (s.value === newCode) {
-						var srcCard = s.closest('.dept-card');
-						var srcName = (srcCard.querySelector('.inp-dept-name').value || srcCard.querySelector('.dept-title').textContent).trim();
-						sources.push(srcName);
+					if (vac) vac.disabled = false;
+				} else {
+					document.querySelectorAll('.sel-merge').forEach(function(sel) {
+						if (sel.closest('.dept-card').dataset.code === code) return;
+						if (sel.querySelector('option[value="' + code + '"]')) return;
+						var opt = document.createElement('option');
+						opt.value = code;
+						opt.textContent = label;
+						sel.insertBefore(opt, sel.options[1] || null);
+					});
+					var ownSel = card.querySelector('.sel-merge');
+					if (ownSel && ownSel.value) {
+						card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = true; });
+						var vac = card.querySelector('.chk-ignore-vac');
+						if (vac) vac.disabled = true;
 					}
-				});
-				targetCard.querySelector('.merge-static-text').textContent = 'Источник данных для: ' + sources.join(', ');
-				targetCard.querySelector('.merge-static-row').style.display = '';
+				}
 			}
-		} else if (prevCode) {
-			setMergeDisabled(card, false);
-		}
+		});
 
-		sel._prev = newCode;
-	});
+		document.querySelectorAll('.sel-merge').forEach(function(sel) {
+			sel._prev = sel.value;
+		});
 
-	// Toggle suffix row with publish checkbox
-	document.getElementById('dept-list').addEventListener('change', function(e) {
-		if (e.target.classList.contains('chk-publish')) {
-			var card = e.target.closest('.dept-card');
-			var suffixRow = card.querySelector('.suffix-row');
-			if (suffixRow) suffixRow.style.display = e.target.checked ? '' : 'none';
-		}
-		if (e.target.classList.contains('chk-camp')) {
-			var card = e.target.closest('.dept-card');
-			var campFields = card.querySelector('.camp-fields');
-			if (campFields) campFields.style.display = e.target.checked ? '' : 'none';
-		}
-	});
+		deptList.addEventListener('change', function(e) {
+			if (!e.target.classList.contains('sel-merge')) return;
+			var sel = e.target;
+			var card = sel.closest('.dept-card');
+			var prevCode = sel._prev;
+			var newCode = sel.value;
+
+			if (prevCode) {
+				var stillReferenced = false;
+				document.querySelectorAll('.sel-merge').forEach(function(s) {
+					if (s !== sel && s.value === prevCode) stillReferenced = true;
+				});
+				if (!stillReferenced) {
+					var prevCard = document.querySelector('.dept-card[data-code="' + prevCode + '"]');
+					if (prevCard) {
+						prevCard.querySelector('.merge-select-row').style.display = '';
+						prevCard.querySelector('.merge-static-row').style.display = 'none';
+					}
+				}
+			}
+
+			function setMergeDisabled(card, disabled) {
+				card.querySelectorAll('.wd-chk').forEach(function(cb) { cb.disabled = disabled; });
+				var vac = card.querySelector('.chk-ignore-vac');
+				if (vac) vac.disabled = disabled;
+			}
+
+			if (newCode) {
+				setMergeDisabled(card, true);
+				var targetCard = document.querySelector('.dept-card[data-code="' + newCode + '"]');
+				if (targetCard) {
+					targetCard.querySelector('.merge-select-row').style.display = 'none';
+					var sources = [];
+					document.querySelectorAll('.sel-merge').forEach(function(s) {
+						if (s.value === newCode) {
+							var srcCard = s.closest('.dept-card');
+							var srcName = (srcCard.querySelector('.inp-dept-name').value || srcCard.querySelector('.dept-title').textContent).trim();
+							sources.push(srcName);
+						}
+					});
+					targetCard.querySelector('.merge-static-text').textContent = 'Источник данных для: ' + sources.join(', ');
+					targetCard.querySelector('.merge-static-row').style.display = '';
+				}
+			} else if (prevCode) {
+				setMergeDisabled(card, false);
+			}
+
+			sel._prev = newCode;
+		});
+
+		deptList.addEventListener('change', function(e) {
+			if (e.target.classList.contains('chk-publish')) {
+				var card = e.target.closest('.dept-card');
+				var suffixRow = card.querySelector('.suffix-row');
+				if (suffixRow) suffixRow.style.display = e.target.checked ? '' : 'none';
+			}
+			if (e.target.classList.contains('chk-camp')) {
+				var card = e.target.closest('.dept-card');
+				var campFields = card.querySelector('.camp-fields');
+				if (campFields) campFields.style.display = e.target.checked ? '' : 'none';
+			}
+		});
+	}
 
 	var addForm = document.getElementById('add-dept-form');
-	document.getElementById('btn-add-dept').addEventListener('click', function() { addForm.classList.toggle('show'); });
+	var btnAddDept = document.getElementById('btn-add-dept');
+	if (btnAddDept) btnAddDept.addEventListener('click', function() { addForm.classList.toggle('show'); });
 	document.getElementById('btn-cancel-add').addEventListener('click', function() { addForm.classList.remove('show'); });
 	document.getElementById('btn-confirm-add').addEventListener('click', function() {
 		var code = document.getElementById('new-dept-code').value.trim();
@@ -493,16 +491,18 @@ foreach ( $departments as $d ) {
 		});
 	});
 
-	document.getElementById('dept-list').addEventListener('click', function(e) {
-		var btn = e.target.closest('.btn-delete-dept');
-		if (!btn) return;
-		showConfirm('Удалить это отделение?', function() {
-			apiPost({action: 'delete_department', id: parseInt(btn.dataset.id)}, function(r) {
-				if (r.ok) location.reload();
-				else showMsg(r.error || 'Ошибка', true);
+	if (deptList) {
+		deptList.addEventListener('click', function(e) {
+			var btn = e.target.closest('.btn-delete-dept');
+			if (!btn) return;
+			showConfirm('Удалить это отделение?', function() {
+				apiPost({action: 'delete_department', id: parseInt(btn.dataset.id)}, function(r) {
+					if (r.ok) location.reload();
+					else showMsg(r.error || 'Ошибка', true);
+				});
 			});
 		});
-	});
+	}
 
 	var hasDepartments = <?php echo empty( $departments ) ? 'false' : 'true'; ?>;
 

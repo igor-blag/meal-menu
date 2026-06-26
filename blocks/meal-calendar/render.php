@@ -33,8 +33,8 @@ wp_localize_script( 'meal-menu-public', 'mealMenu', array(
 	'nonce'   => wp_create_nonce( 'meal_menu_nonce' ),
 ) );
 
-$core = new \Meal_Menu\Core();
-echo $core->shortcode_calendar( array(
+$shortcodes = new \Meal_Menu\Shortcodes();
+echo $shortcodes->shortcode_calendar( array(
 	'type'    => $type,
 	'palette' => $palette,
 	'layout'  => $layout,

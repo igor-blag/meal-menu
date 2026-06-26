@@ -67,11 +67,21 @@ registerBlockType( 'meal-menu/calendar', {
 		}, [ type, year, month, ajaxUrl ] );
 
 		const typeOptions = [
-			{ value: '', label: __( 'Выберите тип школы', 'meal-menu' ) },
-			...departments.map( ( d ) => ( {
-				value: d.code,
-				label: d.label,
-			} ) ),
+			{ value: '', label: __( 'Выберите отделение', 'meal-menu' ) },
+			...departments.map( ( d ) => {
+				var label = d.label;
+				if ( d.merged_with ) {
+					var parent = null;
+					for ( var i = 0; i < departments.length; i++ ) {
+						if ( departments[ i ].code === d.merged_with ) {
+							parent = departments[ i ].label;
+							break;
+						}
+					}
+					label = d.label + ' (данные из ' + ( parent || d.merged_with ) + ')';
+				}
+				return { value: d.code, label: label, disabled: !! d.merged_with };
+			} ),
 		];
 
 		const isKindergarten = data.isKindergarten || false;
@@ -80,7 +90,7 @@ registerBlockType( 'meal-menu/calendar', {
 			<InspectorControls>
 				<PanelBody title={ __( 'Параметры календаря', 'meal-menu' ) }>
 					<SelectControl
-						label={ __( 'Тип школы', 'meal-menu' ) }
+						label={ __( 'Отделение', 'meal-menu' ) }
 						value={ type }
 						options={ typeOptions }
 						onChange={ ( v ) => setAttributes( { type: v } ) }
@@ -121,7 +131,7 @@ registerBlockType( 'meal-menu/calendar', {
 				>
 					<p>
 						{ __(
-							'Нет доступных типов школ. Настройте их в разделе "Питание".',
+							'Нет доступных отделений. Настройте их в разделе "Питание" → "Настройки пищеблока".',
 							'meal-menu'
 						) }
 					</p>
@@ -137,7 +147,7 @@ registerBlockType( 'meal-menu/calendar', {
 						icon="calendar-alt"
 						label={ __( 'Календарь питания', 'meal-menu' ) }
 						instructions={ __(
-							'Выберите тип школы для отображения календаря.',
+							'Выберите отделение — его вкладка будет показываться первой.',
 							'meal-menu'
 						) }
 					>

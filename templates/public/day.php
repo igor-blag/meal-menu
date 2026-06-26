@@ -128,6 +128,6 @@ $layout  = get_option( 'meal_theme_layout', 'classic' );
 	</div>
 
 	<footer class="meal-footer" style="text-align:right;font-size:10px">
-		<a href="https://github.com/igor-blag/web-food" target="_blank" rel="noopener">meal-menu@gh</a>
+		<a href="https://github.com/igor-blag/meal-menu" target="_blank" rel="noopener">meal-menu@gh</a>
 	</footer>
 </div>
