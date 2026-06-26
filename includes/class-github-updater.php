@@ -81,9 +81,16 @@ class GitHub_Updater {
 			return $source;
 		}
 
+		if ( file_exists( trailingslashit( $source ) . 'meal-menu.php' ) ) {
+			return $source;
+		}
+
 		$dirs = glob( trailingslashit( $source ) . '*', GLOB_ONLYDIR );
 		if ( count( $dirs ) === 1 ) {
-			return trailingslashit( $dirs[0] );
+			$inner = trailingslashit( $dirs[0] );
+			if ( file_exists( $inner . 'meal-menu.php' ) ) {
+				return $inner;
+			}
 		}
 
 		return $source;
