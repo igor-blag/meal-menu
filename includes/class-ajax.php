@@ -39,7 +39,9 @@ class Ajax {
 	}
 
 	public function ajax_get_day_menu(): void {
-		check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		if ( is_user_logged_in() ) {
+			check_ajax_referer( 'meal_menu_nonce', 'nonce' );
+		}
 		$date    = $_GET['date'] ?? '';
 		$type    = $_GET['type'] ?? '';
 		$_GET['camp'] = ! empty( $_GET['camp'] ) ? '1' : '';
