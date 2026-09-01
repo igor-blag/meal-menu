@@ -449,7 +449,6 @@ class Ajax {
 		}
 
 		$type       = sanitize_key( $_POST['type'] ?? 'sm' );
-		$is_boarding = ! empty( $_POST['is_boarding'] );
 		$day_number  = isset( $_POST['day_number'] ) && $_POST['day_number'] !== '' ? (int) $_POST['day_number'] : null;
 
 		$raw_items = array();
@@ -499,6 +498,10 @@ class Ajax {
 
 		$db = DB::instance();
 
+		$dept           = $db->get_department( $type );
+		$forced_boarding = $dept && ! empty( $dept['is_boarding'] );
+		$is_boarding     = $forced_boarding ? 1 : ( ! empty( $_POST['is_boarding'] ) ? 1 : 0 );
+
 		if ( $day_number ) {
 			$tpl_id = $db->add_template_with_day( $type, $day_number );
 		} else {
@@ -509,9 +512,7 @@ class Ajax {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Ошибка создания шаблона', 'meal-menu' ) ) );
 		}
 
-		if ( $is_boarding ) {
-			$db->set_template_boarding( $tpl_id, 1 );
-		}
+		$db->set_template_boarding( $tpl_id, $is_boarding );
 
 		$db->save_template_items( $tpl_id, $items );
 
