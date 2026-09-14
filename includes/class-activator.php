@@ -223,10 +223,26 @@ class Activator {
 		}
 
 		$d = $wpdb->prefix . 'meal_departments';
-		if ( ! $wpdb->get_var( "SELECT sql FROM sqlite_master WHERE type='table' AND name='$d' AND sql LIKE '%merged_with%'" ) ) {
+		$has_column = static function ( string $column ) use ( $wpdb, $d ): bool {
+			if ( defined( 'SQLITE_DB_DROPIN_VERSION' ) ) {
+				return (bool) $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = %s AND sql LIKE %s",
+						$d,
+						'%' . $wpdb->esc_like( $column ) . '%'
+					)
+				);
+			}
+
+			return (bool) $wpdb->get_var(
+				$wpdb->prepare( "SHOW COLUMNS FROM `$d` LIKE %s", $column )
+			);
+		};
+
+		if ( ! $has_column( 'merged_with' ) ) {
 			$wpdb->query( "ALTER TABLE $d ADD COLUMN merged_with varchar(20) default NULL" );
 		}
-		if ( ! $wpdb->get_var( "SELECT sql FROM sqlite_master WHERE type='table' AND name='$d' AND sql LIKE '%has_summer_camp%'" ) ) {
+		if ( ! $has_column( 'has_summer_camp' ) ) {
 			$wpdb->query( "ALTER TABLE $d ADD COLUMN has_summer_camp tinyint(1) NOT NULL default 0" );
 			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_start_date date default NULL" );
 			$wpdb->query( "ALTER TABLE $d ADD COLUMN camp_end_date date default NULL" );
