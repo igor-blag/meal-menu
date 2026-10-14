@@ -437,12 +437,11 @@ foreach ( $enabled_depts as $dep ) {
 			$_meal_dir = $_up['basedir'] . '/meal-menu';
 			foreach ( $gen_types as $gt ) {
 				$tm_path = $_meal_dir . "/tm{$year}-{$gt}.xlsx";
-				if ( ! file_exists( $tm_path ) ) {
+				if ( \Meal_Menu\Excel_TM::needs_regeneration( $tm_path, $gt, $year, $is_camp ) ) {
 					\Meal_Menu\Excel_TM::generate( $gt, $year, $is_camp );
 					continue;
 				}
-				// Исходный TM уже существует. Так как генерация пропускается,
-				// отдельно восстанавливаем публичную копию, если она отсутствует.
+				// Файл актуален, но публичная копия могла пропасть — восстанавливаем её.
 				$published = meal_food_dir() . basename( $tm_path );
 				if ( ! file_exists( $published ) ) {
 					meal_publish_file( $tm_path );

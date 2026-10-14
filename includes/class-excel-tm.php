@@ -281,7 +281,72 @@ class Excel_TM {
 		$filepath = $meal_dir . "/tm{$year}-{$school_type}.xlsx";
 		( new \PhpOffice\PhpSpreadsheet\Writer\Xlsx( $spreadsheet ) )->save( $filepath );
 		meal_publish_file( $filepath );
+		self::remember_fingerprint( $school_type, $year, $is_camp );
 		return $filepath;
+	}
+
+	/**
+	 * Нужно ли (пере)генерировать ТМ: файла нет либо исходные данные изменились.
+	 */
+	public static function needs_regeneration( string $filepath, string $school_type, int $year, bool $is_camp = false ): bool {
+		if ( ! is_file( $filepath ) ) {
+			return true;
+		}
+		$stored = self::get_fingerprints();
+		$key    = self::fingerprint_key( $school_type, $year, $is_camp );
+		return ( $stored[ $key ] ?? '' ) !== self::fingerprint( $school_type, $year, $is_camp );
+	}
+
+	/**
+	 * Отпечаток исходных данных (шаблоны дней, их блюда и реквизиты ТМ),
+	 * по которым строится типовое меню. Изменение отпечатка означает,
+	 * что сохранённый XLSX устарел.
+	 */
+	public static function fingerprint( string $school_type, int $year, bool $is_camp = false ): string {
+		$db  = DB::instance();
+		$src = $is_camp ? $db->get_camp_templates( $school_type ) : $db->get_templates( $school_type );
+
+		$data = array();
+		foreach ( $src as $tpl ) {
+			$items  = $is_camp
+				? $db->get_camp_template_items( (int) $tpl['id'] )
+				: $db->get_template_items( (int) $tpl['id'] );
+			$data[] = array(
+				'day_number'  => (int) $tpl['day_number'],
+				'is_boarding' => (int) $tpl['is_boarding'],
+				'label'       => (string) $tpl['label'],
+				'items'       => $items,
+			);
+		}
+
+		$settings         = $db->get_kitchen_settings();
+		$data['settings'] = array(
+			'org_name'             => (string) ( $settings['org_name'] ?? '' ),
+			'tm_approver_position' => (string) ( $settings['tm_approver_position'] ?? '' ),
+			'tm_approver_name'     => (string) ( $settings['tm_approver_name'] ?? '' ),
+			'tm_approve_date'      => (string) ( $settings['tm_approve_date'] ?? '' ),
+		);
+		$data['year'] = $year;
+
+		return md5( (string) wp_json_encode( $data ) );
+	}
+
+	private static function fingerprint_key( string $school_type, int $year, bool $is_camp ): string {
+		return $year . '-' . $school_type . ( $is_camp ? '-camp' : '' );
+	}
+
+	/**
+	 * @return array<string,string>
+	 */
+	private static function get_fingerprints(): array {
+		$stored = get_option( 'meal_tm_fingerprints', array() );
+		return is_array( $stored ) ? $stored : array();
+	}
+
+	private static function remember_fingerprint( string $school_type, int $year, bool $is_camp ): void {
+		$stored = self::get_fingerprints();
+		$stored[ self::fingerprint_key( $school_type, $year, $is_camp ) ] = self::fingerprint( $school_type, $year, $is_camp );
+		update_option( 'meal_tm_fingerprints', $stored, false );
 	}
 
 	private static function row_style( $sheet, int $row, bool $is_first, string $BRD_T, string $BRD_M ): void {
