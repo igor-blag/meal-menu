@@ -3,7 +3,7 @@
  * Plugin Name:       Календарь питания
  * Plugin URI:        https://github.com/igor-blag/meal-menu
  * Description:       Управление школьным меню: шаблоны циклов, календарь питания, генерация Excel для ФЦМПО, общественный контроль питания.
- * Version:           2.0.7
+ * Version:           2.0.8
  * Requires PHP:      8.0
  * Requires WP:       6.3
  * Author:            igor-blag
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MEAL_MENU_VERSION', '2.0.7' );
+define( 'MEAL_MENU_VERSION', '2.0.8' );
 define( 'MEAL_MENU_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MEAL_MENU_URL', plugin_dir_url( __FILE__ ) );
 define( 'MEAL_MENU_BASENAME', plugin_basename( __FILE__ ) );
@@ -42,6 +42,20 @@ function meal_publish_file( string $filepath ): bool {
 		wp_mkdir_p( $dir );
 	}
 	return copy( $filepath, $dir . basename( $filepath ) );
+}
+
+/**
+ * Публичный URL папки публикации (с трейлинг-слешем) или '' , если папка вне корня сайта.
+ */
+function meal_food_url(): string {
+	$dir        = meal_food_dir();
+	$root       = wp_normalize_path( trailingslashit( ABSPATH ) );
+	$normalized = wp_normalize_path( $dir );
+	if ( $root !== '/' && str_starts_with( $normalized, $root ) ) {
+		$relative = ltrim( substr( $normalized, strlen( $root ) ), '/' );
+		return trailingslashit( home_url( '/' . $relative ) );
+	}
+	return '';
 }
 
 spl_autoload_register( function ( $class ) {

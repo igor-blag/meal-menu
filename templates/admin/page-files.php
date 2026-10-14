@@ -21,6 +21,11 @@ foreach ( $all_files as $filepath ) {
 
 rsort( $daily_files );
 
+$food_dir   = meal_food_dir();
+$food_url   = meal_food_url();
+$food_files = is_dir( $food_dir ) ? ( glob( $food_dir . '*.xlsx' ) ?: array() ) : array();
+rsort( $food_files );
+
 function meal_match_dept( $filename, $departments ) {
 	$name_no_ext = basename( $filename, '.xlsx' );
 	foreach ( $departments as $dep ) {
@@ -149,6 +154,51 @@ $tmkp_groups   = meal_group_by_dept( $tmkp_files, $departments, 'meal_match_tmkp
 	</div>
 	</div>
 
+	<div class="panel" style="margin-top:24px">
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+			<h2 style="margin:0;font-size:1rem">
+				<?php _e( 'Папка публикации', 'meal-menu' ); ?>:
+				<code style="font-weight:normal"><?php echo esc_html( $food_dir ); ?></code>
+			</h2>
+			<button type="button" id="btn-del-selected-food" class="btn btn-danger btn-sm"><?php _e( 'Удалить выбранные', 'meal-menu' ); ?></button>
+		</div>
+
+		<?php if ( empty( $food_files ) ): ?>
+			<div class="alert"><?php _e( 'Папка публикации пуста.', 'meal-menu' ); ?></div>
+		<?php else: ?>
+		<table class="menu-table">
+			<thead>
+				<tr>
+					<th style="width:32px"><input type="checkbox" class="cb-select-all"></th>
+					<th><?php _e( 'Файл', 'meal-menu' ); ?></th>
+					<th style="width:80px"><?php _e( 'Размер', 'meal-menu' ); ?></th>
+					<th style="width:140px"><?php _e( 'Дата', 'meal-menu' ); ?></th>
+					<th style="width:150px"></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $food_files as $filepath ): ?>
+				<tr>
+					<td><input type="checkbox" class="cb-food-file" value="<?php echo esc_attr( basename( $filepath ) ); ?>"></td>
+					<td><?php echo esc_html( basename( $filepath ) ); ?></td>
+					<td><?php echo esc_html( size_format( filesize( $filepath ) ) ); ?></td>
+					<td><?php echo esc_html( gmdate( 'Y-m-d H:i', filemtime( $filepath ) ) ); ?></td>
+					<td style="white-space:nowrap">
+						<?php if ( $food_url ): ?>
+						<a href="<?php echo esc_url( $food_url . basename( $filepath ) ); ?>" class="btn btn-outline btn-sm" target="_blank" rel="noopener"><?php _e( 'Открыть', 'meal-menu' ); ?></a>
+						<?php endif; ?>
+						<button type="button" class="btn btn-danger btn-sm btn-del-food-file" data-file="<?php echo esc_attr( basename( $filepath ) ); ?>"><?php _e( 'Удалить', 'meal-menu' ); ?></button>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p style="color:#646970;font-size:.8rem;margin:8px 0 0">
+			<?php _e( 'Это файлы, доступные посетителям сайта. Удаление убирает и публичную копию, и исходник в uploads/meal-menu.', 'meal-menu' ); ?>
+		</p>
+		<?php endif; ?>
+	</div>
+
 	<style>
 	@media (min-width: 1200px) {
 		.files-columns { display: flex; gap: 24px; align-items: flex-start; }
@@ -178,7 +228,7 @@ $tmkp_groups   = meal_group_by_dept( $tmkp_files, $departments, 'meal_match_tmkp
 		if (e.target.classList.contains('cb-select-all')) {
 			var checked = e.target.checked;
 			var table = e.target.closest('table');
-			table.querySelectorAll('.cb-file').forEach(function(cb) { cb.checked = checked; });
+			table.querySelectorAll('.cb-file, .cb-food-file').forEach(function(cb) { cb.checked = checked; });
 		}
 	});
 
@@ -192,11 +242,39 @@ $tmkp_groups   = meal_group_by_dept( $tmkp_files, $departments, 'meal_match_tmkp
 		});
 	});
 
+	document.addEventListener('click', function(e) {
+		var btn = e.target.closest('.btn-del-food-file');
+		if (!btn) return;
+		if (!confirm('Удалить опубликованный файл «' + btn.dataset.file + '»?')) return;
+		apiPost({ action: 'delete_file', file: btn.dataset.file }, function(r) {
+			if (r.ok) { location.reload(); }
+			else { alert(r.error || 'Ошибка'); }
+		});
+	});
+
 	var delSelectedBtn = document.getElementById('btn-del-selected');
 	if (delSelectedBtn) {
 		delSelectedBtn.addEventListener('click', function() {
 			var files = [];
 			document.querySelectorAll('.cb-file:checked').forEach(function(cb) { files.push(cb.value); });
+			if (!files.length) { alert('Не выбрано ни одного файла.'); return; }
+			if (!confirm('Удалить ' + files.length + ' файл(ов)?')) return;
+			apiPost({ action: 'delete_file', files: files }, function(r) {
+				if (r.ok) {
+					var msg = 'Удалено файлов: ' + r.deleted;
+					if (r.errors && r.errors.length) msg += '\nОшибки:\n' + r.errors.join('\n');
+					alert(msg);
+					location.reload();
+				} else { alert(r.error || 'Ошибка'); }
+			});
+		});
+	}
+
+	var delFoodBtn = document.getElementById('btn-del-selected-food');
+	if (delFoodBtn) {
+		delFoodBtn.addEventListener('click', function() {
+			var files = [];
+			document.querySelectorAll('.cb-food-file:checked').forEach(function(cb) { files.push(cb.value); });
 			if (!files.length) { alert('Не выбрано ни одного файла.'); return; }
 			if (!confirm('Удалить ' + files.length + ' файл(ов)?')) return;
 			apiPost({ action: 'delete_file', files: files }, function(r) {

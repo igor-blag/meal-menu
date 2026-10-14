@@ -102,22 +102,35 @@ class Ajax {
 		}
 		$files = isset( $data['files'] ) && is_array( $data['files'] ) ? $data['files'] : array( $data['file'] ?? '' );
 		$upload_dir = wp_upload_dir();
+		$meal_dir   = $upload_dir['basedir'] . '/meal-menu/';
+		$food_dir   = meal_food_dir();
 		$deleted = 0;
 		$errors = array();
 		foreach ( $files as $filename ) {
-			$filename = basename( $filename );
-			if ( ! $filename ) continue;
-			$filepath = $upload_dir['basedir'] . '/meal-menu/' . $filename;
-			if ( ! is_file( $filepath ) ) {
+			$filename = basename( (string) $filename );
+			if ( $filename === '' || strtolower( (string) pathinfo( $filename, PATHINFO_EXTENSION ) ) !== 'xlsx' ) {
+				continue;
+			}
+			$src_path    = $meal_dir . $filename;
+			$food_path   = $food_dir . $filename;
+			$src_exists  = is_file( $src_path );
+			$food_exists = is_file( $food_path );
+
+			if ( ! $src_exists && ! $food_exists ) {
 				$errors[] = sprintf( __( 'Файл не найден: %s', 'meal-menu' ), $filename );
 				continue;
 			}
-			if ( unlink( $filepath ) ) {
+
+			$ok = true;
+			if ( $src_exists && ! unlink( $src_path ) ) {
+				$ok = false;
+			}
+			if ( $food_exists && ! unlink( $food_path ) ) {
+				$ok = false;
+			}
+
+			if ( $ok ) {
 				$deleted++;
-				$food_path = meal_food_dir() . $filename;
-				if ( is_file( $food_path ) ) {
-					unlink( $food_path );
-				}
 			} else {
 				$errors[] = sprintf( __( 'Не удалось удалить: %s', 'meal-menu' ), $filename );
 			}
@@ -210,7 +223,9 @@ class Ajax {
 				$dept = $db->get_department( $type );
 
 				$existing = $is_camp ? $db->get_camp_templates( $type ) : $db->get_templates( $type );
+				$old_days = array();
 				foreach ( $existing as $tpl ) {
+					$old_days[ (int) $tpl['id'] ] = (int) $tpl['day_number'];
 					if ( $is_camp ) {
 						$db->delete_camp_template( (int) $tpl['id'] );
 					} else {
@@ -236,6 +251,17 @@ class Ajax {
 					}
 					$imported++;
 				}
+
+				// Перепривязываем дни календаря к новым шаблонам по номеру дня,
+				// иначе подписи «Меню № N» пропадут после замены шаблонов.
+				$new_map = $is_camp ? $db->get_camp_templates_ordered( $type ) : $db->get_templates_ordered( $type );
+				$remap   = array();
+				foreach ( $old_days as $old_id => $day_number ) {
+					if ( isset( $new_map[ $day_number ] ) ) {
+						$remap[ $old_id ] = (int) $new_map[ $day_number ];
+					}
+				}
+				$db->remap_calendar_templates( $is_camp, $remap );
 
 				\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true, 'imported' => $imported ) );
@@ -300,8 +326,10 @@ class Ajax {
 			$db   = DB::instance();
 			$dept = $db->get_department( $type );
 
-			$existing = $is_camp ? $db->get_camp_templates( $type ) : $db->get_templates( $type );
+			$existing  = $is_camp ? $db->get_camp_templates( $type ) : $db->get_templates( $type );
+			$old_days  = array();
 			foreach ( $existing as $tpl ) {
+				$old_days[ (int) $tpl['id'] ] = (int) $tpl['day_number'];
 				if ( $is_camp ) {
 					$db->delete_camp_template( (int) $tpl['id'] );
 				} else {
@@ -327,6 +355,17 @@ class Ajax {
 				}
 				$imported++;
 			}
+
+			// Перепривязываем дни календаря к новым шаблонам по номеру дня,
+			// иначе подписи «Меню № N» пропадут после замены шаблонов.
+			$new_map = $is_camp ? $db->get_camp_templates_ordered( $type ) : $db->get_templates_ordered( $type );
+			$remap   = array();
+			foreach ( $old_days as $old_id => $day_number ) {
+				if ( isset( $new_map[ $day_number ] ) ) {
+					$remap[ $old_id ] = (int) $new_map[ $day_number ];
+				}
+			}
+			$db->remap_calendar_templates( $is_camp, $remap );
 
 			\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 			wp_send_json( array( 'ok' => true, 'imported' => $imported ) );

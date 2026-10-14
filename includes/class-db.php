@@ -113,6 +113,40 @@ class DB {
 		$this->wpdb->query( $sql );
 	}
 
+	/**
+	 * Переназначить ссылки календаря на новые id шаблонов.
+	 * Нужно после импорта/замены шаблонов: шаблоны пересоздаются с новыми id,
+	 * а дни календаря иначе останутся ссылаться на удалённые записи (подпись «Меню № N» пропадёт).
+	 *
+	 * @param array<int,int> $remap Карта «старый id шаблона => новый id».
+	 * @return int Число обновлённых дней календаря.
+	 */
+	public function remap_calendar_templates( bool $is_camp, array $remap ): int {
+		if ( empty( $remap ) ) {
+			return 0;
+		}
+		$table   = $this->t( $is_camp ? 'camp_calendar' : 'calendar' );
+		$updated = 0;
+		foreach ( $remap as $old_id => $new_id ) {
+			$old_id = (int) $old_id;
+			$new_id = (int) $new_id;
+			if ( $old_id < 1 || $new_id < 1 || $old_id === $new_id ) {
+				continue;
+			}
+			$rows = $this->wpdb->update(
+				$table,
+				array( 'template_id' => $new_id ),
+				array( 'template_id' => $old_id ),
+				array( '%d' ),
+				array( '%d' )
+			);
+			if ( $rows ) {
+				$updated += (int) $rows;
+			}
+		}
+		return $updated;
+	}
+
 	public function set_template_boarding( int $id, int $is_boarding ): void {
 		$t = $this->t( 'templates' );
 		$this->wpdb->update(

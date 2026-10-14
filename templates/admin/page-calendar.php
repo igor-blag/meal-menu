@@ -99,9 +99,9 @@ $weekdays   = array( 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс' );
 $suffix      = $cur_dept ? $cur_dept['file_suffix'] : '';
 $merge_suffix = $merge_dept ? $merge_dept['file_suffix'] : '';
 
-$upload_dir = wp_upload_dir();
-$files_dir  = $upload_dir['basedir'] . '/meal-menu';
-$files_url  = $upload_dir['baseurl'] . '/meal-menu';
+// Наличие файла определяем по папке публикации (meal_food_dir, по умолчанию /food/),
+// чтобы удаление опубликованной копии сразу отражалось в календаре.
+$files_dir = untrailingslashit( meal_food_dir() );
 
 $all_suffixes = array( $suffix );
 if ( $merge_with && $merge_suffix !== $suffix ) {
