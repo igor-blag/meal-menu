@@ -439,6 +439,13 @@ foreach ( $enabled_depts as $dep ) {
 				$tm_path = $_meal_dir . "/tm{$year}-{$gt}.xlsx";
 				if ( ! file_exists( $tm_path ) ) {
 					\Meal_Menu\Excel_TM::generate( $gt, $year, $is_camp );
+					continue;
+				}
+				// Исходный TM уже существует. Так как генерация пропускается,
+				// отдельно восстанавливаем публичную копию, если она отсутствует.
+				$published = meal_food_dir() . basename( $tm_path );
+				if ( ! file_exists( $published ) ) {
+					meal_publish_file( $tm_path );
 				}
 			}
 		}
