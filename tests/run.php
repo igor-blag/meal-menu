@@ -49,6 +49,10 @@ function read_xlsx_cell( string $path, string $cell ): string {
 		return $value;
 	} finally { unset( $zip ); unlink( $zip_path ); }
 }
+function read_xlsx_cell_or_empty( string $path, string $cell ): string {
+	try { return read_xlsx_cell( $path, $cell ); }
+	catch ( RuntimeException $error ) { return ''; } // Незаписанная ячейка и пустая ячейка значат одно и то же.
+}
 
 $tests = array(
 	'merged calendar chooses primary template and preserves schedule flags' => static function( Test_DB $db ): void {
@@ -214,6 +218,32 @@ $tests = array(
 		expect_same( null, \Meal_Menu\Excel_Daily::generate( '2026-10-06', 'sm' ), 'Missing local template does not generate senior Excel' );
 		expect_same( null, \Meal_Menu\Excel_Daily::generate( '2026-10-07', 'sm' ), 'Holiday does not generate Excel' );
 		expect_same( array( $primary, $senior ), $GLOBALS['test_published_files'], 'Only valid department exports are published' );
+	},
+	'filling to the end of month keeps vacation days without a menu' => static function( Test_DB $db ): void {
+		$db->vacations = array( array( 'label' => 'Осенние каникулы', 'date_from' => '2026-10-12', 'date_to' => '2026-10-16' ) );
+		// Popup flow: first day is saved explicitly, the rest of the month comes from apply_cycle.
+		save_request( $db, array( 'action' => 'save', 'type' => 'sm', 'date' => '2026-10-05', 'is_school' => true, 'day_num' => 1, 'is_cycle_start' => 1 ) );
+		$response = save_request( $db, array( 'action' => 'apply_cycle', 'type' => 'sm', 'date' => '2026-10-06', 'start_day' => 2, 'end_date' => '2026-10-31', 'overwrite' => true ) );
+		expect_same( true, $response['ok'], 'Applying the cycle succeeds' );
+		foreach ( array( '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16' ) as $date ) {
+			$row = $db->get_calendar_day( $date, 'main' );
+			expect_same( null, $row['template_id'] ?? null, 'Vacation day must not receive a menu' );
+		}
+		expect_same( 101, (int) $db->get_calendar_day( '2026-10-19', 'main' )['template_id'], 'Five vacation days must not consume cycle numbers (parity of the 2-day cycle)' );
+		// Safety net: a menu left over on a vacation day must not reach the files.
+		$db->save_calendar_day( '2026-10-13', 102, 'Test school', 'Source', 'main', 0, 0 );
+		expect_same( null, \Meal_Menu\Excel_Daily::generate( '2026-10-13', 'main' ), 'A leftover menu on a vacation day produces no daily XLSX' );
+		$db->departments['main']['ignore_vacations'] = 1;
+		save_request( $db, array( 'action' => 'apply_cycle', 'type' => 'main', 'date' => '2026-10-12', 'start_day' => 1, 'end_date' => '2026-10-16', 'overwrite' => true ) );
+		expect_same( 101, (int) $db->get_calendar_day( '2026-10-12', 'main' )['template_id'], 'Department ignoring vacations keeps its schedule' );
+	},
+	'KP keeps vacation days empty' => static function( Test_DB $db ): void {
+		$db->vacations = array( array( 'label' => 'Осенние каникулы', 'date_from' => '2026-10-12', 'date_to' => '2026-10-16' ) );
+		$db->save_calendar_day( '2026-10-01', 101, 'Test school', 'Source', 'main', 1, 0 );   // Рабочий четверг.
+		$db->save_calendar_day( '2026-10-12', 101, 'Test school', 'Source', 'main', 0, 0 );   // Меню осталось на дне каникул.
+		$path = \Meal_Menu\Excel_KP::generate( 2026, 'main' );
+		expect_same( '1', read_xlsx_cell( $path, 'B11' ), 'Working day keeps its cycle number in KP' );
+		expect_same( '', read_xlsx_cell_or_empty( $path, 'M11' ), 'Vacation day stays empty in KP' );
 	},
 );
 

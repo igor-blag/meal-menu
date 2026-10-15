@@ -11,6 +11,10 @@ class Excel_KP {
 		$db      = DB::instance();
 		$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 		$cal_data = $is_camp ? $db->get_camp_calendar_year( $year, $data_type ) : $db->get_calendar_year( $year, $data_type );
+		// Каникулы не рабочие дни: в план-графике они остаются пустыми, даже если меню осталось от старого заполнения.
+		$vacation_days = ( ! $is_camp && ! $db->ignores_vacations( $data_type ) )
+			? $db->get_vacation_days_for_range( sprintf( '%04d-01-01', $year ), sprintf( '%04d-12-31', $year ) )
+			: array();
 
 		$upload_dir = wp_upload_dir();
 		$meal_dir   = $upload_dir['basedir'] . '/meal-menu';
@@ -22,9 +26,9 @@ class Excel_KP {
 		if ( file_exists( $filepath ) ) {
 			$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load( $filepath );
 			$sheet       = $spreadsheet->getActiveSheet();
-			self::update_day_cells( $sheet, $year, $cal_data );
+			self::update_day_cells( $sheet, $year, $cal_data, $vacation_days );
 		} else {
-			$spreadsheet = self::create( $year, $cal_data );
+			$spreadsheet = self::create( $year, $cal_data, $vacation_days );
 			$sheet       = $spreadsheet->getActiveSheet();
 		}
 
@@ -33,7 +37,7 @@ class Excel_KP {
 		return $filepath;
 	}
 
-	private static function create( int $year, array $cal_data ): \PhpOffice\PhpSpreadsheet\Spreadsheet {
+	private static function create( int $year, array $cal_data, array $vacation_days ): \PhpOffice\PhpSpreadsheet\Spreadsheet {
 		$month_names_ru = array(
 			1 => 'январь', 2 => 'февраль', 3 => 'март',  4 => 'апрель',
 			5 => 'май',    6 => 'июнь',    9 => 'сентябрь', 10 => 'октябрь',
@@ -89,7 +93,7 @@ class Excel_KP {
 		foreach ( $school_months as $month ) {
 			$sheet->setCellValue( 'A' . $row, $month_names_ru[ $month ] );
 			$sheet->getStyle( 'A' . $row )->getAlignment()->setHorizontal( \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER );
-			self::fill_month_row( $sheet, $row, $year, $month, $cal_data );
+			self::fill_month_row( $sheet, $row, $year, $month, $cal_data, $vacation_days );
 			$row++;
 		}
 
@@ -106,7 +110,7 @@ class Excel_KP {
 		return $spreadsheet;
 	}
 
-	private static function fill_month_row( $sheet, int $row, int $year, int $month, array $cal_data ): void {
+	private static function fill_month_row( $sheet, int $row, int $year, int $month, array $cal_data, array $vacation_days ): void {
 		$days_in_month = (int) ( new \DateTime( sprintf( '%04d-%02d-01', $year, $month ) ) )->format( 't' );
 		for ( $d = 1; $d <= 31; $d++ ) {
 			$col_letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex( $d + 1 );
@@ -125,6 +129,11 @@ class Excel_KP {
 				continue;
 			}
 
+			if ( isset( $vacation_days[ $date_str ] ) ) {
+				$sheet->setCellValue( $cell_ref, null );
+				continue;
+			}
+
 			if ( isset( $cal_data[ $date_str ] ) && $cal_data[ $date_str ]['template_id'] !== null ) {
 				$day_num = (int) $cal_data[ $date_str ]['day_number'];
 				$sheet->setCellValue( $cell_ref, $day_num );
@@ -135,11 +144,11 @@ class Excel_KP {
 		}
 	}
 
-	private static function update_day_cells( $sheet, int $year, array $cal_data ): void {
+	private static function update_day_cells( $sheet, int $year, array $cal_data, array $vacation_days ): void {
 		$school_months = array( 1, 2, 3, 4, 5, 6, 9, 10, 11, 12 );
 		$row = 4;
 		foreach ( $school_months as $month ) {
-			self::fill_month_row( $sheet, $row, $year, $month, $cal_data );
+			self::fill_month_row( $sheet, $row, $year, $month, $cal_data, $vacation_days );
 			$row++;
 		}
 	}

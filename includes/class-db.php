@@ -421,9 +421,21 @@ class DB {
 		$count = 0;
 		$first = true;
 
+		// Каникулы — не рабочие дни: цикл их не закрашивает и не расходует на них номера.
+		$vacation_days = array();
+		if ( ! $this->ignores_vacations( $type ) ) {
+			$vacation_days = $this->get_vacation_days_for_range( $start_date, $end->format( 'Y-m-d' ) );
+		}
+
 		while ( $cur <= $end ) {
 			$wday = (int) $cur->format( 'N' );
 			$date_str = $cur->format( 'Y-m-d' );
+
+			if ( isset( $vacation_days[ $date_str ] ) ) {
+				$cur->modify( '+1 day' );
+				continue;
+			}
+
 			$existing = $this->get_calendar_day( $date_str, $type );
 
 			$is_scheduled = in_array( $wday, $workdays, true );
@@ -807,6 +819,12 @@ class DB {
 		$t   = $this->t( 'vacations' );
 		$sql = $this->wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE %s BETWEEN date_from AND date_to", $date );
 		return (int) $this->wpdb->get_var( $sql ) > 0;
+	}
+
+	/** Отделения с интернатным режимом питаются и в каникулы. */
+	public function ignores_vacations( string $type ): bool {
+		$dept = $this->get_department( $type );
+		return (bool) ( $dept && ! empty( $dept['ignore_vacations'] ) );
 	}
 
 	public function get_academic_year_for_date( string $date ): string {

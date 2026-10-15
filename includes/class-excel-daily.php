@@ -10,6 +10,10 @@ class Excel_Daily {
 
 		$db   = DB::instance();
 		$dept_info = $db->get_department( $type );
+		if ( ! $is_camp && ! $db->ignores_vacations( $db->get_calendar_source_type( $type ) ) && $db->is_vacation_day( $date ) ) {
+			// Каникулы не относятся к учебному расписанию, даже если меню осталось от старого заполнения.
+			return null;
+		}
 		$cal  = $is_camp ? $db->get_camp_calendar_day( $date, $type ) : $db->get_menu_calendar_day( $date, $type );
 		if ( ! $cal || ! $cal['template_id'] ) {
 			return null;

@@ -9,6 +9,7 @@ define( 'ARRAY_A', 'ARRAY_A' );
 require_once MEAL_MENU_DIR . 'includes/class-db.php';
 require_once MEAL_MENU_DIR . 'includes/class-shortcodes.php';
 require_once MEAL_MENU_DIR . 'includes/class-excel-daily.php';
+require_once MEAL_MENU_DIR . 'includes/class-excel-kp.php';
 
 function __( string $text, string $domain = '' ): string { return $text; }
 function _e( string $text, string $domain = '' ): void { echo $text; }
@@ -71,11 +72,12 @@ class Test_DB extends \Meal_Menu\DB {
 	public array $templates;
 	public array $calendar;
 	public array $items;
+	public array $vacations = array();
 
 	public function __construct() {
 		$this->departments = array(
-			'sm' => array( 'code' => 'sm', 'label' => 'Primary', 'dept_name' => 'Primary department', 'is_enabled' => 1, 'merged_with' => 'main', 'file_suffix' => '-sm' ),
-			'main' => array( 'code' => 'main', 'label' => 'Senior', 'dept_name' => 'Senior department', 'is_enabled' => 1, 'merged_with' => '', 'file_suffix' => '' ),
+			'sm' => array( 'code' => 'sm', 'label' => 'Primary', 'dept_name' => 'Primary department', 'is_enabled' => 1, 'merged_with' => 'main', 'file_suffix' => '-sm', 'workdays' => '1,2,3,4,5' ),
+			'main' => array( 'code' => 'main', 'label' => 'Senior', 'dept_name' => 'Senior department', 'is_enabled' => 1, 'merged_with' => '', 'file_suffix' => '', 'workdays' => '1,2,3,4,5' ),
 		);
 		$this->templates = array(
 			101 => array( 'id' => 101, 'school_type' => 'main', 'day_number' => 1, 'label' => 'Senior day 1', 'is_boarding' => 1 ),
@@ -137,6 +139,15 @@ class Test_DB extends \Meal_Menu\DB {
 		}
 		return $rows;
 	}
+	public function get_calendar_year( int $year, string $type ): array {
+		$rows = array();
+		foreach ( array_keys( $this->calendar[ $type ] ?? array() ) as $date ) {
+			if ( str_starts_with( $date, sprintf( '%04d-', $year ) ) ) {
+				$rows[ $date ] = $this->get_calendar_day( $date, $type );
+			}
+		}
+		return $rows;
+	}
 	public function save_calendar_day( string $date, ?int $template_id, ?string $school, ?string $dept, string $type = 'sm', int $is_cycle_start = 0, int $iterate_number = 0 ): void {
 		$this->calendar[ $type ][ $date ] = $this->row( $date, $type, $template_id, $is_cycle_start, $iterate_number );
 		$this->calendar[ $type ][ $date ]['school'] = $school;
@@ -153,6 +164,25 @@ class Test_DB extends \Meal_Menu\DB {
 	public function get_org_name(): string { return 'Test school'; }
 	public function is_kindergarten(): bool { return false; }
 	public function is_camp_period_for_month( string $type, int $year, int $month ): bool { return false; }
-	public function get_vacation_days_for_range( string $from, string $to ): array { return array(); }
+	public function is_vacation_day( string $date ): bool {
+		foreach ( $this->vacations as $vac ) {
+			if ( $date >= $vac['date_from'] && $date <= $vac['date_to'] ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	public function get_vacation_days_for_range( string $from, string $to ): array {
+		$days = array();
+		foreach ( $this->vacations as $vac ) {
+			$cur = new \DateTime( max( $vac['date_from'], $from ) );
+			$end = new \DateTime( min( $vac['date_to'], $to ) );
+			while ( $cur <= $end ) {
+				$days[ $cur->format( 'Y-m-d' ) ] = array( 'label' => $vac['label'] );
+				$cur->modify( '+1 day' );
+			}
+		}
+		return $days;
+	}
 	public function get_effective_holidays( string $from, string $to ): array { return array(); }
 }
