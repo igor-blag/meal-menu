@@ -5,7 +5,7 @@
 </head>
 <body>
 <h1>8. Публичная часть (шорткоды)</h1>
-<p><strong>Файлы:</strong> <code>includes/class-core.php</code> (метод <code>render_calendar_body</code>), <code>templates/public/day.php</code></p>
+<p><strong>Файлы:</strong> <code>includes/class-shortcodes.php</code> (метод <code>render_calendar_body</code>), <code>includes/ajax/ajax-get-day-menu.php</code>, <code>templates/public/day.php</code></p>
 <p><strong>CSS:</strong> <code>assets/css/public.css</code> (структурные классы) + <code>assets/css/themes.css</code> (палитры/стили)</p>
 
 <h2>Архитектура</h2>
@@ -14,7 +14,7 @@
 <p>Каждый шаблон обёрнут в <code>.meal-wrapper.palette-*.layout-*</code> — это определяет, какие CSS-переменные активны. Классы палитры и стиля берутся из <code>get_option('meal_theme_palette')</code> и <code>get_option('meal_theme_layout')</code>.</p>
 
 <h2>[meal_calendar] / блок «Календарь питания»</h2>
-<p>Публичный календарь питания для родителей. Рендерится методом <code>Core::shortcode_calendar()</code> + <code>Core::render_calendar_body()</code>.</p>
+<p>Публичный календарь питания для родителей. Рендерится методом <code>Shortcodes::shortcode_calendar()</code> + <code>Shortcodes::render_calendar_body()</code>.</p>
 <p>С версии 1.0.0 доступен также <strong>Gutenberg-блок</strong> «Календарь питания» (<code>meal-menu/calendar</code>). Блок поддерживает выбор типа школы, палитры, макета и отображение OC-спойлера. Подробнее: <a href="gutenberg-block.html">документация блока</a>.</p>
 <ul>
 <li><strong>AJAX-навигация:</strong> переключение месяцев и вкладок отделений без перезагрузки страницы (<code>admin-ajax.php?action=meal_get_calendar</code>)</li>
@@ -23,6 +23,8 @@
 <li><strong>Адаптивность:</strong> на мобильных — горизонтальный скролл сетки, скрытие подписей, вся ячейка кликабельна</li>
 <li><strong>Цветовая маркировка:</strong> зелёный (меню), голубой (каникулы), розовый (праздник), серый (выходные)</li>
 </ul>
+<p>У объединённых отделений календарь общий, но ссылка меню дня сохраняет код выбранного отделения. По номеру дня из общего календаря выбирается собственный шаблон этого отделения; ID шаблонов разных отделений могут отличаться. Та же логика применяется к AJAX-модалке и шорткоду <code>meal_day</code>. Если локального шаблона нет, меню и ссылка скачивания не показываются вместо подстановки блюд источника.</p>
+<p>С версии 2.0.9 ключи кеша календаря обновлены, поэтому прежний HTML с неверным отделением не используется. AJAX-меню дня формируется из текущих данных при каждом запросе. Внешний кеш страниц/CDN после обновления нужно очистить.</p>
 
 <h2>[meal_day date="2025-06-01" type="sm"]</h2>
 <p>Детальное меню на конкретный день с таблицей nutritional data.</p>
@@ -30,8 +32,9 @@
 <li><strong>CSS-классы:</strong> <code>.meal-block</code>, <code>.meal-block-title</code>, <code>.meal-table</code>, <code>.section-row</code>, <code>.num</code>, <code>.meal-notice</code>, <code>.meal-download-btn</code></li>
 <li>Группировка по приёмам пищи (Завтрак, Завтрак 2, Обед, ...)</li>
 <li>Секции внутри приёма (закуска, 1 блюдо, 2 блюдо, гарнир, напиток)</li>
-<li>Ссылка на скачивание xlsx (если файл существует)</li>
+<li>Ссылка на скачивание xlsx, если есть собственное меню дня и опубликованный файл</li>
 </ul>
+<p>Старые ошибочные XLSX не исправляются и не удаляются обновлением кода. Их нужно пересоздать, а при отсутствии собственных шаблонов — удалить через «Файлы»; см. <a href="excel-generators.html#regeneration">повторную генерацию после обновления</a>.</p>
 
 <h2>Шрифты</h2>
 <p>Source Serif 4 (с засечками) — по умолчанию. Файлы <code>.ttf</code> в <code>assets/fonts/</code>, подключаются через <code>@font-face</code> в <code>public.css</code>. Шрифт можно изменить через выбор стиля (sans-serif для Modern и Air).</p>

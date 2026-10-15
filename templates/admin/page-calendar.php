@@ -33,7 +33,8 @@ $data_type = $type;
 $merge_with = null;
 $merge_dept = null;
 if ( ! $is_camp ) {
-	$merge_with = $cur_dept && ! empty( $cur_dept['merged_with'] ) && isset( $dept_map[ $cur_dept['merged_with'] ] ) ? $cur_dept['merged_with'] : null;
+	$source_type = $db->get_calendar_source_type( $type );
+	$merge_with = $source_type !== $type ? $source_type : null;
 	$merge_dept = $merge_with ? $dept_map[ $merge_with ] : null;
 	if ( $merge_with ) {
 		$merge_label = ! empty( $merge_dept['dept_name'] ) ? $merge_dept['dept_name'] : $merge_dept['label'];
@@ -96,23 +97,17 @@ $today_str  = $today->format( 'Y-m-d' );
 $month_ru   = array( '', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
 	'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь' );
 $weekdays   = array( 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс' );
-$suffix      = $cur_dept ? $cur_dept['file_suffix'] : '';
-$merge_suffix = $merge_dept ? $merge_dept['file_suffix'] : '';
 
 // Наличие файла определяем по папке публикации (meal_food_dir, по умолчанию /food/),
 // чтобы удаление опубликованной копии сразу отражалось в календаре.
 $files_dir = untrailingslashit( meal_food_dir() );
 
-$all_suffixes = array( $suffix );
-if ( $merge_with && $merge_suffix !== $suffix ) {
-	$all_suffixes[] = $merge_suffix;
-}
-foreach ( $enabled_depts as $dep ) {
-	if ( $dep['code'] !== $type && ! empty( $dep['merged_with'] ) && $dep['merged_with'] === $type ) {
-		$dep_suffix = $dep['file_suffix'];
-		if ( ! in_array( $dep_suffix, $all_suffixes, true ) ) {
-			$all_suffixes[] = $dep_suffix;
-		}
+$all_suffixes = array();
+$group_types = $is_camp ? array( $type ) : $db->get_calendar_group_types( $type );
+foreach ( $group_types as $group_type ) {
+	$dep_suffix = $dept_map[ $group_type ]['file_suffix'];
+	if ( ! in_array( $dep_suffix, $all_suffixes, true ) ) {
+		$all_suffixes[] = $dep_suffix;
 	}
 }
 

@@ -16,6 +16,8 @@ rsync -a \
   --exclude='.gitignore' \
   --exclude='node_modules/' \
   --exclude='docs/' \
+  --exclude='reference/' \
+  --exclude='tests/' \
   --exclude='blocks/meal-calendar/src/' \
   --exclude='package.json' \
   --exclude='package-lock.json' \

@@ -2,11 +2,6 @@
 defined( 'ABSPATH' ) || exit;
 
 $is_camp = ! empty( $_GET['camp'] );
-$cache_key = 'meal_day_' . $date . '_' . $type . '_' . ( $is_camp ? '1' : '0' );
-$cached = get_transient( $cache_key );
-if ( $cached !== false ) {
-	wp_send_json( array( 'ok' => true, 'html' => $cached ) );
-}
 
 if ( $is_camp ) {
 	$c  = $db->get_table_name( 'camp_calendar' );
@@ -19,15 +14,15 @@ if ( $is_camp ) {
 }
 global $wpdb;
 
-$cal = $wpdb->get_row( $wpdb->prepare(
+$cal = $is_camp ? $wpdb->get_row( $wpdb->prepare(
 	"SELECT c.*, mt.day_number, mt.label, mt.is_boarding
 	 FROM $c c
 	 JOIN $t mt ON mt.id = c.template_id
 	 WHERE c.date = %s AND c.school_type = %s AND c.template_id IS NOT NULL",
 	$date, $type
-), ARRAY_A );
+), ARRAY_A ) : $db->get_menu_calendar_day( $date, $type );
 
-if ( ! $cal ) {
+if ( ! $cal || ! $cal['template_id'] ) {
 	wp_send_json( array( 'ok' => false, 'html' => '<p>' . __( 'Меню на этот день не опубликовано.', 'meal-menu' ) . '</p>' ) );
 }
 
@@ -108,5 +103,3 @@ wp_send_json( array(
 	'ok'   => true,
 	'html' => $html,
 ) );
-
-set_transient( $cache_key, $html, HOUR_IN_SECONDS * 12 );

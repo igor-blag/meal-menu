@@ -16,22 +16,13 @@ $req_type = $_GET['meal_type'] ?? '';
 $type = $req_type && in_array( $req_type, $valid_types, true ) ? $req_type : ( $atts['type'] && in_array( $atts['type'], $valid_types, true ) ? $atts['type'] : ( $valid_types[0] ?? 'sm' ) );
 
 $dept = $db->get_department( $type );
-$real_type = ( $dept && ! empty( $dept['merged_with'] ) ) ? $dept['merged_with'] : $type;
 
 $dt = new \DateTimeImmutable( $date );
 
-$c = $db->get_table_name( 'calendar' );
-$t = $db->get_table_name( 'templates' );
 global $wpdb;
-$cal = $wpdb->get_row( $wpdb->prepare(
-	"SELECT c.*, mt.day_number, mt.label, mt.is_boarding
-	 FROM $c c
-	 JOIN $t mt ON mt.id = c.template_id
-	 WHERE c.date = %s AND c.school_type = %s AND c.template_id IS NOT NULL",
-	$date, $real_type
-), ARRAY_A );
+$cal = $db->get_menu_calendar_day( $date, $type );
 
-if ( ! $cal ) {
+if ( ! $cal || ! $cal['template_id'] ) {
 	$no_menu = true;
 } else {
 	$no_menu = false;
@@ -62,9 +53,9 @@ $day_str = $day_names[ $dow ] . ', ' . (int) $dt->format( 'd' ) . ' ' . $month_n
 $upload_dir = wp_upload_dir();
 $meal_dir   = $upload_dir['basedir'] . '/meal-menu';
 $files_url  = $upload_dir['baseurl'] . '/meal-menu';
-$suffix     = ( $type !== 'main' ) ? "-{$type}" : '';
+$suffix     = $dept ? $dept['file_suffix'] : ( ( $type !== 'main' ) ? "-{$type}" : '' );
 $xls_name   = $date . $suffix . '.xlsx';
-$has_xls    = file_exists( $meal_dir . '/' . $xls_name );
+$has_xls    = ! $no_menu && file_exists( $meal_dir . '/' . $xls_name );
 
 $palette = get_option( 'meal_theme_palette', 'retro' );
 $layout  = get_option( 'meal_theme_layout', 'classic' );

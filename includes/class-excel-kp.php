@@ -9,14 +9,7 @@ class Excel_KP {
 		require_once MEAL_MENU_DIR . 'vendor/autoload.php';
 
 		$db      = DB::instance();
-		$dept_info = $db->get_department( $type );
-		$data_type = $type;
-		if ( ! $is_camp && $dept_info && ! empty( $dept_info['merged_with'] ) ) {
-			$target = $db->get_department( $dept_info['merged_with'] );
-			if ( $target ) {
-				$data_type = $target['code'];
-			}
-		}
+		$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 		$cal_data = $is_camp ? $db->get_camp_calendar_year( $year, $data_type ) : $db->get_calendar_year( $year, $data_type );
 
 		$upload_dir = wp_upload_dir();

@@ -98,6 +98,8 @@ class Shortcodes {
 
 	public static function invalidate_calendar_cache(): void {
 		global $wpdb;
+		// SQL удаляет transients из БД, но не из Redis/Memcached. Новый ключ обходит оба хранилища.
+		update_option( 'meal_calendar_cache_version', (int) get_option( 'meal_calendar_cache_version', 0 ) + 1, false );
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_meal_cal_%'" );
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_meal_cal_%'" );
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_meal_day_%'" );
@@ -105,7 +107,8 @@ class Shortcodes {
 	}
 
 	public static function render_calendar_body( string $type, int $year, int $month, bool $is_camp = false ): string {
-		$cache_key = 'meal_cal_' . sanitize_key( $type ) . '_' . $year . '_' . $month . '_' . ( $is_camp ? '1' : '0' );
+		$cache_version = (int) get_option( 'meal_calendar_cache_version', 0 );
+		$cache_key = 'meal_cal_v2_' . $cache_version . '_' . sanitize_key( $type ) . '_' . $year . '_' . $month . '_' . ( $is_camp ? '1' : '0' );
 		$cached = get_transient( $cache_key );
 		if ( $cached !== false ) {
 			return $cached;
@@ -129,7 +132,6 @@ class Shortcodes {
 				return 'Летний лагерь';
 			}, $camp_types ) );
 			$dept = $db->get_department( $type );
-			$real_type = $type;
 
 			$cal_rows = array();
 			$c = $db->get_table_name( 'camp_calendar' );
@@ -140,7 +142,7 @@ class Shortcodes {
 				 FROM $c c
 				 LEFT JOIN $t mt ON mt.id = c.template_id
 				 WHERE c.school_type = %s AND c.date >= %s AND c.date <= %s",
-				$real_type,
+				$type,
 				sprintf( '%04d-%02d-01', $year, $month ),
 				gmdate( 'Y-m-t', strtotime( sprintf( '%04d-%02d-01', $year, $month ) ) )
 			), ARRAY_A ) ?: array();
@@ -164,24 +166,7 @@ class Shortcodes {
 			}
 
 			$dept = $db->get_department( $type );
-			$real_type = ( $dept && ! empty( $dept['merged_with'] ) ) ? $dept['merged_with'] : $type;
-
-			$cal_rows = array();
-			$c = $db->get_table_name( 'calendar' );
-			$t = $db->get_table_name( 'templates' );
-			global $wpdb;
-			$rows = $wpdb->get_results( $wpdb->prepare(
-				"SELECT c.date, c.template_id, mt.day_number, mt.label
-				 FROM $c c
-				 LEFT JOIN $t mt ON mt.id = c.template_id
-				 WHERE c.school_type = %s AND c.date >= %s AND c.date <= %s",
-				$real_type,
-				sprintf( '%04d-%02d-01', $year, $month ),
-				gmdate( 'Y-m-t', strtotime( sprintf( '%04d-%02d-01', $year, $month ) ) )
-			), ARRAY_A ) ?: array();
-			foreach ( $rows as $r ) {
-				$cal_rows[ $r['date'] ] = $r;
-			}
+			$cal_rows = $db->get_menu_calendar_month( $year, $month, $type );
 		}
 
 		$today_dt = new \DateTimeImmutable( current_time( 'Y-m-d' ) );
@@ -249,7 +234,7 @@ class Shortcodes {
 				$is_weekend = $dow >= 6;
 				$entry      = $cal_rows[ $date_str ] ?? null;
 				$has_menu   = $entry && $entry['template_id'] !== null;
-				$is_holiday = $entry && $entry['template_id'] === null;
+				$is_holiday = $entry && $entry['template_id'] === null && empty( $entry['menu_missing'] );
 
 				$vac_day = $vacation_days[ $date_str ] ?? null;
 				$is_vacation = (bool) $vac_day;
@@ -266,7 +251,7 @@ class Shortcodes {
 			<div class="<?php echo implode( ' ', $classes ); ?>">
 				<div class="meal-cal-day"><?php echo $d; ?></div>
 				<?php if ( $has_menu ): ?>
-				<a class="meal-cal-link meal-menu-trigger" href="#" data-date="<?php echo esc_attr( $date_str ); ?>" data-type="<?php echo esc_attr( $real_type ?? $type ); ?>" data-camp="<?php echo $is_camp ? '1' : '0'; ?>"><?php echo esc_html( $entry['label'] ?? __( 'Меню', 'meal-menu' ) ); ?></a>
+				<a class="meal-cal-link meal-menu-trigger" href="#" data-date="<?php echo esc_attr( $date_str ); ?>" data-type="<?php echo esc_attr( $type ); ?>" data-camp="<?php echo $is_camp ? '1' : '0'; ?>"><?php echo esc_html( $entry['label'] ?? __( 'Меню', 'meal-menu' ) ); ?></a>
 				<?php elseif ( $is_holiday ): ?>
 				<div class="meal-holiday-label"><?php _e( 'Выходной', 'meal-menu' ); ?></div>
 				<?php endif; ?>

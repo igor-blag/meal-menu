@@ -226,7 +226,7 @@ class DB {
 		$c = $this->t( 'calendar' );
 		$t = $this->t( 'templates' );
 		$sql = $this->wpdb->prepare(
-			"SELECT c.*, t.label AS template_label, t.is_boarding
+			"SELECT c.*, t.day_number, t.label AS template_label, t.is_boarding
 			 FROM $c c
 			 LEFT JOIN $t t ON t.id = c.template_id
 			 WHERE c.date = %s AND c.school_type = %s",
@@ -243,7 +243,7 @@ class DB {
 		$c = $this->t( 'calendar' );
 		$t = $this->t( 'templates' );
 		$sql = $this->wpdb->prepare(
-			"SELECT c.*, t.label AS template_label
+			"SELECT c.*, t.day_number, t.label AS template_label
 			 FROM $c c
 			 LEFT JOIN $t t ON t.id = c.template_id
 			 WHERE c.date BETWEEN %s AND %s AND c.school_type = %s",
@@ -257,6 +257,78 @@ class DB {
 			$result[ $row['date'] ] = $row;
 		}
 		return $result;
+	}
+
+	/** Общий календарь хранит только расписание; блюда всегда принадлежат своему отделению. */
+	public function get_calendar_source_type( string $type ): string {
+		$source = $type;
+		$seen   = array();
+		while ( ! isset( $seen[ $source ] ) ) {
+			$seen[ $source ] = true;
+			$dept = $this->get_department( $source );
+			$next = $dept['merged_with'] ?? '';
+			if ( empty( $next ) ) {
+				return $source;
+			}
+			$target = $this->get_department( $next );
+			if ( ! $target || empty( $target['is_enabled'] ) ) {
+				return $type;
+			}
+			$source = $next;
+		}
+		// Повреждённая/циклическая настройка не должна подменять возрастную группу.
+		return $type;
+	}
+
+	/** Все отделения, использующие одно расписание (включая источник и соседние отделения). */
+	public function get_calendar_group_types( string $type ): array {
+		$source = $this->get_calendar_source_type( $type );
+		$types  = array( $type );
+		foreach ( $this->get_enabled_departments() as $dept ) {
+			if ( $this->get_calendar_source_type( $dept['code'] ) === $source ) {
+				$types[] = $dept['code'];
+			}
+		}
+		return array_values( array_unique( $types ) );
+	}
+
+	public function get_menu_calendar_day( string $date, string $type = 'sm' ): ?array {
+		$row = $this->get_calendar_day( $date, $this->get_calendar_source_type( $type ) );
+		$templates = array_column( $this->get_templates( $type ), null, 'day_number' );
+		return $row ? $this->resolve_menu_calendar_row( $row, $type, $templates ) : null;
+	}
+
+	public function get_menu_calendar_month( int $year, int $month, string $type = 'sm' ): array {
+		$rows = $this->get_calendar_month( $year, $month, $this->get_calendar_source_type( $type ) );
+		$templates = array_column( $this->get_templates( $type ), null, 'day_number' );
+		foreach ( $rows as $date => $row ) {
+			$rows[ $date ] = $this->resolve_menu_calendar_row( $row, $type, $templates );
+		}
+		return $rows;
+	}
+
+	private function resolve_menu_calendar_row( array $row, string $type, array $templates ): array {
+		$source_template = $row['template_id'];
+		$day_number = (int) ( $row['day_number'] ?? 0 );
+		$row['school_type']    = $type;
+		$row['template_id']    = null;
+		$row['template_label'] = null;
+		$row['label']          = null;
+		$row['is_boarding']    = 0;
+		$row['menu_missing']   = $source_template !== null;
+		if ( $source_template === null || ! isset( $templates[ $day_number ] ) ) {
+			return $row;
+		}
+		$template = $templates[ $day_number ];
+		if ( ! $template || $template['school_type'] !== $type ) {
+			return $row;
+		}
+		$row['template_id']    = (int) $template['id'];
+		$row['template_label'] = $template['label'];
+		$row['label']          = $template['label'];
+		$row['is_boarding']    = (int) $template['is_boarding'];
+		$row['menu_missing']   = false;
+		return $row;
 	}
 
 	public function get_calendar_range( string $from, string $to, string $type ): array {

@@ -10,14 +10,7 @@ class Excel_Daily {
 
 		$db   = DB::instance();
 		$dept_info = $db->get_department( $type );
-		$data_type = $type;
-		if ( ! $is_camp && $dept_info && ! empty( $dept_info['merged_with'] ) ) {
-			$target = $db->get_department( $dept_info['merged_with'] );
-			if ( $target ) {
-				$data_type = $target['code'];
-			}
-		}
-		$cal  = $is_camp ? $db->get_camp_calendar_day( $date, $data_type ) : $db->get_calendar_day( $date, $data_type );
+		$cal  = $is_camp ? $db->get_camp_calendar_day( $date, $type ) : $db->get_menu_calendar_day( $date, $type );
 		if ( ! $cal || ! $cal['template_id'] ) {
 			return null;
 		}

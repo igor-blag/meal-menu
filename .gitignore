@@ -4,4 +4,4 @@
 *.zip
 node_modules/
 opencode.json
-AGENTS.md
+reference/

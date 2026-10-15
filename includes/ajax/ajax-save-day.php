@@ -9,29 +9,11 @@ foreach ( $enabled_depts as $dep ) {
 	$dept_by_code[ $dep['code'] ] = $dep;
 }
 
-	function get_merge_types( $type, $dept_by_code ) {
-		$types = array( $type );
-		$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-		if ( $merge_with && isset( $dept_by_code[ $merge_with ] ) && $merge_with !== $type ) {
-			$types[] = $merge_with;
-		}
-		foreach ( $dept_by_code as $code => $dep ) {
-			if ( $code !== $type && ! empty( $dep['merged_with'] ) && $dep['merged_with'] === $type ) {
-				$types[] = $code;
-			}
-		}
-		return $types;
-	}
-
 	try {
 		if ( $action === 'save' ) {
 			$date   = $data['date']   ?? '';
 			$type   = in_array( $data['type'] ?? '', $valid_types, true ) ? $data['type'] : 'sm';
-			$data_type = $type;
-			if ( ! $is_camp ) {
-				$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-				$data_type = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-			}
+			$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 			$school = $data['school'] ?? null;
 			$dept   = $data['dept']   ?? null;
 			$is_school      = ! empty( $data['is_school'] );
@@ -69,7 +51,7 @@ foreach ( $enabled_depts as $dep ) {
 			}
 
 			$xls_path = null;
-			$merge_types = $is_camp ? array( $type ) : get_merge_types( $type, $dept_by_code );
+			$merge_types = $is_camp ? array( $type ) : $db->get_calendar_group_types( $type );
 			foreach ( $merge_types as $mt ) {
 				$should_publish = $is_camp
 					? ! empty( $dept_by_code[ $mt ]['camp_publish_xlsx'] ?? null )
@@ -95,11 +77,7 @@ foreach ( $enabled_depts as $dep ) {
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверная дата', 'meal-menu' ) ) );
 		}
-		$data_type = $type;
-		if ( ! $is_camp ) {
-			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-		}
+		$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 		if ( $is_camp ) {
 			$db->delete_camp_calendar_day( $date, $data_type );
 		} else {
@@ -124,11 +102,7 @@ foreach ( $enabled_depts as $dep ) {
 			$end_date = null;
 		}
 
-		$data_type = $type;
-		if ( ! $is_camp ) {
-			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-		}
+		$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 		if ( $is_camp ) {
 			$camp_dept = $dept_by_code['sm'] ?? array();
 			$workdays  = array_map( 'intval', explode( ',', $camp_dept['camp_workdays'] ?? '1,2,3,4,5' ) );
@@ -150,7 +124,7 @@ foreach ( $enabled_depts as $dep ) {
 		if ( $is_camp ) {
 			$db->bulk_save_camp_calendar( $days, $type );
 		} else {
-			$db->bulk_save_calendar( $days, $type );
+			$db->bulk_save_calendar( $days, $db->get_calendar_source_type( $type ) );
 		}
 		\Meal_Menu\Shortcodes::invalidate_calendar_cache();
 		wp_send_json( array( 'ok' => true, 'saved' => count( $days ) ) );
@@ -165,15 +139,11 @@ foreach ( $enabled_depts as $dep ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'Неверное отделение-источник', 'meal-menu' ) ) );
 		}
 
-		$data_type = $type;
-		if ( ! $is_camp ) {
-			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-		}
+		$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 
 		$source_cal = $is_camp
 			? $db->get_camp_calendar_month( $year, $month, $source )
-			: $db->get_calendar_month( $year, $month, $source );
+			: $db->get_calendar_month( $year, $month, $db->get_calendar_source_type( $source ) );
 		if ( empty( $source_cal ) ) {
 			wp_send_json( array( 'ok' => false, 'error' => __( 'В отделении-источнике нет данных за этот месяц', 'meal-menu' ) ) );
 		}
@@ -219,11 +189,7 @@ foreach ( $enabled_depts as $dep ) {
 
 	} elseif ( $action === 'recalc_period' ) {
 		$type   = in_array( $data['type'] ?? '', $valid_types, true ) ? $data['type'] : 'sm';
-		$data_type = $type;
-		if ( ! $is_camp ) {
-			$merge_with = ! empty( $dept_by_code[ $type ]['merged_with'] ) ? $dept_by_code[ $type ]['merged_with'] : null;
-			$data_type  = ( $merge_with && isset( $dept_by_code[ $merge_with ] ) ) ? $merge_with : $type;
-		}
+		$data_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 		$dept   = $dept_by_code[ $data_type ] ?? null;
 		$school = $data['school'] ?? null;
 		$dept_name = $data['dept'] ?? null;
@@ -402,7 +368,7 @@ foreach ( $enabled_depts as $dep ) {
 		$year  = isset( $data['year'] )  ? (int) $data['year']  : (int) current_time( 'Y' );
 		$month = isset( $data['month'] ) ? (int) $data['month'] : (int) current_time( 'n' );
 
-		$gen_types = $is_camp ? array( $type ) : get_merge_types( $type, $dept_by_code );
+		$gen_types = $is_camp ? array( $type ) : $db->get_calendar_group_types( $type );
 
 		$generated = array();
 		$days_in_month = (int) ( new \DateTimeImmutable( "$year-$month-01" ) )->format( 't' );
@@ -425,10 +391,7 @@ foreach ( $enabled_depts as $dep ) {
 				}
 			}
 		}
-		$kp_type = $type;
-		if ( ! $is_camp && ! empty( $dept_by_code[ $kp_type ]['merged_with'] ) ) {
-			$kp_type = $dept_by_code[ $kp_type ]['merged_with'];
-		}
+		$kp_type = $is_camp ? $type : $db->get_calendar_source_type( $type );
 		if ( ! $db->is_kindergarten() && class_exists( '\Meal_Menu\Excel_KP' ) ) {
 			\Meal_Menu\Excel_KP::generate( $year, $kp_type, $is_camp );
 		}

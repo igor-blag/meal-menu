@@ -158,7 +158,7 @@ foreach ( $departments as $d ) {
 							<option value="<?php echo esc_attr( $other['code'] ); ?>"<?php echo $d['merged_with'] === $other['code'] ? ' selected' : ''; ?>><?php echo esc_html( $other['label'] ); ?></option>
 							<?php endforeach; ?>
 						</select>
-						<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Календарь этого отделения будет использовать данные и генерировать файлы вместе с выбранным.', 'meal-menu' ); ?></span>
+						<span class="text-muted" style="font-size:.72rem;display:block;margin-top:4px"><?php _e( 'Общими будут даты и номера дней цикла. Блюда, порции и файлы берутся из собственных шаблонов каждого отделения.', 'meal-menu' ); ?></span>
 					</div>
 				</div>
 				<div class="form-row merge-static-row"<?php echo isset( $merged_into[ $d['code'] ] ) ? '' : ' style="display:none"'; ?>>
